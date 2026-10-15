@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; font-src 'self' file: data:; script-src 'self'">
+  <title>Bulletin Builder</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="toolbar">
+    <button id="open">Open Week…</button>
+    <span class="sep"></span>
+    <button id="zoom-out" title="Zoom out (Ctrl -)">−</button>
+    <span id="zoom-label">100%</span>
+    <button id="zoom-in" title="Zoom in (Ctrl +)">+</button>
+    <button id="zoom-fit" title="Whole spread (Ctrl 0)">Whole spread</button>
+    <span class="sep"></span>
+    <label><input type="checkbox" id="show-guides" checked> Guides</label>
+    <label><input type="checkbox" id="show-halves" checked> Who owns each page</label>
+    <button id="pasteboard-btn">Pasteboard</button>
+    <span id="title"></span>
+    <span id="badge">Read-only preview</span>
+  </header>
+  <div id="body">
+    <nav id="nav"></nav>
+    <main id="stage"><div id="empty">Open a week to begin (File ▸ Open Week…).</div></main>
+  </div>
+  <footer id="status"></footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

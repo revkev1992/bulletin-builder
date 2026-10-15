@@ -1,0 +1,48 @@
+{
+  "name": "bulletin-builder",
+  "productName": "Bulletin Builder",
+  "version": "0.1.0",
+  "description": "Weekly worship bulletin layout tool for Highland UMC (Publisher replacement).",
+  "main": "src/main.js",
+  "author": "Highland UMC",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "export-pdf": "electron . --export-pdf",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.16.1"
+  },
+  "build": {
+    "appId": "org.highlandumc.bulletinbuilder",
+    "productName": "Bulletin Builder",
+    "files": ["src/**/*", "package.json"],
+    "directories": { "output": "dist" },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "Bulletin-Builder-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createStartMenuShortcut": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Bulletin Builder"
+    },
+    "fileAssociations": [
+      {
+        "ext": "bulletin",
+        "name": "Bulletin",
+        "description": "Bulletin Builder week",
+        "role": "Editor"
+      }
+    ]
+  }
+}
