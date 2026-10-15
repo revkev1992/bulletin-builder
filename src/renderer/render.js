@@ -272,7 +272,12 @@ function applyWrap(textFrame, area, obstacles) {
   const ax = textFrame.x + il, ay = textFrame.y + it;
   const aw = textFrame.w - il - ir, ah = textFrame.h - it - ib;
   const flow = area.querySelector('.flow');
-  const floats = { left: null, right: null };
+  // a line collides only if its TEXT reaches the obstacle: the extra leading of "1.19 sp"-style
+  // spacing may overlap it (calibrated on the 9-20-26 back page: LEARN/GIVE/CONNECT headings)
+  const slack = Math.max(0, ...t.paragraphs.map(extraLeading));
+
+  // 1. each obstacle in front of this frame -> a band on one side: { side, y0, y1, width, full }
+  const bands = { left: [], right: [] };
   for (const o of obstacles) {
     if ((o.z || 0) <= (textFrame.z || 0) || o.id === textFrame.id) continue;
     const [dt, dr, db, dl] = o.wrap.dist || [0, 0, 0, 0];
@@ -284,19 +289,37 @@ function applyWrap(textFrame, area, obstacles) {
     if (o.wrap.type === 'topBottom' || (roomLeft < 36 && roomRight < 36)) { side = 'left'; width = aw; }
     else if (roomLeft <= roomRight) { side = 'left'; width = x1; }
     else { side = 'right'; width = aw - x0; }
-    if (floats[side]) continue; // Phase 1: one obstacle per side
-    // a zero-width spacer holds the obstacle's top offset; the real float clears below it
-    // (shape-outside would be simpler, but Chromium then ignores paragraph indents beside it)
-    // a line collides only if its TEXT reaches the obstacle: the extra leading of "1.19 sp"-style
-    // spacing may overlap it (calibrated on the 9-20-26 back page: LEARN/GIVE/CONNECT headings)
-    const slack = Math.max(0, ...t.paragraphs.map(extraLeading));
-    const spacer = el('div', 'wrap-float', { float: side, width: '0', height: pt(Math.min(y0 + slack, y1)) });
-    const f = el('div', 'wrap-float', { float: side, clear: side, width: pt(width), height: pt(Math.max(0, y1 - Math.min(y0 + slack, y1))) });
-    if (width >= aw - 0.5) f.dataset.full = '1';
-    floats[side] = f;
-    flow.insertBefore(f, flow.firstChild);
-    flow.insertBefore(spacer, f);
+    bands[side].push({ side, y0: Math.min(y0 + slack, y1), y1, width });
   }
+  // 2. overlapping bands on one side merge into one (the wider wins)
+  const merged = [];
+  for (const side of ['left', 'right']) {
+    const list = bands[side].sort((p, q) => p.y0 - q.y0);
+    for (const bd of list) {
+      const prev = merged.filter((m) => m.side === side).pop();
+      if (prev && bd.y0 < prev.y1) { prev.y1 = Math.max(prev.y1, bd.y1); prev.width = Math.max(prev.width, bd.width); }
+      else merged.push({ ...bd });
+    }
+  }
+  // 3. emit floats top to bottom. CSS never places a float above an earlier one, so each band gets a
+  //    zero-width spacer (sized from wherever that spacer will actually land) and then the real
+  //    float, cleared below it. (shape-outside would be simpler, but Chromium then ignores
+  //    paragraph indents beside the shape.)
+  merged.sort((p, q) => p.y0 - q.y0);
+  const sideBottom = { left: 0, right: 0 };
+  let maxTop = 0;
+  const nodes = [];
+  for (const bd of merged) {
+    const spacerTop = Math.max(sideBottom[bd.side], maxTop);
+    const top = Math.max(bd.y0, spacerTop);
+    nodes.push(el('div', 'wrap-float', { float: bd.side, clear: bd.side, width: '0', height: pt(top - spacerTop) }));
+    const f = el('div', 'wrap-float', { float: bd.side, clear: bd.side, width: pt(bd.width), height: pt(Math.max(0, bd.y1 - top)) });
+    if (bd.width >= aw - 0.5) f.dataset.full = '1';
+    nodes.push(f);
+    sideBottom[bd.side] = bd.y1;
+    maxTop = top;
+  }
+  for (const n of nodes.reverse()) flow.insertBefore(n, flow.firstChild);
 }
 
 export function renderPage(week, n) {
