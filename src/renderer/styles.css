@@ -205,3 +205,15 @@ body.print .page { break-after: page; }
 .frame.editing .text-area { overflow: visible; }
 .sel-box.typing { outline: 1.5px solid rgba(43, 125, 233, .35); }
 [hidden] { display: none !important; }
+
+.sel-box.cropping { outline: 1.5px dashed #111; }
+.sel-box.cropping .handle { background: #111; border-color: #fff; width: 10px; height: 4px; margin: -2px 0 0 -5px; border-radius: 0; }
+.sel-box.cropping .h-e, .sel-box.cropping .h-w { width: 4px; height: 10px; margin: -5px 0 0 -2px; }
+.pb-cards { display: flex; flex-wrap: wrap; gap: 14px; zoom: 1 !important; }
+.pb-card { background: #fff; border: 1px solid var(--chrome-line); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.pb-thumb { position: relative; overflow: hidden; }
+.pb-thumb .pasteboard { outline: none; background: transparent; margin: 0; }
+.pb-label { font-size: 11px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#toolbar input[type=number] { width: 56px; }
+#toolbar button { padding: 3px 8px; }

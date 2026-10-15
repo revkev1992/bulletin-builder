@@ -194,6 +194,91 @@ export async function run(editor, { shells, week }) {
   await editor.command('undo');
   ok('undo brings the linked frame back', editor.storyFrames(story).length === 2);
 
+  // ================= 2c: pictures, insert, copy/paste, stacking, pasteboard =================
+  const P2 = 12;
+  editor.select(P2, null); editor.lastPage = P2;
+  const countP2 = () => editor.pageEntry(P2).frames.length;
+
+  // ---- 19. insert a text box and type in it
+  let n0 = countP2();
+  const tb = await editor.command('insert-text');
+  ok('insert text box adds a frame and opens it for typing', countP2() === n0 + 1 && !!editor.textEdit);
+  document.execCommand('selectAll');
+  document.execCommand('insertText', false, 'Hello from the self-test');
+  await editor.endTextEdit();
+  const tbText = editor.anyFrame(P2, tb.id).text.paragraphs.map((p) => p.runs.map((r) => r.text).join('')).join('|');
+  ok('typed into the new text box', tbText === 'Hello from the self-test', { got: tbText });
+
+  // ---- 20. insert line + rectangle
+  n0 = countP2();
+  await editor.command('insert-line');
+  const rect = await editor.command('insert-rect');
+  ok('insert line and rectangle', countP2() === n0 + 2 && rect.shape.type === 'rect');
+
+  // ---- 21. copy / paste / duplicate
+  editor.select(P2, rect.id);
+  await key('c', { ctrlKey: true });
+  n0 = countP2();
+  await key('v', { ctrlKey: true });
+  const pasted = editor.frame();
+  ok('Ctrl+V pastes a copy 9 pt down-right with a new id', countP2() === n0 + 1 && pasted.id !== rect.id && near(pasted.x, rect.x + 9, 0.01) && near(pasted.y, rect.y + 9, 0.01));
+  await key('d', { ctrlKey: true });
+  ok('Ctrl+D duplicates', countP2() === n0 + 2);
+
+  // ---- 22. stacking order
+  const zAll = () => editor.pageEntry(P2).frames.map((f) => f.z || 0);
+  editor.select(P2, rect.id);
+  await editor.command('back');
+  ok('Send to back puts it lowest', editor.topFrame(P2, rect.id).z === Math.min(...zAll()));
+  await editor.command('front');
+  ok('Bring to front puts it highest', editor.topFrame(P2, rect.id).z === Math.max(...zAll()));
+
+  // ---- 23. crop mode: an edge handle crops, the picture itself doesn't move or scale
+  const pic = editor.pageEntry(P2).frames.find((f) => f.kind === 'image' && !f.locked && f.id !== img.id && f.w > 100);
+  editor.select(P2, pic.id);
+  await editor.command('crop');
+  ok('crop mode on', !!editor.crop);
+  const geom = (f) => { const [l, t, r, b] = f.image.crop; const FW = f.w / (1 - l - r), FH = f.h / (1 - t - b); return { FW, FH, ix: f.x - l * FW, iy: f.y - t * FH }; };
+  const g0 = geom(editor.topFrame(P2, pic.id));
+  const sp = scaleOf(P2);
+  const eh = shells.get(P2).querySelector('.handle.h-e');
+  await drag(eh, center(eh), -20 * sp, 0);
+  const pc = editor.topFrame(P2, pic.id);
+  const g1 = geom(pc);
+  ok('crop handle trims the frame by 20 pt', near(pc.w, pic.w - 20, 0.5), { got: pc.w - pic.w });
+  ok('crop keeps the picture in place and at its size', near(g1.FW, g0.FW, 0.1) && near(g1.ix, g0.ix, 0.1) && near(g1.FH, g0.FH, 0.1), { got: [g0, g1] });
+  await drag(frameEl(P2, pic.id), center(frameEl(P2, pic.id)), 8 * sp, 0);
+  const pp = editor.topFrame(P2, pic.id);
+  ok('dragging inside slides the picture, frame stays', near(pp.x, pc.x, 0.01) && near(pp.w, pc.w, 0.01) && near(geom(pp).ix, g1.ix + 8, 0.5), { got: geom(pp).ix - g1.ix });
+  await key('Escape');
+  ok('Esc leaves crop mode', !editor.crop);
+
+  // ---- 24. fit and fill
+  editor.select(P2, pic.id);
+  await editor.command('fill');
+  let pf = editor.topFrame(P2, pic.id);
+  const nat = editor.naturalSize(P2, pic.id);
+  const visAspect = (f) => { const [l, t, r, b] = f.image.crop; return (nat.w * (1 - l - r)) / (nat.h * (1 - t - b)); };
+  ok('Fill: picture covers the frame without distortion', near(visAspect(pf), pf.w / pf.h, 0.01) && pf.image.crop.every((v) => v >= -1e-6), { got: pf.image.crop });
+  await editor.command('fit');
+  pf = editor.topFrame(P2, pic.id);
+  ok('Fit: whole picture visible, no distortion', near(visAspect(pf), pf.w / pf.h, 0.01) && pf.image.crop.every((v) => v <= 1e-6), { got: pf.image.crop });
+
+  // ---- 25. pasteboard round trip
+  editor.select(P2, rect.id);
+  const pbBefore = (W().halves.announcements.pasteboard || []).length;
+  await editor.command('to-pasteboard');
+  ok('To pasteboard removes it from the page', !editor.topFrame(P2, rect.id) && W().halves.announcements.pasteboard.length === pbBefore + 1);
+  await editor.placeFromPasteboard(rect.id, P2);
+  const placed = editor.topFrame(P2, rect.id);
+  ok('Place puts it back, centred on the page', !!placed && near(placed.x + placed.w / 2, W().manifest.page.width / 2, 0.05) && W().halves.announcements.pasteboard.length === pbBefore);
+
+  // ---- 26. insert a picture from a file (re-uses identical bytes already in assets/)
+  const someAsset = W().halves.announcements.pages['12'].frames.find((f) => f.kind === 'image').image.asset;
+  const abs = decodeURIComponent(new URL(someAsset, W().baseUrl).pathname).replace(/^\/([A-Za-z]:)/, '$1');
+  const insPic = await editor.insertPicture(abs);
+  ok('insert picture from file (same bytes reuse the existing asset)', !!insPic && insPic.image.asset === someAsset, { got: insPic && insPic.image.asset });
+
   // ---- 12. save
   ok('dirty before save', editor.dirty === true);
   ok('save succeeds', await editor.save());
@@ -205,6 +290,8 @@ export async function run(editor, { shells, week }) {
   diskChecks.push({ name: 'page 16 locked', page: G, id: grp.id, field: '@page.locked', expect: true });
   diskChecks.push({ name: 'group y', page: G, id: grp.id, field: 'y', expect: editor.topFrame(G, grp.id).y });
   diskChecks.push({ name: 'bold word saved', page: 10, id: head.id, field: 'text.paragraphs.0.runs.0.bold', expect: true });
+  diskChecks.push({ name: 'new text box saved', page: P2, id: tb.id, field: 'text.paragraphs.0.runs.0.text', expect: 'Hello from the self-test' });
+  diskChecks.push({ name: 'fit saved on picture', page: P2, id: pic.id, field: 'image.fit', expect: 'fit' });
   diskChecks.push({ name: 'deleted frame restored', page: P, id: del.id, field: 'id', expect: del.id });
 
   return { checks, diskChecks };

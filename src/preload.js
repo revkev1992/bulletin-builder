@@ -11,4 +11,6 @@ contextBridge.exposeInMainWorld('bb', {
   save: (data) => ipcRenderer.invoke('session:save', data),
   setDirty: (flag) => ipcRenderer.send('doc:dirty', flag),
   closeWindow: () => ipcRenderer.send('app:close-window'),
+  importPicture: (weekFile) => ipcRenderer.invoke('asset:import', weekFile),
+  importPicturePath: (weekFile, src) => ipcRenderer.invoke('asset:import-path', weekFile, src),
 });

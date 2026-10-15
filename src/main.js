@@ -47,6 +47,12 @@ const claims = new Map(); // webContents id -> { file, half }
 const dirty = new Map();  // webContents id -> bool
 
 ipcMain.handle('session:claim', (e, file, half, force) => {
+  // another window of THIS app already editing the same half of the same week
+  for (const [id, c] of claims) {
+    if (id !== e.sender.id && c.half === half && path.resolve(c.file) === path.resolve(file)) {
+      return { ok: false, holder: { user: os.userInfo().username, machine: os.hostname() + ' (another Bulletin Builder window)', since: null } };
+    }
+  }
   const prev = claims.get(e.sender.id);
   if (prev) session.release(prev.file, prev.half);
   claims.delete(e.sender.id);
@@ -65,6 +71,39 @@ ipcMain.handle('session:save', (e, data) => {
   return session.save(c.file, c.half, data);
 });
 ipcMain.on('doc:dirty', (e, flag) => dirty.set(e.sender.id, !!flag));
+
+// copy a picture into the week's assets folder (same bytes = same file) and return its path
+ipcMain.handle('asset:import', async (e, weekFile) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Insert picture',
+    filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }],
+    properties: ['openFile'],
+  });
+  if (r.canceled) return null;
+  return importAsset(weekFile, r.filePaths[0]);
+});
+
+function importAsset(weekFile, src) {
+  const crypto = require('crypto');
+  const dir = path.join(path.dirname(path.resolve(weekFile)), 'assets');
+  fs.mkdirSync(dir, { recursive: true });
+  const bytes = fs.readFileSync(src);
+  const hash = crypto.createHash('sha1').update(bytes).digest('hex');
+  for (const f of fs.readdirSync(dir)) {
+    const p = path.join(dir, f);
+    if (fs.statSync(p).size === bytes.length && crypto.createHash('sha1').update(fs.readFileSync(p)).digest('hex') === hash) {
+      return 'assets/' + f;
+    }
+  }
+  const ext = path.extname(src);
+  const base = path.basename(src, ext).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 100) || 'picture';
+  let name = base + ext;
+  for (let k = 2; fs.existsSync(path.join(dir, name)); k++) name = base + ' (' + k + ')' + ext;
+  fs.writeFileSync(path.join(dir, name), bytes);
+  return 'assets/' + name;
+}
+ipcMain.handle('asset:import-path', (_e, weekFile, src) => importAsset(weekFile, src));
 
 ipcMain.handle('week:choose', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
@@ -200,6 +239,7 @@ async function shot(file, out) {
   const pre = process.argv[process.argv.indexOf('--shot') + 3];
   if (pre && !pre.startsWith('--')) { await win.webContents.executeJavaScript(pre); await new Promise((r) => setTimeout(r, 1500)); }
   fs.writeFileSync(out, (await win.webContents.capturePage()).toPNG());
+  session.releaseAll();
   console.log(JSON.stringify(await win.webContents.executeJavaScript(
     "[...document.querySelectorAll('.frame.overflow')].map(f=>f.closest('[data-page]').dataset.page+':'+f.dataset.id+':'+(f.querySelector('.text-area').scrollHeight-f.querySelector('.text-area').clientHeight))")));
 }

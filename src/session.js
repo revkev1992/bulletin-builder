@@ -39,10 +39,19 @@ function isMine(info) {
   return info && info.machine === m.machine && info.user === m.user && info.pid === m.pid;
 }
 
+// The same person on the same computer, from an app that is no longer running (it crashed or was
+// killed), is an abandoned session: take it over. A lock from another person or computer only
+// expires after STALE_MS without a heartbeat.
+function abandonedByMe(info) {
+  const m = me();
+  if (!info || info.user !== m.user || info.machine !== m.machine || info.pid === m.pid) return false;
+  try { process.kill(info.pid, 0); return false; } catch (_) { return true; }
+}
+
 function claim(file, half, { force = false } = {}) {
   const p = lockPath(file, half);
   const existing = readLock(p);
-  if (existing && !isMine(existing) && existing.ageMs < STALE_MS && !force) {
+  if (existing && !isMine(existing) && existing.ageMs < STALE_MS && !abandonedByMe(existing) && !force) {
     return { ok: false, holder: existing };
   }
   fs.mkdirSync(path.dirname(p), { recursive: true });

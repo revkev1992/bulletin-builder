@@ -224,6 +224,7 @@ function frameEl(f, assetBase) {
     const img = el('img', null, { left: pt(-l * fw), top: pt(-t * fh), width: pt(fw), height: pt(fh) });
     img.src = new URL(im.asset, assetBase).href;
     img.draggable = false;
+    img.style.pointerEvents = 'none';
     box.appendChild(img);
     if (im.matchConfidence === 'low') box.dataset.lowConfidence = '1';
     return box;

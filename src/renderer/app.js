@@ -142,16 +142,46 @@ async function showSpreads() {
 
 async function showPasteboard() {
   const stage = $('stage');
-  stage.innerHTML = '<h3 class="pasteboard-title">Pasteboard — parked items (never printed)</h3>';
+  const half = editor && editor.half;
+  const target = half && editor.targetPage();
+  stage.innerHTML = '<h3 class="pasteboard-title">Pasteboard — parked items (never printed)' +
+    (half ? ' · <b>Place</b> puts an item in the middle of page ' + (target ?? '—') + ' (the page you last clicked)' : ' · choose Edit to place items') + '</h3>';
   shells.clear();
   const wrap = document.createElement('div');
-  wrap.className = 'spreads';
-  const board = renderPasteboard(week);
-  if (board) wrap.appendChild(board);
-  else wrap.textContent = 'The pasteboard is empty.';
+  wrap.className = 'spreads pb-cards';
+  let count = 0;
+  for (const [h, body] of Object.entries(week.halves)) {
+    for (const f of body.pasteboard || []) {
+      count++;
+      const card = document.createElement('div');
+      card.className = 'pb-card';
+      const mini = renderPasteboard({ ...week, halves: { [h]: { pages: {}, pasteboard: [f] } } });
+      const scale = Math.min(1, 180 / Math.max(f.w, f.h, 1));
+      mini.style.transform = 'scale(' + scale + ')';
+      mini.style.transformOrigin = 'top left';
+      const box = document.createElement('div');
+      box.className = 'pb-thumb';
+      box.style.width = (f.w + 72) * scale + 'pt';
+      box.style.height = (f.h + 72) * scale + 'pt';
+      box.appendChild(mini);
+      card.appendChild(box);
+      const label = document.createElement('div');
+      label.className = 'pb-label';
+      label.textContent = (f.source && f.source.name) || f.kind;
+      card.appendChild(label);
+      if (half === h) {
+        const b = document.createElement('button');
+        b.textContent = 'Place on page ' + (target ?? '—');
+        b.disabled = target == null;
+        b.onclick = async () => { await showSpreads(); await editor.placeFromPasteboard(f.id, target); };
+        card.appendChild(b);
+      }
+      wrap.appendChild(card);
+    }
+  }
+  if (!count) wrap.textContent = 'The pasteboard is empty.';
   stage.appendChild(wrap);
   await settle(wrap);
-  applyZoom();
   showingPasteboard = true;
   $('pasteboard-btn').classList.add('active');
 }
@@ -218,6 +248,7 @@ function updateToolbar() {
   $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   $('lock-page').textContent = pg && pg.locked ? 'Unlock page ' + lp : 'Lock page' + (lp != null ? ' ' + lp : '');
+  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect']) $(id).disabled = !half;
 }
 
 function onSelection(info) {
@@ -225,8 +256,12 @@ function onSelection(info) {
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).disabled = !has || info.locked || !(editor && editor.half);
   $('lock-frame').disabled = !(has && editor.half);
   $('delete').disabled = !(has && editor.half && !info.locked);
+  for (const id of ['front', 'back', 'to-pasteboard']) $(id).disabled = !(has && editor.half && !info.locked);
+  const pic = has && editor.half && !info.locked && info.frame.kind === 'image';
+  for (const id of ['crop', 'fit', 'fill']) $(id).disabled = !pic;
+  $('crop').classList.toggle('active', !!(pic && editor.crop));
   $('lock-frame').classList.toggle('active', !!(has && info.frame.locked));
-  $('lock-frame').textContent = has && info.frame.locked ? 'Unlock frame' : 'Lock frame';
+  $('lock-frame').textContent = has && info.frame.locked ? 'Unlock' : 'Lock';
   if (has) {
     const f = info.frame;
     $('fx').value = (f.x / IN).toFixed(2);
@@ -300,6 +335,9 @@ if (PRINT) {
   $('lock-frame').onclick = () => editor.command('lock-frame');
   $('lock-page').onclick = () => editor.command('lock-page');
   $('delete').onclick = () => editor.command('delete');
+  const cmdButtons = { front: 'front', back: 'back', 'to-pasteboard': 'to-pasteboard', crop: 'crop', fit: 'fit', fill: 'fill',
+    'ins-text': 'insert-text', 'ins-picture': 'insert-picture', 'ins-line': 'insert-line', 'ins-rect': 'insert-rect' };
+  for (const [id, cmd] of Object.entries(cmdButtons)) $(id).onclick = () => editor.command(cmd);
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
   // text toolbar: mousedown is cancelled so the caret/selection stays in the frame
   for (const b of document.querySelectorAll('#textbar button')) b.addEventListener('mousedown', (e) => e.preventDefault());
