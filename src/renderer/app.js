@@ -374,7 +374,17 @@ if (PRINT) {
   $('t-size').onchange = (e) => { back(); editor.format('size', e.target.value); };
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
-  window.bb.onCommand((name) => editor.command(name));
+  window.bb.onCommand(async (name) => {
+    if (name !== 'new-week') return editor.command(name);
+    if (!weekFile) return;
+    if (editor.dirty && !(await editor.save())) return;
+    try {
+      const f = await window.bb.newWeekFrom(weekFile);
+      if (f) { await open(f); setStatus('New week created from the previous one. Check the dates, Sunday name and every item.'); }
+    } catch (err) {
+      setStatus('<span class="warn">' + String(err.message || err) + '</span>');
+    }
+  });
   if (params.get('week')) {
     const opened = open(params.get('week'));
     if (params.get('selftest') === 'flow') {

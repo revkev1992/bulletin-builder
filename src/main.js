@@ -106,6 +106,68 @@ function importAsset(weekFile, src) {
 }
 ipcMain.handle('asset:import-path', (_e, weekFile, src) => importAsset(weekFile, src));
 
+// ---------------------------------------------------------------- new week from an existing one
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// "10-18-26 1100" -> "10-25-26 1100" (the week folder naming); unknown names get " (next week)"
+function nextWeekName(title) {
+  const m = /^(\d{1,2})-(\d{1,2})-(\d{2})(.*)$/.exec(title || '');
+  if (!m) return (title || 'Week') + ' (next week)';
+  const d = new Date(2000 + Number(m[3]), Number(m[1]) - 1, Number(m[2]) + 7);
+  return (d.getMonth() + 1) + '-' + d.getDate() + '-' + String(d.getFullYear()).slice(2) + m[4];
+}
+
+// "October 18, 2026" -> "October 25, 2026"; anything else is left alone
+function nextWeekDate(text) {
+  const m = /^([A-Za-z]+) (\d{1,2}), (\d{4})$/.exec((text || '').trim());
+  const mi = m ? MONTHS.indexOf(m[1]) : -1;
+  if (mi < 0) return text;
+  const d = new Date(Number(m[3]), mi, Number(m[2]) + 7);
+  return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+
+// Copy a week folder to a new one (never history/ or locks/), rename its .bulletin, roll the dates.
+// Returns the new .bulletin path.
+function newWeekFrom(file, destDir) {
+  const srcFile = path.resolve(file);
+  const src = path.dirname(srcFile);
+  destDir = path.resolve(destDir);
+  if (fs.existsSync(destDir) && fs.readdirSync(destDir).length) throw new Error('A folder named "' + path.basename(destDir) + '" already exists there.');
+  const skip = new Set([path.join(src, 'history'), path.join(src, 'locks')]);
+  fs.cpSync(src, destDir, { recursive: true, filter: (p) => !skip.has(p) && !p.endsWith('.saving') && path.extname(p).toLowerCase() !== '.bulletin' });
+  const name = path.basename(destDir);
+  const manifest = JSON.parse(fs.readFileSync(srcFile, 'utf8'));
+  const from = manifest.title;
+  manifest.title = name;
+  manifest.createdFrom = { week: from, at: new Date().toISOString() };
+  const out = path.join(destDir, name + '.bulletin');
+  fs.writeFileSync(out, JSON.stringify(manifest, null, 1));
+  const wp = path.join(destDir, (manifest.halves || {}).worship || 'worship.json');
+  if (fs.existsSync(wp)) {
+    const w = JSON.parse(fs.readFileSync(wp, 'utf8'));
+    if (w.mode === 'flow' && w.flow && w.flow.cover) {
+      w.flow.cover.date = nextWeekDate(w.flow.cover.date);
+      if (w.layout) w.layout.flowHash = null;   // lay out again on open (the date changed)
+      fs.writeFileSync(wp, JSON.stringify(w, null, 1));
+    }
+  }
+  return out;
+}
+
+ipcMain.handle('week:new-from', async (e, file) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  const parent = path.dirname(path.dirname(path.resolve(file)));
+  const r = await dialog.showSaveDialog(win, {
+    title: 'New week from this one — name the new week',
+    defaultPath: path.join(parent, nextWeekName(manifest.title)),
+    buttonLabel: 'Create week',
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  });
+  if (r.canceled || !r.filePath) return null;
+  return newWeekFrom(file, r.filePath.replace(/\.bulletin$/i, ''));
+});
+
 ipcMain.handle('week:choose', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, {
@@ -168,6 +230,7 @@ function buildMenu() {
             if (!r.canceled) (win || createViewer()).webContents.send('week:open', r.filePaths[0]);
           },
         },
+        { label: 'New Week from This One…', accelerator: 'CmdOrCtrl+N', click: send('new-week') },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: send('save') },
         { type: 'separator' },
         { role: 'quit' },
@@ -306,6 +369,22 @@ async function selftestFlow(file) {
   checks.push({ name: 'on disk: laid-out pages saved as ordinary frames', pass: gen > 10, got: gen });
   checks.push({ name: 'on disk: hand-placed frame kept', pass: (w.pages[String(d.handPage)] || { frames: [] }).frames.some((f) => f.id === d.hand && !f.generated) });
   checks.push({ name: 'on disk: announcements half untouched', pass: Buffer.compare(annBefore, fs.readFileSync(path.join(tmp, 'announcements.json'))) === 0 });
+  // New Week from This One
+  const nwDir = path.join(path.dirname(tmp), path.basename(tmp) + '-next');
+  try {
+    const nw = newWeekFrom(copy, nwDir);
+    const m2 = JSON.parse(fs.readFileSync(nw, 'utf8'));
+    const w2 = JSON.parse(fs.readFileSync(path.join(nwDir, 'worship.json'), 'utf8'));
+    checks.push({ name: 'new week: folder copied with its own .bulletin (no history, no locks)', pass: fs.existsSync(nw) && m2.title === path.basename(nwDir) &&
+      !fs.existsSync(path.join(nwDir, 'history')) && !fs.existsSync(path.join(nwDir, 'locks')) && fs.existsSync(path.join(nwDir, 'assets')) });
+    checks.push({ name: 'new week: cover date rolled forward 7 days', pass: w2.flow.cover.date === nextWeekDate(d.date) && w2.flow.cover.date !== d.date, got: w2.flow.cover.date });
+    checks.push({ name: 'new week: name rolls the date in the week name', pass: nextWeekName('10-18-26 1100') === '10-25-26 1100' && nextWeekName('12-27-26 1100') === '1-3-27 1100' });
+    let refused = false;
+    try { newWeekFrom(copy, nwDir); } catch (_) { refused = true; }
+    checks.push({ name: 'new week: never overwrites an existing week', pass: refused });
+  } finally {
+    fs.rmSync(nwDir, { recursive: true, force: true });
+  }
   console.log(JSON.stringify(checks, null, 1));
   const failed = checks.filter((c) => !c.pass);
   console.log(failed.length ? 'FAILED ' + failed.length + ' of ' + checks.length : 'PASS ' + checks.length + ' checks');
