@@ -1,14 +1,17 @@
 // Bulletin Builder — Electron main process.
 //
-// Phase 1: open a week (.bulletin) read-only and show it as two-page spreads.
+// Open a week (.bulletin) as two-page spreads; claim one half to edit it (Phase 2a).
 //
 // Command line:
 //   electron . [path\to\week.bulletin]                     open a week (also how a double-click arrives)
 //   electron . --export-pdf <week.bulletin> <out.pdf>      render every page, in reading order, to a PDF
 //                                                          and quit (used by the fidelity test)
+//   electron . --selftest-edit <week.bulletin>             drive the editor on a temp copy; exit 0 = pass
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const session = require('./session');
 const { pathToFileURL } = require('url');
 
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
@@ -39,6 +42,30 @@ function loadWeek(file) {
 
 ipcMain.handle('week:load', (_e, file) => loadWeek(file));
 
+// ---------------------------------------------------------------- edit sessions
+const claims = new Map(); // webContents id -> { file, half }
+const dirty = new Map();  // webContents id -> bool
+
+ipcMain.handle('session:claim', (e, file, half, force) => {
+  const prev = claims.get(e.sender.id);
+  if (prev) session.release(prev.file, prev.half);
+  claims.delete(e.sender.id);
+  const r = session.claim(file, half, { force });
+  if (r.ok) claims.set(e.sender.id, { file, half });
+  return r;
+});
+ipcMain.handle('session:release', (e) => {
+  const c = claims.get(e.sender.id);
+  if (c) session.release(c.file, c.half);
+  claims.delete(e.sender.id);
+});
+ipcMain.handle('session:save', (e, data) => {
+  const c = claims.get(e.sender.id);
+  if (!c) throw new Error('Nothing is open for editing.');
+  return session.save(c.file, c.half, data);
+});
+ipcMain.on('doc:dirty', (e, flag) => dirty.set(e.sender.id, !!flag));
+
 ipcMain.handle('week:choose', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, {
@@ -58,8 +85,32 @@ function createViewer(file) {
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   win.loadFile(RENDERER, { query: file ? { week: file } : {} });
+  const id = win.webContents.id;
+  let closing = false;
+  win.on('close', (ev) => {
+    if (closing || !dirty.get(id)) return;
+    ev.preventDefault();
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'question', buttons: ['Save', "Don't Save", 'Cancel'], defaultId: 0, cancelId: 2,
+      message: 'Save your changes before closing?',
+    });
+    if (choice === 2) return;
+    closing = true;
+    if (choice === 0) win.webContents.send('cmd', 'save-and-close');
+    else win.destroy();
+  });
+  win.on('closed', () => {
+    const c = claims.get(id);
+    if (c) session.release(c.file, c.half);
+    claims.delete(id);
+    dirty.delete(id);
+  });
   return win;
 }
+
+ipcMain.on('app:close-window', (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.destroy(); });
+
+const send = (name) => (_i, w) => w && w.webContents.send('cmd', name);
 
 function buildMenu() {
   const template = [
@@ -77,8 +128,22 @@ function buildMenu() {
             if (!r.canceled) (win || createViewer()).webContents.send('week:open', r.filePaths[0]);
           },
         },
+        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: send('save') },
         { type: 'separator' },
         { role: 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Edit Worship Pages', click: send('claim:worship') },
+        { label: 'Edit Announcements Pages', click: send('claim:announcements') },
+        { label: 'Stop Editing (view only)', click: send('release') },
+        { type: 'separator' },
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: send('undo') },
+        { label: 'Redo', accelerator: 'CmdOrCtrl+Y', click: send('redo') },
+        { type: 'separator' },
+        { role: 'cut' }, { role: 'copy' }, { role: 'paste' },
       ],
     },
     {
@@ -132,17 +197,55 @@ async function shot(file, out) {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), offscreen: true } });
   await win.loadFile(RENDERER, { query: { week: file } });
   await new Promise((r) => setTimeout(r, 5000));
+  const pre = process.argv[process.argv.indexOf('--shot') + 3];
+  if (pre && !pre.startsWith('--')) { await win.webContents.executeJavaScript(pre); await new Promise((r) => setTimeout(r, 1500)); }
   fs.writeFileSync(out, (await win.webContents.capturePage()).toPNG());
   console.log(JSON.stringify(await win.webContents.executeJavaScript(
     "[...document.querySelectorAll('.frame.overflow')].map(f=>f.closest('[data-page]').dataset.page+':'+f.dataset.id+':'+(f.querySelector('.text-area').scrollHeight-f.querySelector('.text-area').clientHeight))")));
 }
 
+// self-test: drive the real editor on a temp copy of a week, then check the files it wrote
+async function selftestEdit(file) {
+  const src = path.dirname(path.resolve(file));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-selftest-'));
+  const skip = new Set([path.join(src, 'history'), path.join(src, 'locks')]);
+  fs.cpSync(src, tmp, { recursive: true, filter: (p) => !skip.has(p) });
+  const copy = path.join(tmp, path.basename(file));
+  const win = new BrowserWindow({ width: 1400, height: 950, show: false, paintWhenInitiallyHidden: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), offscreen: true } });
+  await win.loadFile(RENDERER, { query: { week: copy, selftest: '1' } });
+  const result = await win.webContents.executeJavaScript('window.__bbSelftest');
+  result.checks = result.checks || [];
+  // checks on disk, from outside the renderer
+  const hist = path.join(tmp, 'history');
+  const lock = session.readLock(path.join(tmp, 'locks', 'announcements.lock'));
+  result.checks.push({ name: 'history entry written before save', pass: fs.existsSync(hist) && fs.readdirSync(hist).length >= 1 });
+  result.checks.push({ name: 'lock file held while editing', pass: !!lock });
+  const saved = JSON.parse(fs.readFileSync(path.join(tmp, 'announcements.json'), 'utf8'));
+  for (const c of result.diskChecks || []) {
+    const pg = saved.pages[String(c.page)];
+    const walk = (fs_) => fs_.flatMap((f) => [f, ...walk(f.children || [])]);
+    const fr = pg && walk(pg.frames).find((f) => f.id === c.id);
+    const got = c.field === '@page.locked' ? !!(pg && pg.locked)
+      : fr && c.field.split('.').reduce((o, k) => (o == null ? o : o[k]), fr);
+    result.checks.push({ name: 'on disk: ' + c.name, pass: JSON.stringify(got) === JSON.stringify(c.expect), got, expect: c.expect });
+  }
+  console.log(JSON.stringify(result.checks, null, 1));
+  const failed = result.checks.filter((c) => !c.pass);
+  console.log(failed.length ? 'FAILED ' + failed.length + ' of ' + result.checks.length : 'PASS ' + result.checks.length + ' checks');
+  session.releaseAll();
+  if (!failed.length) fs.rmSync(tmp, { recursive: true, force: true });
+  else console.log('kept for inspection:', tmp);
+  return failed.length === 0;
+}
+
 // ---------------------------------------------------------------- app lifecycle
-const exportFile = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot');
+const exportFile = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit');
 
 if (exportFile) {
   app.whenReady().then(async () => {
     try {
+      if (argAfter('--selftest-edit')) { const ok = await selftestEdit(exportFile); app.exit(ok ? 0 : 1); return; }
       if (argAfter('--shot')) await shot(exportFile, process.argv[process.argv.indexOf('--shot') + 2]);
       else if (argAfter('--eval')) await evalIn(exportFile, process.argv[process.argv.indexOf('--eval') + 2]);
       else await exportPdf(exportFile, process.argv[process.argv.indexOf('--export-pdf') + 2]);
@@ -173,6 +276,7 @@ if (exportFile) {
       }
     });
     app.on('window-all-closed', () => app.quit());
+    app.on('will-quit', () => session.releaseAll());
   }
 }
 

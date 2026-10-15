@@ -1,12 +1,16 @@
 import { renderPage, renderPasteboard, layoutTabs, layoutWraps, findOverflow, fontsUsed, missingFonts } from './render.js';
+import { Editor } from './editor.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
 const $ = (id) => document.getElementById(id);
 
 let week = null;
+let weekFile = null;
 let zoom = 1;
 let showingPasteboard = false;
+const shells = new Map(); // page number -> .page-shell element
+let editor = null;
 
 // Reader spreads, as Publisher shows them: 1 alone on the right, then 2|3, 4|5 … and the last
 // page alone on the left.
@@ -42,9 +46,48 @@ function marginGuide(pageEl, n) {
   pageEl.appendChild(g);
 }
 
+// a page on screen = shell (not clipped) > page (clipped, exactly what prints) + overlay (selection)
+function buildShell(n) {
+  const shell = document.createElement('div');
+  shell.className = 'page-shell';
+  shell.dataset.page = n;
+  const pg = renderPage(week, n);
+  marginGuide(pg, n);
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  shell.append(pg, ov);
+  shell.addEventListener('pointerdown', (e) => editor && editor.onDown(e, n));
+  shells.set(n, shell);
+  return shell;
+}
+
+async function rerender(nums) {
+  const touched = [];
+  for (const n of nums) {
+    const shell = shells.get(n);
+    if (!shell) continue;
+    const old = shell.querySelector('.page');
+    const pg = renderPage(week, n);
+    marginGuide(pg, n);
+    old.replaceWith(pg);
+    touched.push(pg);
+  }
+  for (const pg of touched) await settle(pg);
+  refreshStatusCounts();
+}
+
+let baseStatus = '';
+function refreshStatusCounts() {
+  const over = document.querySelectorAll('.frame.overflow').length;
+  const bits = [baseStatus];
+  if (over) bits.push('<span class="warn">' + over + ' text frame(s) overflow</span>');
+  $('counts').innerHTML = bits.filter(Boolean).join(' · ');
+}
+
 async function showSpreads() {
   const stage = $('stage');
   stage.innerHTML = '';
+  shells.clear();
   showingPasteboard = false;
   $('pasteboard-btn').classList.remove('active');
   const { width, height } = week.manifest.page;
@@ -70,9 +113,7 @@ async function showSpreads() {
         spread.appendChild(blank);
         continue;
       }
-      const pg = renderPage(week, n);
-      marginGuide(pg, n);
-      spread.appendChild(pg);
+      spread.appendChild(buildShell(n));
     }
     sw.appendChild(spread);
     wrap.appendChild(sw);
@@ -86,20 +127,22 @@ async function showSpreads() {
     nav.appendChild(b);
   }
   stage.appendChild(wrap);
-  const overflow = await settle(wrap);
+  await settle(wrap);
   applyZoom();
   const missing = missingFonts(fontsUsed(week));
   const bits = [week.manifest.pages.length + ' pages'];
   if (missing.length) bits.push('<span class="warn">Fonts not installed on this PC: ' + missing.join(', ') + ' (a substitute is shown)</span>');
-  if (overflow.length) bits.push('<span class="warn">' + overflow.length + ' text frame(s) overflow on screen</span>');
   const low = wrap.querySelectorAll('[data-low-confidence]').length;
   if (low) bits.push(low + ' picture(s) to check');
-  setStatus(bits.join(' · '));
+  baseStatus = bits.join(' · ');
+  refreshStatusCounts();
+  if (editor) editor.drawSelection();
 }
 
 async function showPasteboard() {
   const stage = $('stage');
   stage.innerHTML = '<h3 class="pasteboard-title">Pasteboard — parked items (never printed)</h3>';
+  shells.clear();
   const wrap = document.createElement('div');
   wrap.className = 'spreads';
   const board = renderPasteboard(week);
@@ -135,6 +178,7 @@ function zoomBy(factor) {
 async function open(file) {
   try {
     week = await window.bb.loadWeek(file);
+    weekFile = file;
   } catch (err) {
     setStatus('<span class="warn">' + String(err.message || err) + '</span>');
     return;
@@ -142,8 +186,66 @@ async function open(file) {
   document.title = 'Bulletin Builder — ' + week.manifest.title;
   $('title').textContent = week.manifest.title;
   if (PRINT) return printLayout();
+  if (editor && editor.half) await editor.release();
   await showSpreads();
   zoomBy(0);
+  updateToolbar();
+}
+
+async function reload() {
+  week = await window.bb.loadWeek(weekFile);
+  const keep = zoom;
+  await showSpreads();
+  zoom = keep;
+  applyZoom();
+}
+
+// ---------------------------------------------------------------- toolbar state
+const IN = 72;
+function updateToolbar() {
+  const half = editor && editor.half;
+  $('mode').value = half || '';
+  $('badge').textContent = half ? 'Editing ' + half : (week ? 'View only' : 'No week open');
+  $('badge').className = half ? 'editing-' + half : '';
+  $('save').disabled = !half;
+  $('save').classList.toggle('dirty', !!(editor && editor.dirty));
+  $('undo').disabled = !(half && editor.undo.length);
+  $('redo').disabled = !(half && editor.redo.length);
+  document.title = (editor && editor.dirty ? '• ' : '') + 'Bulletin Builder' + (week ? ' — ' + week.manifest.title : '');
+  const lp = editor && (editor.sel ? editor.sel.page : editor.lastPage);
+  const pg = lp != null && editor.pageEntry(lp);
+  $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
+  $('lock-page').classList.toggle('active', !!(pg && pg.locked));
+  $('lock-page').textContent = pg && pg.locked ? 'Unlock page ' + lp : 'Lock page' + (lp != null ? ' ' + lp : '');
+}
+
+function onSelection(info) {
+  const has = !!info;
+  for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).disabled = !has || info.locked || !(editor && editor.half);
+  $('lock-frame').disabled = !(has && editor.half);
+  $('delete').disabled = !(has && editor.half && !info.locked);
+  $('lock-frame').classList.toggle('active', !!(has && info.frame.locked));
+  $('lock-frame').textContent = has && info.frame.locked ? 'Unlock frame' : 'Lock frame';
+  if (has) {
+    const f = info.frame;
+    $('fx').value = (f.x / IN).toFixed(2);
+    $('fy').value = (f.y / IN).toFixed(2);
+    $('fw').value = (f.w / IN).toFixed(2);
+    $('fh').value = (f.h / IN).toFixed(2);
+  } else {
+    for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).value = '';
+  }
+}
+
+function numericChange() {
+  const f = editor.frame();
+  if (!f) return;
+  const v = (id) => parseFloat($(id).value) * IN;
+  const box = { x: v('fx'), y: v('fy'), w: v('fw'), h: v('fh') };
+  if (Object.values(box).some((x) => !Number.isFinite(x))) return onSelection({ frame: f, page: editor.sel.page });
+  const sizeChanged = Math.abs(box.w - f.w) > 0.01 || Math.abs(box.h - f.h) > 0.01;
+  if (sizeChanged) editor.setBox(box);
+  else editor.moveBy(box.x - f.x, box.y - f.y);
 }
 
 // ---------------------------------------------------------------- print mode (PDF export)
@@ -165,6 +267,18 @@ if (PRINT) {
   window.__bbReady = open(params.get('week'));
 } else {
   document.body.classList.add('screen', 'show-guides', 'show-halves');
+  editor = new Editor({
+    week: () => week,
+    file: () => weekFile,
+    shellOf: (n) => shells.get(n),
+    pageNumbers: () => week.manifest.pages.map((p) => p.number),
+    rerender,
+    reload,
+    setStatus,
+    onState: updateToolbar,
+    onSelection,
+  });
+  window.__bbEditor = editor;
   $('open').onclick = async () => { const f = await window.bb.chooseWeek(); if (f) open(f); };
   $('zoom-in').onclick = () => zoomBy(1.15);
   $('zoom-out').onclick = () => zoomBy(1 / 1.15);
@@ -172,7 +286,26 @@ if (PRINT) {
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
   $('pasteboard-btn').onclick = () => { if (!week) return; showingPasteboard ? showSpreads() : showPasteboard(); };
+  $('mode').onchange = async (e) => {
+    const v = e.target.value;
+    const ok = v ? await editor.claim(v) : (await editor.release(), true);
+    if (!ok) e.target.value = editor.half || '';
+    updateToolbar();
+  };
+  $('save').onclick = () => editor.command('save');
+  $('undo').onclick = () => editor.command('undo');
+  $('redo').onclick = () => editor.command('redo');
+  $('lock-frame').onclick = () => editor.command('lock-frame');
+  $('lock-page').onclick = () => editor.command('lock-page');
+  $('delete').onclick = () => editor.command('delete');
+  for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
-  if (params.get('week')) open(params.get('week'));
+  window.bb.onCommand((name) => editor.command(name));
+  if (params.get('week')) {
+    const opened = open(params.get('week'));
+    if (params.get('selftest')) {
+      window.__bbSelftest = opened.then(() => import('./selftest.js')).then((m) => m.run(editor, { shells, week: () => week }));
+    }
+  }
 }

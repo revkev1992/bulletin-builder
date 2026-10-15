@@ -2,30 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; font-src 'self' file: data:; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' file: data:; script-src 'self'">
   <title>Bulletin Builder</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header id="toolbar">
-    <button id="open">Open Week…</button>
-    <span class="sep"></span>
-    <button id="zoom-out" title="Zoom out (Ctrl -)">−</button>
-    <span id="zoom-label">100%</span>
-    <button id="zoom-in" title="Zoom in (Ctrl +)">+</button>
-    <button id="zoom-fit" title="Whole spread (Ctrl 0)">Whole spread</button>
-    <span class="sep"></span>
-    <label><input type="checkbox" id="show-guides" checked> Guides</label>
-    <label><input type="checkbox" id="show-halves" checked> Who owns each page</label>
-    <button id="pasteboard-btn">Pasteboard</button>
-    <span id="title"></span>
-    <span id="badge">Read-only preview</span>
+    <div class="row">
+      <button id="open">Open Week…</button>
+      <select id="mode" title="Which half of the bulletin you are changing">
+        <option value="">View only</option>
+        <option value="worship">Edit worship pages</option>
+        <option value="announcements">Edit announcements pages</option>
+      </select>
+      <button id="save" title="Save (Ctrl+S)" disabled>Save</button>
+      <button id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+      <button id="redo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+      <span class="sep"></span>
+      <button id="zoom-out" title="Zoom out (Ctrl -)">−</button>
+      <span id="zoom-label">100%</span>
+      <button id="zoom-in" title="Zoom in (Ctrl +)">+</button>
+      <button id="zoom-fit" title="Whole spread (Ctrl 0)">Whole spread</button>
+      <span class="sep"></span>
+      <label><input type="checkbox" id="show-guides" checked> Guides</label>
+      <label><input type="checkbox" id="show-halves" checked> Who owns each page</label>
+      <button id="pasteboard-btn">Pasteboard</button>
+      <span id="title"></span>
+      <span id="badge">No week open</span>
+    </div>
+    <div class="row" id="arrange">
+      <span class="group-label">Position (inches)</span>
+      <label>X <input id="fx" type="number" step="0.01" disabled></label>
+      <label>Y <input id="fy" type="number" step="0.01" disabled></label>
+      <label>W <input id="fw" type="number" step="0.01" min="0.05" disabled></label>
+      <label>H <input id="fh" type="number" step="0.01" min="0" disabled></label>
+      <span class="sep"></span>
+      <button id="lock-frame" title="Lock frame (Ctrl+L)" disabled>Lock frame</button>
+      <button id="lock-page" disabled>Lock page</button>
+      <button id="delete" title="Delete (Del)" disabled>Delete</button>
+      <span class="hint">Drag to move · handles to resize · arrows nudge 1 pt (Shift = 9 pt) · hold Alt to stop snapping</span>
+    </div>
   </header>
   <div id="body">
     <nav id="nav"></nav>
     <main id="stage"><div id="empty">Open a week to begin (File ▸ Open Week…).</div></main>
   </div>
-  <footer id="status"></footer>
+  <footer id="statusbar"><span id="counts"></span><span id="status"></span></footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>
