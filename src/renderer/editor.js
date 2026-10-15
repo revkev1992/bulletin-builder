@@ -7,6 +7,7 @@
 
 import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon } from './textedit.js';
 import { findOverflow, layoutTabs } from './render.js';
+import { isFlow, layoutFlow, worshipPages } from './flow.js';
 
 const SNAP_PX = 6;            // snapping distance on screen
 const DRAG_START_PX = 3;      // a click that moves less than this is just a click
@@ -77,7 +78,26 @@ export class Editor {
     }, this.week().manifest.defaultTabStop || 36);
     return [...new Set(list.map((x) => x.n))];
   }
-  locked(n, f) { const pg = this.pageEntry(n); return !!(pg && pg.locked) || !!(f && f.locked); }
+  // generated (flow-layout) frames are edited through the Order of Worship panel, never by hand
+  locked(n, f) { const pg = this.pageEntry(n); return !!(pg && pg.locked) || !!(f && (f.locked || f.generated)); }
+
+  // ------------------------------------------------------------ flow mode (Phase 3)
+  flowHalf() { const h = this.week() && this.week().halves.worship; return this.half === 'worship' && isFlow(h) ? h : null; }
+
+  // one undoable change to the worship flow: snapshot, mutate, re-lay out, re-render
+  async editFlow(mutate) {
+    const half = this.flowHalf();
+    if (!half) return false;
+    this.undo.push(JSON.stringify(half));
+    if (this.undo.length > UNDO_LIMIT) this.undo.shift();
+    this.redo = [];
+    mutate(half.flow);
+    await layoutFlow(this.week(), half);
+    this.setDirty(true);
+    await this.app.rerender(worshipPages(this.week()));
+    this.drawSelection();
+    return true;
+  }
 
   static each(f, fn) { fn(f); (f.children || []).forEach((c) => Editor.each(c, fn)); }
 
@@ -140,7 +160,7 @@ export class Editor {
     this.setDirty(true);
     if (this.sel && !this.topFrame(this.sel.page, this.sel.id)) this.sel = null;
     const pages = this.app.pageNumbers().filter((n) => this.halfOf(n) === this.half);
-    return this.app.rerender(pages).then(() => this.drawSelection());
+    return this.app.rerender(pages).then(() => { this.drawSelection(); if (this.panel) this.panel.refresh(); });
   }
 
   setDirty(flag) {
@@ -177,8 +197,10 @@ export class Editor {
     this.undo = []; this.redo = [];
     this.sel = null;
     this.setDirty(false);
-    this.app.setStatus('Editing the ' + half + ' pages' + (r.tookOverStale ? ' (an abandoned lock was taken over)' : '') + '.');
+    this.app.setStatus('Editing the ' + half + ' pages' + (r.tookOverStale ? ' (an abandoned lock was taken over)' : '') + '.' +
+      (this.flowHalf() ? ' Build the order of worship in the panel on the right.' : ''));
     this.drawSelection();
+    if (this.panel) this.panel.refresh();
     return true;
   }
 
@@ -189,6 +211,7 @@ export class Editor {
     this.sel = null;
     this.drawSelection();
     this.app.onState();
+    if (this.panel) this.panel.refresh();
   }
 
   async command(name) {
@@ -531,6 +554,18 @@ export class Editor {
     if (!frameEl) { this.select(n, null); return; }
     const top = this.topFrame(n, frameEl.dataset.id);
     if (!top) return;
+    if (top.generated && this.flowHalf() && this.editable(n)) {
+      // a laid-out line: select its block in the Order of Worship panel
+      const hit = e.target.closest('[data-block]');
+      const id = (hit && hit.dataset.block) || top.block;
+      this.select(n, null);
+      if (this.panel) {
+        if (id === 'cover') { this.panel.tab = 'cover'; this.panel.refresh(); }
+        else { this.panel.tab = 'order'; this.panel.select(id, { scrollPage: false }); }
+      }
+      this.app.setStatus('Part of the order of worship — edit it in the panel on the right.');
+      return;
+    }
     if (!this.half) {
       this.app.setStatus('View only. Choose Edit ▸ Worship Pages or Edit ▸ Announcements Pages to make changes.');
       return;

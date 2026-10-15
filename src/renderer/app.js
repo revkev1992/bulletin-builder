@@ -1,11 +1,14 @@
 import { renderPage, renderPasteboard, layoutTabs, layoutWraps, findOverflow, fontsUsed, missingFonts } from './render.js';
 import { Editor } from './editor.js';
+import { isFlow, layoutFlow, flowHash } from './flow.js';
+import { FlowPanel } from './flowpanel.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
 const $ = (id) => document.getElementById(id);
 
 let week = null;
+window.__bbWeek = () => week;   // debug aid (--eval)
 let weekFile = null;
 let zoom = 1;
 let showingPasteboard = false;
@@ -75,6 +78,7 @@ async function rerender(nums) {
   }
   for (const pg of touched) await settle(pg);
   refreshStatusCounts();
+  if (editor && editor.panel && editor.panel.active()) editor.panel.highlight(editor.panel.tab === 'order' ? editor.panel.selId : null);
 }
 
 let baseStatus = '';
@@ -82,6 +86,9 @@ function refreshStatusCounts() {
   const over = document.querySelectorAll('.frame.overflow').length;
   const bits = [baseStatus];
   if (over) bits.push('<span class="warn">' + over + ' text frame(s) overflow</span>');
+  const wh = week && week.halves.worship;
+  const fo = isFlow(wh) && wh.layout ? (wh.layout.overflowBlocks || []).length : 0;
+  if (fo) bits.push('<span class="warn">' + fo + ' worship block(s) do not fit the worship pages</span>');
   $('counts').innerHTML = bits.filter(Boolean).join(' · ');
 }
 
@@ -214,6 +221,7 @@ async function open(file) {
     setStatus('<span class="warn">' + String(err.message || err) + '</span>');
     return;
   }
+  await ensureLayout();
   document.title = 'Bulletin Builder — ' + week.manifest.title;
   $('title').textContent = week.manifest.title;
   if (PRINT) return printLayout();
@@ -225,10 +233,20 @@ async function open(file) {
 
 async function reload() {
   week = await window.bb.loadWeek(weekFile);
+  await ensureLayout();
   const keep = zoom;
   await showSpreads();
   zoom = keep;
   applyZoom();
+}
+
+// Flow-mode worship half whose saved layout is missing or stale (the flow changed, or the layout
+// rules did): lay it out now, in memory. It is saved with the next save of the worship half.
+async function ensureLayout() {
+  const half = week && week.halves.worship;
+  if (!isFlow(half)) return;
+  if (half.layout && half.layout.flowHash === flowHash(week, half)) return;
+  await layoutFlow(week, half);
 }
 
 // ---------------------------------------------------------------- toolbar state
@@ -316,6 +334,7 @@ if (PRINT) {
     onTextMode: (on) => { $('textbar').hidden = !on; $('arrange').hidden = on; },
   });
   window.__bbEditor = editor;
+  editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });
   $('open').onclick = async () => { const f = await window.bb.chooseWeek(); if (f) open(f); };
   $('zoom-in').onclick = () => zoomBy(1.15);
   $('zoom-out').onclick = () => zoomBy(1 / 1.15);
@@ -358,7 +377,9 @@ if (PRINT) {
   window.bb.onCommand((name) => editor.command(name));
   if (params.get('week')) {
     const opened = open(params.get('week'));
-    if (params.get('selftest')) {
+    if (params.get('selftest') === 'flow') {
+      window.__bbSelftest = opened.then(() => import('./selftest-flow.js')).then((m) => m.run(editor, { shells, week: () => week }));
+    } else if (params.get('selftest')) {
       window.__bbSelftest = opened.then(() => import('./selftest.js')).then((m) => m.run(editor, { shells, week: () => week }));
     }
   }

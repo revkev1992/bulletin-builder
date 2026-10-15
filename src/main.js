@@ -7,6 +7,7 @@
 //   electron . --export-pdf <week.bulletin> <out.pdf>      render every page, in reading order, to a PDF
 //                                                          and quit (used by the fidelity test)
 //   electron . --selftest-edit <week.bulletin>             drive the editor on a temp copy; exit 0 = pass
+//   electron . --selftest-flow <flow week.bulletin>        drive the Order of Worship panel (Phase 3); exit 0 = pass
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
@@ -279,13 +280,49 @@ async function selftestEdit(file) {
   return failed.length === 0;
 }
 
+// self-test for flow mode (Phase 3): drive the Order of Worship panel on a temp copy of a flow week
+async function selftestFlow(file) {
+  const src = path.dirname(path.resolve(file));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-selftest-flow-'));
+  const skip = new Set([path.join(src, 'history'), path.join(src, 'locks')]);
+  fs.cpSync(src, tmp, { recursive: true, filter: (p) => !skip.has(p) });
+  const copy = path.join(tmp, path.basename(file));
+  const annBefore = fs.readFileSync(path.join(tmp, 'announcements.json'));
+  const win = new BrowserWindow({ width: 1500, height: 950, show: false, paintWhenInitiallyHidden: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), offscreen: true } });
+  await win.loadFile(RENDERER, { query: { week: copy, selftest: 'flow' } });
+  const result = await win.webContents.executeJavaScript('window.__bbSelftest');
+  const checks = result.checks || [];
+  const d = result.flowDisk || {};
+  const hist = path.join(tmp, 'history');
+  checks.push({ name: 'on disk: history entry written before save', pass: fs.existsSync(hist) && fs.readdirSync(hist).some((x) => x.startsWith('worship-')) });
+  checks.push({ name: 'on disk: worship lock held while editing', pass: !!session.readLock(path.join(tmp, 'locks', 'worship.lock')) });
+  const w = JSON.parse(fs.readFileSync(path.join(tmp, 'worship.json'), 'utf8'));
+  checks.push({ name: 'on disk: worship half saved in flow mode with its blocks', pass: w.mode === 'flow' && w.flow.blocks.length === d.blocks });
+  checks.push({ name: 'on disk: edited label saved', pass: (w.flow.blocks.find((b) => b.id === d.target) || {}).heading?.label === d.label });
+  checks.push({ name: 'on disk: cover date saved', pass: w.flow.cover.date === d.date });
+  checks.push({ name: 'on disk: layout saved with its flow hash (no re-layout needed on open)', pass: w.layout && w.layout.flowHash === d.hash });
+  const gen = Object.values(w.pages).flatMap((p) => p.frames).filter((f) => f.generated).length;
+  checks.push({ name: 'on disk: laid-out pages saved as ordinary frames', pass: gen > 10, got: gen });
+  checks.push({ name: 'on disk: hand-placed frame kept', pass: (w.pages[String(d.handPage)] || { frames: [] }).frames.some((f) => f.id === d.hand && !f.generated) });
+  checks.push({ name: 'on disk: announcements half untouched', pass: Buffer.compare(annBefore, fs.readFileSync(path.join(tmp, 'announcements.json'))) === 0 });
+  console.log(JSON.stringify(checks, null, 1));
+  const failed = checks.filter((c) => !c.pass);
+  console.log(failed.length ? 'FAILED ' + failed.length + ' of ' + checks.length : 'PASS ' + checks.length + ' checks');
+  session.releaseAll();
+  if (!failed.length) fs.rmSync(tmp, { recursive: true, force: true });
+  else console.log('kept for inspection:', tmp);
+  return failed.length === 0;
+}
+
 // ---------------------------------------------------------------- app lifecycle
-const exportFile = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit');
+const exportFile = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow');
 
 if (exportFile) {
   app.whenReady().then(async () => {
     try {
       if (argAfter('--selftest-edit')) { const ok = await selftestEdit(exportFile); app.exit(ok ? 0 : 1); return; }
+      if (argAfter('--selftest-flow')) { const ok = await selftestFlow(exportFile); app.exit(ok ? 0 : 1); return; }
       if (argAfter('--shot')) await shot(exportFile, process.argv[process.argv.indexOf('--shot') + 2]);
       else if (argAfter('--eval')) await evalIn(exportFile, process.argv[process.argv.indexOf('--eval') + 2]);
       else await exportPdf(exportFile, process.argv[process.argv.indexOf('--export-pdf') + 2]);

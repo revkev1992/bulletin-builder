@@ -135,6 +135,8 @@ export function paragraphEl(para) {
   s.fontSize = pt(markSize);
   s.lineHeight = lineHeightFor(para, markFont, markSize);
   if (para.tabs) p.dataset.tabs = JSON.stringify(para.tabs);
+  if (para.block) p.dataset.block = para.block;              // flow mode: which block this line belongs to
+  if (para.justifyLast) s.textAlignLast = 'justify';         // head of a justified paragraph split across pages
   // paragraph settings (everything but the text) ride along so the editor can read them back
   const { runs: _runs, ...props } = para;
   p.dataset.para = JSON.stringify(props);
@@ -196,6 +198,8 @@ function frameEl(f, assetBase) {
     left: pt(f.x), top: pt(f.y), width: pt(f.w), height: pt(f.h), zIndex: String(f.z || 0),
   });
   box.dataset.id = f.id;
+  if (f.generated) box.dataset.generated = '1';
+  if (f.block && f.kind !== 'text') box.dataset.block = f.block;   // flow pictures/rules: their block
   const tf = [];
   if (f.rotation) tf.push('rotate(' + f.rotation + 'deg)');
   if (f.flipH) tf.push('scaleX(-1)');
@@ -397,8 +401,11 @@ export function layoutTabs(root, defaultStop = 36) {
         }
       }
       let w = stop.pos - x;
-      if (stop.align === 'right' || stop.align === 'decimal') w -= segW;
-      else if (stop.align === 'center') w -= segW / 2;
+      // flow-mode lines get a little slack: on screen at zoom, pixel rounding could push the last word
+      // onto a new line. Imported Publisher frames keep exact widths (their breaks must match Publisher's).
+      const slack = p.dataset.block ? 0.6 : 0;
+      if (stop.align === 'right' || stop.align === 'decimal') w -= segW + slack;
+      else if (stop.align === 'center') w -= segW / 2 + slack / 2;
       tab.style.width = pt(Math.max(0, w));
       if (stop.leader) tab.classList.add('leader-' + stop.leader);
     });
