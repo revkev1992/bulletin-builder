@@ -6,9 +6,13 @@ frames. Written before the build; the "Status" table is updated as passes land.*
 
 | Pass | Scope | Status |
 |---|---|---|
-| **3a** | flow model in `worship.json` · block → paragraph compiler · paginator (keep-with-next, images never split, no mid-line splits) · generated frames saved as ordinary frames | see PHASE3 status |
-| **3b** | Order-of-Worship panel: select / add / move / duplicate / delete blocks, per-kind fields, standing (†/*) checkbox, people lines bold automatically, click a page line to select its block | |
-| **3c** | cover block (fields → the Publisher cover layout) · global styles editor (one change re-lays everything) · `import_docx.py` (October Word bulletin → flow week) | |
+| **3a** | flow model in `worship.json` · block → paragraph compiler · paginator (keep-with-next, keep-together, images never split, no mid-line splits) · generated frames saved as ordinary frames | **done** |
+| **3b** | Order-of-Worship panel: select / add / move / duplicate / delete blocks, per-kind fields, standing (*) checkbox, people lines bold automatically, click a page line to select its block, in-place rich text for `text` blocks and notes | **done** |
+| **3c** | cover block (fields → the Publisher cover layout) · global styles editor (one change re-lays everything) · `import_docx.py` (October Word bulletin → flow week) | **done** |
+| 3d (open) | drag to reorder · notes that wrap text instead of a column · a real `psalm` block (verse numbers, refrain R) instead of `text` · bullets for list paragraphs · in-app "New week from this one" | not started |
+
+**Self-test:** `--selftest-flow` 48 checks, passing on both imported October weeks. `--selftest-edit`
+still 61/61 and fidelity vs Publisher still 0.948 (fixed-layout weeks are untouched).
 
 ## The one big decision: layout is generated, then stored as ordinary frames
 

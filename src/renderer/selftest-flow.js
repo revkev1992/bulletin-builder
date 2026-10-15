@@ -138,6 +138,31 @@ export async function run(editor, { shells, week }) {
   const p1 = bodyPages().flatMap((n) => gen(n).filter((f) => f.kind === 'text').flatMap((f) => f.text.paragraphs)).find((p) => p.block === target.id && paraText(p) === firstLineText);
   ok('switching a line to People makes it bold automatically', p1 && p1.style === 'people' && p1.runs.every((r) => r.bold), { got: p1 && p1.style });
 
+  // ================= a text block edited in place (rich) =================
+  const tb = flow().blocks.find((b) => b.kind === 'text' && placed.has(b.id) && (b.paragraphs || []).length);
+  panel.select(tb.id); await wait(50);
+  const rich = field('.fp-rich.rich-text');
+  const firstSpan = rich.querySelector('p.para span.run');
+  const oldText = firstSpan.textContent;
+  rich.focus();
+  const rg = document.createRange(); rg.selectNodeContents(firstSpan);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(rg);
+  document.execCommand('insertText', false, 'Rich edit test');
+  document.execCommand('selectAll');   // keep the caret inside, then leave the editor
+  rich.dispatchEvent(new FocusEvent('blur'));   // an offscreen test window gets no real focus events
+  await settled();
+  const tbNow = flow().blocks.find((b) => b.id === tb.id);
+  ok('a text block edited in place is saved and re-laid', tbNow.paragraphs.some((p) => paraText(p).includes('Rich edit test')) && allText().includes('Rich edit test'), { got: oldText });
+  // Ctrl+Z while typing in a field undoes the typing, not the last change
+  panel.select(target.id); await wait(50);
+  const lbl = field('input[data-field="heading.label"]');
+  lbl.focus();
+  const undoDepth = editor.undo.length;
+  document.execCommand('insertText', false, 'XYZ');
+  await editor.command('undo');
+  ok('Ctrl+Z in a panel field undoes the typing only', editor.undo.length === undoDepth && !lbl.value.includes('XYZ'), { got: lbl.value });
+  lbl.blur();
+
   // ================= add / move / duplicate / delete / undo =================
   const nBefore = flow().blocks.length;
   const idxT = flow().blocks.findIndex((b) => b.id === target.id);

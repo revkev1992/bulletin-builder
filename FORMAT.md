@@ -1,6 +1,6 @@
 # Bulletin Builder file format — version 1
 
-*Status: Phase 2 (fixed-layout editing) — every field below is read AND written by the app.
+*Status: Phase 3 (flow mode for the worship half) — every field below is read AND written by the app.
 Bump `version` on any breaking change and add a migration note at the bottom.*
 
 All measurements are **points** (1/72 inch). Coordinates are relative to the page's top-left
@@ -155,8 +155,56 @@ normal). Inside `text`: `\t` = tab, `\n` or `\u000b` = line break within the par
 
 ---
 
+## 5. Flow mode (worship half)
+
+A half with `"mode": "flow"` is built from an ordered list of blocks; the app lays them out on
+the worship pages. Absent `mode` = fixed layout (sections 3–4 only).
+
+```json
+{ "half": "worship", "mode": "flow",
+  "flow": {
+    "grid": { "left": 36, "top": 36, "width": 432, "height": 540, "tabs": [ … ] },
+    "standingMark": "*",
+    "styles": { "item": { "font": "Palatino Linotype", "size": 11, "spaceBefore": 11, "keepWithNext": true }, … },
+    "cover": { "date", "day", "service", "logo", "art": { "asset", "title", "artist" }, "commentary": [ paragraphs ] },
+    "blocks": [ block, … ]
+  },
+  "layout": { "flowHash": "1-…", "version": 1, "overflowBlocks": [ ids ], "blockPage": { id: page } },
+  "pages": { "1": { "frames": [ … ] }, … } }
+```
+
+- **Styles** — one per role: `item` (order-of-worship line), `section`, `rubric`, `leader`,
+  `people`, `prayer`, `scripture`, `body`, `credit`, `note`. Fields: `font, size, bold, italic,
+  align, spaceBefore, spaceAfter, indentLeft, indentRight, indentFirst, lineSpacing, color,
+  keepWithNext`. An explicit `false` overrides the built-in default (e.g. People not bold).
+- **Block** — `{ id, kind, heading?, rubric?, note?, spaceBefore?, pageBreakBefore?, keepTogether? }` plus:
+
+| kind | body |
+|---|---|
+| `item` | heading only (+ `rubric` text) |
+| `section` / `rubric` | `text` |
+| `dialog` | `lines: [{ who: "leader" | "people", text }]` — people lines use the bold People style |
+| `prayer` | `lines: [text]` (a leading tab = indented line), `unison` (default true = bold) |
+| `scripture` | `paragraphs: [text]` |
+| `hymn` / `image` | `images: [asset]`, optional `imageWidths: [pt]` (default the full 432) |
+| `text` | `paragraphs: [format paragraphs]` — rich, kept exactly |
+| `space` | `height` (pt) |
+
+  `heading = { standing, label, middle, right }` prints `*LABEL ⇥ middle ⇥ right`. `note` = paragraphs
+  (or strings) shown in a column at the right of the text area beside the block.
+- **Layout** — the app writes the result as ordinary frames with `"generated": true` (text frames
+  whose paragraphs carry `block`; pictures/rules carry `block`; the cover's frames have
+  `block: "cover"`). Frames without `generated` were placed by hand and are never touched by
+  layout. `layout.flowHash` fingerprints the flow + worship pages + layout rules; when it doesn't
+  match, the app lays the flow out again on open (in memory; saved with the next save).
+  `justifyLast` on a paragraph = the head of a justified paragraph split across pages.
+
+---
+
 ## Change log
 
 - **v1 (2026-10-15)** — first version, produced by `import_pub.py` from the Publisher capture.
   Same day, still v1 (additive, older files read fine): `continues`, page/frame `locked`,
   `image.fit` = `fit`/`fill`, `history/` and `locks/` written by the app.
+- **v1, Phase 3 (2026-10-15)** — still v1 (additive): half `mode`/`flow`/`layout`, frame `generated`/`block`/`note`,
+  paragraph `block`/`justifyLast`. Written by `import_docx.py` and the app.

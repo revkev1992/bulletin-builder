@@ -215,6 +215,13 @@ export class Editor {
   }
 
   async command(name) {
+    // typing in an Order of Worship field: Ctrl+Z / Ctrl+Y undo the typing, not the last change
+    const ae = document.activeElement;
+    if ((name === 'undo' || name === 'redo') && ae && ae.closest && ae.closest('#flowpanel') &&
+        (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) {
+      document.execCommand(name);
+      return;
+    }
     if (this.textEdit) {
       if (name === 'undo' || name === 'redo') { document.execCommand(name); return; }
       await this.endTextEdit();
