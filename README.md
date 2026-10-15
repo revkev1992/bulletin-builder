@@ -3,7 +3,7 @@
 A small, purpose-built layout tool for Highland UMC's weekly worship bulletin, replacing Microsoft
 Publisher. Electron app; one HTML/CSS renderer draws the screen, the PDF, and (later) the website.
 
-**Status:** Phase 1 — opens a week read-only, as two-page spreads, and exports a reader-order PDF.
+**Status:** Phase 2 — claim a half and edit it: move, resize, snap, lock, type, crop, insert, pasteboard, undo; saves keep history. See [docs/PHASE2_DESIGN.md](docs/PHASE2_DESIGN.md).
 
 ```
 npm install

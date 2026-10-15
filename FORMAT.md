@@ -1,7 +1,7 @@
 # Bulletin Builder file format — version 1
 
-*Status: Phase 1 (read-only viewer). Fields marked **(P2)** are reserved for editing features and
-may be absent. Bump `version` on any breaking change and add a migration note at the bottom.*
+*Status: Phase 2 (fixed-layout editing) — every field below is read AND written by the app.
+Bump `version` on any breaking change and add a migration note at the bottom.*
 
 All measurements are **points** (1/72 inch). Coordinates are relative to the page's top-left
 corner. Colours are `#RRGGBB`.
@@ -15,12 +15,15 @@ corner. Colours are `#RRGGBB`.
   10-18-26 1100.bulletin   manifest — double-click to open
   worship.json             Kevin's half
   announcements.json       communications half
-  assets/                  every picture the week uses
-  history/                 (P2) a snapshot of each half on every save
-  locks/                   (P2) "<half>.lock" while someone is editing that half
+  assets/                  every picture the week uses (inserted pictures are copied in here)
+  history/                 <half>-YYYY-MM-DD_HHMMSS.json — the previous version, copied before every save
+  locks/                   <half>.lock — { user, machine, pid, since } while someone edits that half
 ```
 
 Two people can work at once because they write **different files**. Each half has its own lock.
+A lock is refreshed every minute; one not refreshed for 5 minutes (or left by the same person's
+crashed app on the same PC) may be taken over. `history/` is append-only; the app never deletes it.
+Saves write `<file>.saving` then rename it over the real file.
 
 ## 2. Manifest (`<name>.bulletin`)
 
@@ -59,7 +62,8 @@ Two people can work at once because they write **different files**. Each half ha
 }
 ```
 
-- `pages` is keyed by page number (string). Frames are listed back-to-front (`z` ascending).
+- `pages` is keyed by page number (string). Frames are listed in no particular order; `z` decides
+  stacking. A page may carry `"locked": true` (every frame on it is then locked).
 - `pasteboard` holds parked items (QR codes, flyers, photos). It is saved in the file and **never
   printed**. Coordinates are relative to the left page of the spread being viewed, so items can
   sit at negative x/y.
@@ -71,7 +75,7 @@ Common fields:
 
 | Field | Meaning |
 |---|---|
-| `id` | stable id, unique in the week |
+| `id` | stable id, unique in the week (`f<n>` = imported from Publisher shape n; `n…` = made in the app) |
 | `kind` | `text` · `image` · `shape` · `group` |
 | `x`, `y`, `w`, `h` | box in points |
 | `z` | stacking order |
@@ -79,7 +83,7 @@ Common fields:
 | `flipH`, `flipV` | mirror |
 | `fill` | `{ "color": "#…", "opacity": 0–1 }` |
 | `stroke` | `{ "color": "#…", "width": 0.5 }` |
-| `locked` | (P2) cannot be moved or resized |
+| `locked` | cannot be moved, resized, cropped or deleted (still selectable, to unlock) |
 | `source` | where it came from (`{ "name", "id" }` of the Publisher shape on import) |
 
 **`group`** — `children: [frames]`. Children keep page coordinates (not group-relative).
@@ -94,8 +98,9 @@ Common fields:
 ```
 
 `crop` is the fraction of the picture removed from each side (0.1 = 10%). Negative values add
-blank space. The visible part is stretched to the box, so the importer keeps the box and crop in
-proportion. `matchConfidence: "low"` marks an imported picture the importer could not match with
+blank space. The visible part is stretched to the box, so the app always keeps box and crop in
+proportion (pictures never distort). `fit` records how the crop was last set: `"crop"` (by hand /
+imported), `"fit"` (whole picture inside the box, blank bands), `"fill"` (box covered, centred crop). `matchConfidence: "low"` marks an imported picture the importer could not match with
 certainty — check it.
 
 **`text`**
@@ -110,9 +115,11 @@ certainty — check it.
 }
 ```
 
-- **Linked frames:** frames sharing a `chain.story` are one story flowing in `index` order. In v1
-  each frame holds the portion of the story it showed in Publisher (so imports keep Publisher's
-  exact breaks). (P2) the editor re-flows the story across the chain and flags overflow.
+- **Linked frames:** frames sharing a `chain.story` are one story flowing in `index` order. Each
+  frame stores the portion it currently shows (imports keep Publisher's exact breaks). When a
+  paragraph is cut by a frame edge, the head carries `"continues": true` and the rest starts the
+  next frame; the app rejoins them when it re-flows the story (after typing in, resizing, or
+  deleting a linked frame). Text that doesn't fit the last frame is kept and flagged as overflow.
 
 Paragraph:
 
@@ -151,3 +158,5 @@ normal). Inside `text`: `\t` = tab, `\n` or `\u000b` = line break within the par
 ## Change log
 
 - **v1 (2026-10-15)** — first version, produced by `import_pub.py` from the Publisher capture.
+  Same day, still v1 (additive, older files read fine): `continues`, page/frame `locked`,
+  `image.fit` = `fit`/`fill`, `history/` and `locks/` written by the app.

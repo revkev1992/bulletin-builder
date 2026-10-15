@@ -5,9 +5,13 @@ covers and the decisions that hold across them.*
 
 | Pass | Scope | Status |
 |---|---|---|
-| **2a** | edit sessions (claim a half, lock file, save, history, close prompt) · select · move · resize · snap · nudge · numeric X/Y/W/H · frame + page lock · delete · undo/redo | this pass |
-| 2b | text editing inside frames · live linked-frame reflow · overflow badge while typing | next |
-| 2c | image crop / fit / fill · insert text, picture, shape · pasteboard drag on/off pages · frames across the gutter | after |
+| **2a** | edit sessions (claim a half, lock file, save, history, close prompt) · select · move · resize · snap · nudge · numeric X/Y/W/H · frame + page lock · delete · undo/redo | **done** (`44c1b8d`) |
+| **2b** | typing inside frames (font, size, B/I/U, alignment, plain paste, Tab) · linked-story reflow · live overflow badge | **done** (`c2bb95b`) |
+| **2c** | crop / fit / fill · insert text, picture, line, box · copy / paste / duplicate · front / back · park on and place from the pasteboard | **done** (`aca0fde`) |
+| 2d (open) | frames across the gutter (art spanning the fold) · multi-select + align/distribute · create/break text-frame links in the UI · drag straight between pasteboard and page · named paragraph styles in the text bar · rotation handle | not started |
+
+**Self-test:** 61 checks, all passing (`electron . --selftest-edit <week>`). Fidelity regression
+after every pass: mean 0.944 vs Publisher, unchanged.
 
 ## Decisions
 
