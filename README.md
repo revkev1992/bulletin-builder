@@ -17,3 +17,13 @@ npm run dist                                # Windows installer -> dist/
 - Church data (weeks, pictures) never goes in this repo.
 - Fonts used by the current bulletin must be installed on each PC: Palatino Linotype, Candara,
   Calibri (ship with Windows), **Archer** (Book + Bold) and **Avenir Next LT Pro**.
+
+## Releasing an update
+
+Installed copies check GitHub Releases on launch and update themselves.
+
+1. Bump `version` in `package.json`, commit, push.
+2. `npx electron-builder --win nsis --publish never`
+3. `gh release create v<version> dist/Bulletin-Builder-Setup-<version>.exe dist/Bulletin-Builder-Setup-<version>.exe.blockmap dist/latest.yml`
+
+All three files are required; `latest.yml` is the update feed.
