@@ -42,6 +42,26 @@
       <button id="delete" title="Delete (Del)" disabled>Delete</button>
       <span class="hint">Drag to move · handles to resize · arrows nudge 1 pt (Shift = 9 pt) · hold Alt to stop snapping</span>
     </div>
+    <div class="row" id="textbar" hidden>
+      <span class="group-label">Text</span>
+      <select id="t-font" title="Font">
+        <option>Palatino Linotype</option><option>Book Antiqua</option><option>Candara</option><option>Candara Light</option>
+        <option>Archer Book</option><option>Archer Bold</option><option>Avenir Next LT Pro</option>
+        <option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option>
+      </select>
+      <input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Size (pt)">
+      <button id="t-bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button id="t-italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button id="t-underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      <span class="sep"></span>
+      <button data-align="left" title="Align left">Left</button>
+      <button data-align="center" title="Center">Center</button>
+      <button data-align="right" title="Align right">Right</button>
+      <button data-align="justify" title="Justify">Justify</button>
+      <span class="sep"></span>
+      <button id="t-done" title="Finish editing (Esc)">Done</button>
+      <span class="hint">Typing in a frame · paste comes in as plain text · Tab inserts a tab · Esc to finish</span>
+    </div>
   </header>
   <div id="body">
     <nav id="nav"></nav>

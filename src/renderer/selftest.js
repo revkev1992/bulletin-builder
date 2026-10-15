@@ -1,6 +1,7 @@
 // Self-test for the editor (electron . --selftest-edit <week.bulletin>). Runs against a TEMP COPY
 // of the week. Drives the real UI code with synthetic pointer and keyboard events, then reports
 // checks; main.js adds checks on the files written to disk.
+import { joinStory, canon } from './textedit.js';
 
 const near = (a, b, tol = 0.6) => Math.abs(a - b) <= tol;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -117,6 +118,82 @@ export async function run(editor, { shells, week }) {
   await editor.command('undo');
   ok('undo restores deleted frame', !!editor.topFrame(P, del.id));
 
+  // ================= 2b: typing and linked stories =================
+  const norm = canon;
+  const storyText = (st) => joinStory(editor.storyFrames(st).map((x) => x.frame)).map((p) => p.runs.map((r) => r.text).join('')).join(' ');
+
+  // ---- 13. round trip: opening and closing every text frame without typing changes nothing
+  let mismatches = [];
+  for (const p of W().manifest.pages.filter((q) => q.half === 'announcements')) {
+    const n = p.number;
+    if (editor.pageEntry(n).locked) continue;
+    const texts = [];
+    editor.pageEntry(n).frames.forEach((f) => (function walk(g) { if (g.kind === 'text' && !g.locked) texts.push(g.id); (g.children || []).forEach(walk); })(f));
+    for (const id of texts) {
+      const before = norm(editor.anyFrame(n, id).text.paragraphs);
+      if (!editor.beginTextEdit(n, id)) continue;
+      await editor.endTextEdit();
+      const after = norm(editor.anyFrame(n, id).text.paragraphs);
+      if (before !== after) {
+        const b = JSON.parse(before), a = JSON.parse(after); // canonical forms
+        let k = 0; while (k < Math.max(a.length, b.length) && JSON.stringify(a[k]) === JSON.stringify(b[k])) k++;
+        mismatches.push({ at: n + ':' + id, nb: b.length, na: a.length, para: k, before: b[k], after: a[k] });
+      }
+    }
+  }
+  ok('round trip (edit, no typing) leaves every frame unchanged', mismatches.length === 0, { got: mismatches });
+
+  // ---- 14. typing at the start of a linked story pushes text into the next frame
+  const head = editor.pageEntry(10).frames.find((f) => f.text && f.text.chain && f.text.chain.index === 0);
+  const story = head.text.chain.story;
+  const origStory = storyText(story);
+  const origTail = norm(editor.storyFrames(story)[1].frame.text.paragraphs);
+  const ins = 'NEW '.repeat(60);
+  editor.beginTextEdit(10, head.id);
+  const flow = editor.editingFlow();
+  const firstText = (function find(n) { for (const c of n.childNodes) { if (c.nodeType === 3 && c.data.trim() && parseInt(getComputedStyle(c.parentElement).fontWeight, 10) < 600) return c; if (c.nodeType === 1 && !c.classList.contains('wrap-float')) { const r = find(c); if (r) return r; } } return null; })(flow);
+  const rg = document.createRange(); rg.setStart(firstText, 0); rg.collapse(true);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(rg);
+  document.execCommand('insertText', false, ins);
+  await editor.endTextEdit();
+  const typedStory = storyText(story);
+  ok('typed text saved in the frame', editor.anyFrame(10, head.id).text.paragraphs.some((p) => p.runs.some((r) => r.text.includes('NEW NEW'))));
+  ok('no text lost or duplicated across the linked frames', typedStory.replace(ins, '') === origStory, { got: typedStory.length - origStory.length, expect: ins.length });
+  ok('reflow moved text into the next frame', norm(editor.storyFrames(story)[1].frame.text.paragraphs) !== origTail);
+
+  // ---- 15. undo / redo a typing session
+  await editor.command('undo');
+  ok('undo restores the story', storyText(story) === origStory);
+  await editor.command('redo');
+  ok('redo re-applies the typing', storyText(story) === typedStory);
+
+  // ---- 16. bold on a selection
+  editor.beginTextEdit(10, head.id);
+  const fl2 = editor.editingFlow();
+  const t2 = (function find(n) { for (const c of n.childNodes) { if (c.nodeType === 3 && c.data.startsWith('NEW')) return c; if (c.nodeType === 1) { const r = find(c); if (r) return r; } } return null; })(fl2);
+  const rb = document.createRange(); rb.setStart(t2, 0); rb.setEnd(t2, 3);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(rb);
+  editor.format('bold');
+  await editor.endTextEdit();
+  const r0 = editor.anyFrame(10, head.id).text.paragraphs.flatMap((p) => p.runs).find((r) => r.text.startsWith('NEW'));
+  ok('bold applies to the selected word only', r0 && r0.bold === true && r0.text === 'NEW', { got: r0 });
+  const diffAt = (a, b) => { let k = 0; while (k < a.length && a[k] === b[k]) k++; return { at: k, was: JSON.stringify(b.slice(Math.max(0, k - 20), k + 30)), now: JSON.stringify(a.slice(Math.max(0, k - 20), k + 30)), lenWas: b.length, lenNow: a.length }; };
+  ok('bold keeps the story text', storyText(story) === typedStory, { got: diffAt(storyText(story), typedStory) });
+
+  // ---- 17. shrinking a linked frame re-flows, losing nothing
+  editor.select(10, head.id);
+  const hf = editor.topFrame(10, head.id);
+  await editor.setBox({ x: hf.x, y: hf.y, w: hf.w, h: hf.h - 72 });
+  ok('shrinking a linked frame keeps every character', storyText(story) === typedStory);
+
+  // ---- 18. deleting a linked frame hands its text to the rest of the chain
+  const tailFrame = editor.storyFrames(story)[1];
+  editor.select(tailFrame.n, tailFrame.frame.id);
+  await editor.command('delete');
+  ok('delete linked frame keeps the story text', storyText(story) === typedStory);
+  await editor.command('undo');
+  ok('undo brings the linked frame back', editor.storyFrames(story).length === 2);
+
   // ---- 12. save
   ok('dirty before save', editor.dirty === true);
   ok('save succeeds', await editor.save());
@@ -127,6 +204,7 @@ export async function run(editor, { shells, week }) {
   diskChecks.push({ name: 'picture locked', page: P, id: img.id, field: 'locked', expect: true });
   diskChecks.push({ name: 'page 16 locked', page: G, id: grp.id, field: '@page.locked', expect: true });
   diskChecks.push({ name: 'group y', page: G, id: grp.id, field: 'y', expect: editor.topFrame(G, grp.id).y });
+  diskChecks.push({ name: 'bold word saved', page: 10, id: head.id, field: 'text.paragraphs.0.runs.0.bold', expect: true });
   diskChecks.push({ name: 'deleted frame restored', page: P, id: del.id, field: 'id', expect: del.id });
 
   return { checks, diskChecks };

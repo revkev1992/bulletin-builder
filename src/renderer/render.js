@@ -118,7 +118,7 @@ function extraLeading(para) {
   return (m - 1) * lineRatio(mark.font || 'Palatino Linotype') * Math.max(...sizes);
 }
 
-function paragraphEl(para) {
+export function paragraphEl(para) {
   const p = el('p', 'para');
   const s = p.style;
   s.textAlign = para.align || 'left';
@@ -135,6 +135,9 @@ function paragraphEl(para) {
   s.fontSize = pt(markSize);
   s.lineHeight = lineHeightFor(para, markFont, markSize);
   if (para.tabs) p.dataset.tabs = JSON.stringify(para.tabs);
+  // paragraph settings (everything but the text) ride along so the editor can read them back
+  const { runs: _runs, ...props } = para;
+  p.dataset.para = JSON.stringify(props);
 
   let seg = null; // text after a tab lives in a .seg so right/centre tabs can measure it
   const target = () => seg || p;

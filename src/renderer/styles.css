@@ -97,6 +97,7 @@ button:disabled { opacity: .45; cursor: default; }
   position: relative;
   overflow: hidden;
   background: #fff;
+  color: #000;          /* Publisher's default text colour; the app chrome is dark grey */
   flex: none;
 }
 .frame { position: absolute; transform-origin: center center; }
@@ -166,7 +167,7 @@ p.para {
 
 /* ------------------------------------------------ print mode */
 .print body, body.print { background: #fff; display: block; }
-body.print #toolbar, body.print #nav, body.print #status { display: none; }
+body.print #toolbar, body.print #nav, body.print #statusbar { display: none; }
 body.print #stage { padding: 0; background: #fff; overflow: visible; }
 body.print .page { break-after: page; }
 @media print {
@@ -198,3 +199,9 @@ body.print .page { break-after: page; }
 .snap-line.v { top: -20pt; bottom: -20pt; width: 1px; }
 .snap-line.h { left: -20pt; right: -20pt; height: 1px; }
 .spread .page-shell .page { box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
+
+.frame.editing { outline: 1px dashed #2b7de9; z-index: 150000 !important; cursor: text; }
+.frame.editing .flow { outline: none; caret-color: #2b7de9; }
+.frame.editing .text-area { overflow: visible; }
+.sel-box.typing { outline: 1.5px solid rgba(43, 125, 233, .35); }
+[hidden] { display: none !important; }

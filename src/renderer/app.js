@@ -57,6 +57,7 @@ function buildShell(n) {
   ov.className = 'overlay';
   shell.append(pg, ov);
   shell.addEventListener('pointerdown', (e) => editor && editor.onDown(e, n));
+  shell.addEventListener('dblclick', (e) => editor && editor.onDblClick(e, n));
   shells.set(n, shell);
   return shell;
 }
@@ -277,6 +278,7 @@ if (PRINT) {
     setStatus,
     onState: updateToolbar,
     onSelection,
+    onTextMode: (on) => { $('textbar').hidden = !on; $('arrange').hidden = on; },
   });
   window.__bbEditor = editor;
   $('open').onclick = async () => { const f = await window.bb.chooseWeek(); if (f) open(f); };
@@ -299,6 +301,20 @@ if (PRINT) {
   $('lock-page').onclick = () => editor.command('lock-page');
   $('delete').onclick = () => editor.command('delete');
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
+  // text toolbar: mousedown is cancelled so the caret/selection stays in the frame
+  for (const b of document.querySelectorAll('#textbar button')) b.addEventListener('mousedown', (e) => e.preventDefault());
+  $('t-bold').onclick = () => editor.format('bold');
+  $('t-italic').onclick = () => editor.format('italic');
+  $('t-underline').onclick = () => editor.format('underline');
+  for (const b of document.querySelectorAll('#textbar [data-align]')) b.onclick = () => editor.format('align', b.dataset.align);
+  $('t-done').onclick = () => editor.endTextEdit();
+  // font and size take focus away from the frame; put the selection back before applying
+  let saved = null;
+  const keep = () => { const s = window.getSelection(); if (s.rangeCount) saved = s.getRangeAt(0).cloneRange(); };
+  const back = () => { if (!saved) return; const s = window.getSelection(); s.removeAllRanges(); s.addRange(saved); };
+  $('t-font').addEventListener('mousedown', keep); $('t-size').addEventListener('mousedown', keep);
+  $('t-font').onchange = (e) => { back(); editor.format('font', e.target.value); };
+  $('t-size').onchange = (e) => { back(); editor.format('size', e.target.value); };
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
   window.bb.onCommand((name) => editor.command(name));

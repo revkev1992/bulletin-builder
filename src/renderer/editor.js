@@ -1,7 +1,11 @@
-// Phase 2a editor: select, move, resize, snap, nudge, lock, delete, undo, save.
+// Editor: select, move, resize, snap, nudge, lock, delete, undo, save (2a) + typing in frames and
+// linked-story reflow (2b, the text side lives in textedit.js).
 // The model is the week object; every change goes through commit(), which snapshots the half for
 // undo, mutates the model, and re-renders the affected pages with the same renderer the PDF uses.
 // Design notes: docs/PHASE2_DESIGN.md.
+
+import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon } from './textedit.js';
+import { findOverflow, layoutTabs } from './render.js';
 
 const SNAP_PX = 6;            // snapping distance on screen
 const DRAG_START_PX = 3;      // a click that moves less than this is just a click
@@ -21,6 +25,7 @@ export class Editor {
     this.redo = [];
     this.dirty = false;
     this.drag = null;
+    this.textEdit = null;     // { n, id, before }
     setInterval(() => { if (this.dirty && this.half) this.save({ quiet: true }); }, AUTOSAVE_MS);
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
@@ -41,6 +46,33 @@ export class Editor {
     return pg.frames.find(contains) || null;
   }
   frame() { return this.sel ? this.topFrame(this.sel.page, this.sel.id) : null; }
+  anyFrame(n, id) {
+    const pg = this.pageEntry(n);
+    let hit = null;
+    if (pg) pg.frames.forEach((f) => Editor.each(f, (g) => { if (g.id === id) hit = g; }));
+    return hit;
+  }
+  storyFrames(story) {
+    const list = [];
+    for (const n of this.app.pageNumbers()) {
+      if (this.halfOf(n) !== this.half) continue;
+      const pg = this.pageEntry(n);
+      if (!pg) continue;
+      pg.frames.forEach((f) => Editor.each(f, (g) => {
+        if (g.text && g.text.chain && g.text.chain.story === story) list.push({ n, frame: g });
+      }));
+    }
+    return list.sort((a, b) => a.frame.text.chain.index - b.frame.text.chain.index);
+  }
+  // pour a linked story through its frames again; returns the page numbers touched
+  reflow(story) {
+    const list = this.storyFrames(story);
+    reflowStory(list, (x) => {
+      const sh = this.app.shellOf(x.n);
+      return sh && sh.querySelector('.frame[data-id="' + x.frame.id + '"] .text-area');
+    }, this.week().manifest.defaultTabStop || 36);
+    return [...new Set(list.map((x) => x.n))];
+  }
   locked(n, f) { const pg = this.pageEntry(n); return !!(pg && pg.locked) || !!(f && f.locked); }
 
   static each(f, fn) { fn(f); (f.children || []).forEach((c) => Editor.each(c, fn)); }
@@ -134,6 +166,10 @@ export class Editor {
   }
 
   async command(name) {
+    if (this.textEdit) {
+      if (name === 'undo' || name === 'redo') { document.execCommand(name); return; }
+      await this.endTextEdit();
+    }
     if (name.startsWith('claim:')) return this.claim(name.slice(6));
     switch (name) {
       case 'release': return this.release();
@@ -149,10 +185,18 @@ export class Editor {
 
   // ------------------------------------------------------------ operations
   apply(n, newFrame) {
+    const old = this.topFrame(n, newFrame.id);
+    const resized = old && (Math.abs(old.w - newFrame.w) > 0.01 || Math.abs(old.h - newFrame.h) > 0.01);
     return this.commit([n], () => {
       const pg = this.pageEntry(n);
       const i = pg.frames.findIndex((f) => f.id === newFrame.id);
       pg.frames[i] = newFrame;
+    }).then(async () => {
+      if (!resized) return;
+      const stories = new Set();
+      Editor.each(newFrame, (g) => { if (g.text && g.text.chain) stories.add(g.text.chain.story); });
+      for (const st of stories) await this.app.rerender(this.reflow(st));
+      this.drawSelection();
     });
   }
 
@@ -203,9 +247,21 @@ export class Editor {
     if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return;
     const n = this.sel.page;
     this.sel = null;
+    const stories = new Set();
+    Editor.each(f, (g) => { if (g.text && g.text.chain) stories.add(g.text.chain.story); });
     return this.commit([n], () => {
+      for (const st of stories) {
+        const all = this.storyFrames(st);
+        const keep = all.filter((x) => !(x.n === n && this.topFrame(n, x.frame.id) === f));
+        if (keep.length && keep.length < all.length) {
+          keep[0].frame.text.paragraphs = joinStory(all.map((x) => x.frame));
+          keep.slice(1).forEach((x) => { x.frame.text.paragraphs = []; });
+        }
+      }
       const pg = this.pageEntry(n);
       pg.frames = pg.frames.filter((x) => x.id !== f.id);
+    }).then(async () => {
+      for (const st of stories) if (this.storyFrames(st).length) await this.app.rerender(this.reflow(st));
     });
   }
 
@@ -254,6 +310,11 @@ export class Editor {
 
   onDown(e, n) {
     if (e.button !== 0) return;
+    if (this.textEdit) {
+      const editing = this.app.shellOf(this.textEdit.n).querySelector('.frame.editing');
+      if (editing && editing.contains(e.target)) return;
+      this.endTextEdit();
+    }
     this.lastPage = n;
     const handle = e.target.closest('.handle');
     const frameEl = e.target.closest('.frame');
@@ -350,8 +411,89 @@ export class Editor {
     });
   }
 
+  // ------------------------------------------------------------ typing (2b)
+  onDblClick(e, n) {
+    const el = e.target.closest('.frame-text');
+    if (!el || !this.editable(n)) return;
+    this.beginTextEdit(n, el.dataset.id, e);
+  }
+
+  beginTextEdit(n, id, e) {
+    const f = this.anyFrame(n, id);
+    const top = this.topFrame(n, id);
+    if (!f || f.kind !== 'text' || !this.editable(n) || this.locked(n, top)) return false;
+    if (this.textEdit) this.endTextEdit();
+    this.sel = { page: n, id: top.id };
+    this.textEdit = { n, id, before: JSON.stringify(this.week().halves[this.half]), dirtyBefore: this.dirty };
+    const el = this.app.shellOf(n).querySelector('.frame[data-id="' + id + '"]');
+    const flow = el.querySelector('.flow');
+    el.classList.add('editing');
+    flow.contentEditable = 'true';
+    flow.spellcheck = true;
+    flow.addEventListener('paste', pastePlain);
+    let t = null;
+    flow.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { layoutTabs(el, this.week().manifest.defaultTabStop || 36); findOverflow(el); }, 250);
+      this.setDirty(true);
+    });
+    flow.focus();
+    const r = e && document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    if (r && flow.contains(r.startContainer)) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    this.drawSelection();
+    this.app.onTextMode(true);
+    return true;
+  }
+
+  editingFlow() {
+    if (!this.textEdit) return null;
+    const el = this.app.shellOf(this.textEdit.n).querySelector('.frame[data-id="' + this.textEdit.id + '"]');
+    return el && el.querySelector('.flow');
+  }
+
+  format(cmd, value) {
+    const flow = this.editingFlow();
+    if (!flow) return;
+    formatSelection(cmd, value, flow);
+    this.setDirty(true);
+  }
+
+  async endTextEdit() {
+    const t = this.textEdit;
+    if (!t) return;
+    this.textEdit = null;
+    const flow = this.editingFlow.call({ textEdit: t, app: this.app });
+    const f = this.anyFrame(t.n, t.id);
+    const paras = flow ? serializeFlow(flow) : f.text.paragraphs;
+    this.app.onTextMode(false);
+    if (canon(paras) === canon(f.text.paragraphs)) {
+      this.setDirty(t.dirtyBefore);
+      await this.app.rerender([t.n]);
+      this.drawSelection();
+      return;
+    }
+    this.undo.push(t.before);
+    if (this.undo.length > UNDO_LIMIT) this.undo.shift();
+    this.redo = [];
+    f.text.paragraphs = paras;
+    const pages = new Set([t.n]);
+    await this.app.rerender([t.n]);
+    if (f.text.chain) for (const n of this.reflow(f.text.chain.story)) pages.add(n);
+    this.setDirty(true);
+    await this.app.rerender([...pages]);
+    this.drawSelection();
+  }
+
   // ------------------------------------------------------------ keyboard
   onKey(e) {
+    if (this.textEdit) {
+      if (e.key === 'Escape') { e.preventDefault(); this.endTextEdit(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); return; }
+    }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     if (e.key === 'Escape') { this.select(this.lastPage, null); return; }
@@ -377,9 +519,9 @@ export class Editor {
       const ov = this.app.shellOf(this.sel.page).querySelector('.overlay');
       const box = document.createElement('div');
       const isLocked = this.locked(this.sel.page, f);
-      box.className = 'sel-box' + (isLocked ? ' locked' : '');
+      box.className = 'sel-box' + (isLocked ? ' locked' : '') + (this.textEdit ? ' typing' : '');
       Object.assign(box.style, { left: f.x + 'pt', top: f.y + 'pt', width: Math.max(f.w, 0.5) + 'pt', height: Math.max(f.h, 0.5) + 'pt' });
-      if (!isLocked) {
+      if (!isLocked && !this.textEdit) {
         for (const h of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const k = document.createElement('div');
           k.className = 'handle h-' + h;
