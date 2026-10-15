@@ -22,10 +22,17 @@
   "build": {
     "appId": "org.highlandumc.bulletinbuilder",
     "productName": "Bulletin Builder",
-    "files": ["src/**/*", "package.json"],
-    "directories": { "output": "dist" },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "Bulletin-Builder-Setup-${version}.${ext}"
     },
     "nsis": {
@@ -43,6 +50,18 @@
         "description": "Bulletin Builder week",
         "role": "Editor"
       }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "revkev1992",
+        "repo": "bulletin-builder",
+        "releaseType": "release"
+      }
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/revkev1992/bulletin-builder.git"
   }
 }
