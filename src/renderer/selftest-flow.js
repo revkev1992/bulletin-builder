@@ -2,7 +2,7 @@
 // flow-mode week. Checks the layout invariants, then drives the Order of Worship panel the way a
 // person would (field changes, clicks, add / move / delete / undo, styles, cover) and reports checks;
 // main.js adds checks on the files written to disk.
-import { worshipPages, flowHash, layoutFlow } from './flow.js';
+import { worshipPages, flowHash, layoutFlow, compileBlock } from './flow.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -70,8 +70,15 @@ export async function run(editor, { shells, week }) {
     if (!lastF || !nextHas) continue;
     const lastP = lastF.text.paragraphs[lastF.text.paragraphs.length - 1];
     const imgAfter = gen(n).some((f) => f.kind === 'image' && f.y > lastF.y);
-    if (lastP && (lastP.style === 'item' || lastP.style === 'section') && !imgAfter) orphans.push(n + ': ' + paraText(lastP));
+    // stranded = a section divider, or a heading whose OWN block continues on the next page
+    // (a heading-only line such as "*HYMN ⇥ TFWS 2009" may end a page — Kevin, 2026-10-15)
+    const contNext = gen(n + 1).some((f) => f.block === lastP.block || (f.kind === 'text' && f.text.paragraphs.some((p) => p.block === lastP.block)));
+    if (lastP && (lastP.style === 'section' || (lastP.style === 'item' && contNext)) && !imgAfter) orphans.push(n + ': ' + paraText(lastP));
   }
+  // the case Kevin flagged: a heading-only item does not keep with the block after it
+  const lone = compileBlock(flow(), { id: 'x', kind: 'item', heading: { label: 'HYMN', middle: 'UMH 1', right: 'TUNE' } }, {});
+  const sect = compileBlock(flow(), { id: 'y', kind: 'section', text: 'WE GATHER' }, {});
+  ok('a heading-only item can end a page; a section divider cannot', lone.length === 1 && !lone[0].keepWithNext && sect[sect.length - 1].keepWithNext);
   ok('no order-of-worship line is stranded at the bottom of a page', orphans.length === 0, { got: orphans });
   // pictures whole and inside the page
   const pics = bodyPages().flatMap((n) => gen(n).filter((f) => f.kind === 'image').map((f) => ({ n, f })));

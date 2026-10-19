@@ -9,7 +9,7 @@
 import { paragraphEl, layoutTabs, cssFont } from './render.js';
 import { splitParagraph } from './textedit.js';
 
-export const LAYOUT_VERSION = 1;   // bump when pagination rules change: saved layouts are redone
+export const LAYOUT_VERSION = 2;   // bump when pagination rules change: saved layouts are redone
 export const KINDS = ['item', 'section', 'dialog', 'prayer', 'scripture', 'hymn', 'image', 'rubric', 'text', 'space'];
 export const KIND_LABEL = {
   item: 'Item', section: 'Section', dialog: 'Leader / People', prayer: 'Prayer', scripture: 'Scripture',
@@ -153,6 +153,12 @@ export function compileBlock(flow, b, natural) {
   if (together) {
     items.forEach((it, i) => { if (i < items.length - 1) it.keepWithNext = true; if (it.type === 'para') it.keepTogether = true; });
   }
+  // a block's LAST line keeps with the next block only for a section divider (or when the block
+  // asks for it): a heading-only item such as "*HYMN ⇥ TFWS 2009" must not drag the whole next
+  // unit (the Collect dialog) onto its page — that pushed 10-18's hymn from page 2 to page 3
+  const tail = items[items.length - 1];
+  // (a `text` block keeps Word's own keep-with-next on its last paragraph)
+  tail.keepWithNext = !!(b.keepWithNext ?? (b.kind === 'section' || (b.kind === 'text' && tail.keepWithNext)));
   // a margin note takes a column on the right: the block's lines stop short of it
   if (b.note && b.note.length) {
     for (const it of paras) it.para.indentRight = Math.max(it.para.indentRight || 0, NOTE.w + NOTE.gap);
