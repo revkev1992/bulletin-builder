@@ -12,8 +12,8 @@ Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 | Item | Status | Notes |
 |---|---|---|
-| Ribbon with Publisher's tabs (File · Home · Insert · Page Design · View) and grouped commands | ⬜ | Today: a classic menu bar + one flat toolbar. Kevin's ribbon screenshots: `bulletin-builder/Screenshot 2026-10-14 *.png`. **Top priority.** |
-| Page navigation pane (thumbnails down the left) | ⬜ | |
+| Ribbon with Publisher's tabs (File · Home · Insert · Page Design · View) and grouped commands | ✅ | 2026-10-19 (`src/renderer/ribbon.js`), from Kevin's screenshots. Menu bar hidden (shortcuts kept). Unbuilt commands show greyed with a "Coming soon" tooltip. Contextual **Picture / Shape / Text Box Format** tabs. Extra **Bulletin** tab holds our own features (Kevin, 2026-10-19). |
+| Page navigation pane (thumbnails down the left) | 🟡 | "Pages" pane with spread buttons; thumbnails ⬜ |
 | Scratch area around the spread | 🟡 | Pasteboard exists as a separate view, not around the page |
 | "Most Used" customizable tab | ⬜ | Spec extra; after parity |
 
@@ -21,19 +21,19 @@ Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 | Item | Status | Notes |
 |---|---|---|
-| Open / Save / Recent | 🟡 | Open + Save; no Save As, no Recent list, no backstage screen |
+| Open / Save / Recent | ✅ | Backstage (Home · New · Open · Info · Save · Print · Export · Close); Save As ⬜ |
 | New (blank sizes, templates) | 🟡 | Only "New Week from This One" |
-| Print (printer, copies, range, booklet imposition, preview) | ⬜ | PDF export only |
-| Export PDF | ✅ | |
+| Print (printer, copies, range, booklet imposition, preview) | 🟡 | File ▸ Print opens the Windows print dialog (reading order, real size); booklet imposition + preview ⬜ |
+| Export PDF | ✅ | File ▸ Export ▸ Create PDF (saves first) |
 | Export pages as PNG/JPG, Pack and Go | ⬜ | |
-| Info (fonts used, image manager) | ⬜ | |
+| Info (fonts used, image manager) | 🟡 | File ▸ Info: location, pages, fonts used/missing; image manager ⬜ |
 | Options | ⬜ | |
 
 ## Home
 
 | Group | Status | Notes |
 |---|---|---|
-| Clipboard: cut/copy/paste frames | ✅ | Ctrl+C/V/D; paste text is plain |
+| Clipboard: cut/copy/paste frames | ✅ | Ribbon + Ctrl+C/V/D; paste text is plain |
 | Clipboard: paste special, format painter | ⬜ | |
 | Font: family, size, B/I/U | ✅ | |
 | Font: grow/shrink, strike, super/subscript, change case, colour, character spacing, clear formatting | ⬜ | |
@@ -76,8 +76,8 @@ Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 | Item | Status | Notes |
 |---|---|---|
 | Two-page spread / single page | 🟡 | Spread view; single-page toggle ⬜ |
-| Zoom in/out, whole spread | ✅ | Page width, selected object ⬜ |
-| Rulers, boundaries, guides toggles | ⬜ | |
+| Zoom in/out, whole spread | ✅ | + 100%, Page Width; Selected Objects ⬜ |
+| Rulers, boundaries, guides toggles | 🟡 | Boundaries, Guides, Page Navigation, Scratch Area ✅; Rulers ⬜ |
 | Graphics manager | ⬜ | |
 | Master page view | ⬜ | |
 

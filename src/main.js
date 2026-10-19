@@ -17,6 +17,9 @@ const { pathToFileURL } = require('url');
 
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
 
+const HEADLESS_FILE = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow');
+const HEADLESS = !!HEADLESS_FILE;
+
 function argAfter(flag) {
   const i = process.argv.indexOf(flag);
   return i >= 0 ? process.argv[i + 1] : null;
@@ -41,7 +44,57 @@ function loadWeek(file) {
   return { file: abs, baseUrl: pathToFileURL(dir + path.sep).href, manifest, halves };
 }
 
-ipcMain.handle('week:load', (_e, file) => loadWeek(file));
+// recent weeks (File ▸ Home / Open), newest first; not recorded for headless/test runs
+const RECENT_MAX = 15;
+const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
+function readRecent() {
+  try { return JSON.parse(fs.readFileSync(recentFile(), 'utf8')).filter((r) => r && r.file); } catch (_) { return []; }
+}
+function noteRecent(week) {
+  if (HEADLESS) return;
+  try {
+    const list = readRecent().filter((r) => path.resolve(r.file).toLowerCase() !== week.file.toLowerCase());
+    list.unshift({ file: week.file, title: week.manifest.title, at: new Date().toISOString() });
+    fs.mkdirSync(path.dirname(recentFile()), { recursive: true });
+    fs.writeFileSync(recentFile(), JSON.stringify(list.slice(0, RECENT_MAX), null, 1));
+  } catch (_) { /* a recent list is a convenience only */ }
+}
+
+ipcMain.handle('week:load', (_e, file) => { const w = loadWeek(file); noteRecent(w); return w; });
+ipcMain.handle('recent:list', () => readRecent().map((r) => ({ ...r, exists: fs.existsSync(r.file) })));
+
+// File ▸ Export ▸ PDF and File ▸ Print both render the SAVED week in print mode (what prints is
+// exactly what the PDF/fidelity test sees)
+ipcMain.handle('week:export-pdf', async (e, file) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  const r = await dialog.showSaveDialog(win, {
+    title: 'Export as PDF',
+    defaultPath: path.join(path.dirname(path.resolve(file)), manifest.title + '.pdf'),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (r.canceled || !r.filePath) return null;
+  await exportPdf(file, r.filePath, { report: false });
+  return r.filePath;
+});
+ipcMain.handle('week:print', async (_e, file) => {
+  const week = loadWeek(file);
+  const win = new BrowserWindow({ show: false, webPreferences: { preload: path.join(__dirname, 'preload.js') } });
+  try {
+    await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
+    await win.webContents.executeJavaScript('window.__bbReady');
+    const { width, height } = week.manifest.page;
+    return await new Promise((resolve) => win.webContents.print({
+      silent: false, printBackground: true,
+      pageSize: { width: Math.round(width / 72 * 25400), height: Math.round(height / 72 * 25400) },
+      margins: { marginType: 'none' },
+    }, (ok, reason) => resolve(ok ? 'printed' : (reason || 'cancelled'))));
+  } finally {
+    win.destroy();
+  }
+});
+ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('file:reveal', (_e, p) => shell.showItemInFolder(p));
 
 // ---------------------------------------------------------------- edit sessions
 const claims = new Map(); // webContents id -> { file, half }
@@ -186,6 +239,9 @@ function createViewer(file) {
     title: 'Bulletin Builder',
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
+  // Publisher has no menu bar — the ribbon carries every command. The (hidden) application
+  // menu still provides the keyboard shortcuts (Ctrl+O/N/S/Z/Y, zoom).
+  win.setMenuBarVisibility(false);
   win.loadFile(RENDERER, { query: file ? { week: file } : {} });
   const id = win.webContents.id;
   let closing = false;
@@ -268,7 +324,7 @@ function buildMenu() {
 }
 
 // ---------------------------------------------------------------- headless PDF export
-async function exportPdf(file, out) {
+async function exportPdf(file, out, opts = {}) {
   const week = loadWeek(file);
   const win = new BrowserWindow({ show: false, webPreferences: { preload: path.join(__dirname, 'preload.js') } });
   await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
@@ -282,7 +338,8 @@ async function exportPdf(file, out) {
     margins: { marginType: 'none' },
   });
   fs.writeFileSync(out, pdf);
-  fs.writeFileSync(out.replace(/\.pdf$/i, '.report.json'), JSON.stringify(report, null, 1));
+  if (opts.report !== false) fs.writeFileSync(out.replace(/\.pdf$/i, '.report.json'), JSON.stringify(report, null, 1));
+  win.destroy();
   console.log('wrote', out, '| pages', week.manifest.pages.length, '| missing fonts', (report.missingFonts || []).join(', ') || 'none');
 }
 
@@ -395,7 +452,7 @@ async function selftestFlow(file) {
 }
 
 // ---------------------------------------------------------------- app lifecycle
-const exportFile = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow');
+const exportFile = HEADLESS_FILE || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow');
 
 if (exportFile) {
   app.whenReady().then(async () => {

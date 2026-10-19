@@ -13,5 +13,10 @@ contextBridge.exposeInMainWorld('bb', {
   setDirty: (flag) => ipcRenderer.send('doc:dirty', flag),
   closeWindow: () => ipcRenderer.send('app:close-window'),
   importPicture: (weekFile) => ipcRenderer.invoke('asset:import', weekFile),
+  version: () => ipcRenderer.invoke('app:version'),
+  recent: () => ipcRenderer.invoke('recent:list'),
+  exportPdf: (file) => ipcRenderer.invoke('week:export-pdf', file),
+  print: (file) => ipcRenderer.invoke('week:print', file),
+  reveal: (p) => ipcRenderer.invoke('file:reveal', p),
   importPicturePath: (weekFile, src) => ipcRenderer.invoke('asset:import-path', weekFile, src),
 });

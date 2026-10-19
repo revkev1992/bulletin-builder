@@ -7,78 +7,11 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header id="toolbar">
-    <div class="row">
-      <button id="open">Open Week…</button>
-      <select id="mode" title="Which half of the bulletin you are changing">
-        <option value="">View only</option>
-        <option value="worship">Edit worship pages</option>
-        <option value="announcements">Edit announcements pages</option>
-      </select>
-      <button id="save" title="Save (Ctrl+S)" disabled>Save</button>
-      <button id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
-      <button id="redo" title="Redo (Ctrl+Y)" disabled>Redo</button>
-      <span class="sep"></span>
-      <button id="zoom-out" title="Zoom out (Ctrl -)">−</button>
-      <span id="zoom-label">100%</span>
-      <button id="zoom-in" title="Zoom in (Ctrl +)">+</button>
-      <button id="zoom-fit" title="Whole spread (Ctrl 0)">Whole spread</button>
-      <span class="sep"></span>
-      <label><input type="checkbox" id="show-guides" checked> Guides</label>
-      <label><input type="checkbox" id="show-halves" checked> Who owns each page</label>
-      <button id="pasteboard-btn">Pasteboard</button>
-      <span id="title"></span>
-      <span id="badge">No week open</span>
-    </div>
-    <div class="row" id="arrange" title="Drag to move · handles resize · arrows nudge 1 pt (Shift = 9 pt) · hold Alt to stop snapping · Ctrl+C / Ctrl+V / Ctrl+D copy, paste, duplicate · double-click a picture to crop it, a text frame to type">
-      <span class="group-label">Inches</span>
-      <label>X <input id="fx" type="number" step="0.01" disabled></label>
-      <label>Y <input id="fy" type="number" step="0.01" disabled></label>
-      <label>W <input id="fw" type="number" step="0.01" min="0.05" disabled></label>
-      <label>H <input id="fh" type="number" step="0.01" min="0" disabled></label>
-      <span class="sep"></span>
-      <button id="lock-frame" title="Lock frame (Ctrl+L)" disabled>Lock</button>
-      <button id="lock-page" disabled>Lock page</button>
-      <button id="delete" title="Delete (Del)" disabled>Delete</button>
-      <button id="front" title="Bring to front" disabled>Front</button>
-      <button id="back" title="Send to back" disabled>Back</button>
-      <button id="to-pasteboard" title="Park on the pasteboard (never printed)" disabled>Park</button>
-      <span class="pic-tools">
-        <button id="crop" title="Crop (double-click the picture)" disabled>Crop</button>
-        <button id="fit" title="Show the whole picture inside the frame" disabled>Fit</button>
-        <button id="fill" title="Fill the frame, cropping the picture evenly" disabled>Fill</button>
-      </span>
-      <span class="sep"></span>
-      <span class="group-label">Insert</span>
-      <button id="ins-text" disabled>Text</button>
-      <button id="ins-picture" disabled>Picture…</button>
-      <button id="ins-line" disabled>Line</button>
-      <button id="ins-rect" disabled>Box</button>
-    </div>
-    <div class="row" id="textbar" hidden>
-      <span class="group-label">Text</span>
-      <select id="t-font" title="Font">
-        <option>Palatino Linotype</option><option>Book Antiqua</option><option>Candara</option><option>Candara Light</option>
-        <option>Archer Book</option><option>Archer Bold</option><option>Avenir Next LT Pro</option>
-        <option>Calibri</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option>
-      </select>
-      <input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Size (pt)">
-      <button id="t-bold" title="Bold (Ctrl+B)"><b>B</b></button>
-      <button id="t-italic" title="Italic (Ctrl+I)"><i>I</i></button>
-      <button id="t-underline" title="Underline (Ctrl+U)"><u>U</u></button>
-      <span class="sep"></span>
-      <button data-align="left" title="Align left">Left</button>
-      <button data-align="center" title="Center">Center</button>
-      <button data-align="right" title="Align right">Right</button>
-      <button data-align="justify" title="Justify">Justify</button>
-      <span class="sep"></span>
-      <button id="t-done" title="Finish editing (Esc)">Done</button>
-      <span class="hint">Typing in a frame · paste comes in as plain text · Tab inserts a tab · Esc to finish</span>
-    </div>
-  </header>
+  <header id="toolbar"></header>
+  <div id="backstage" hidden></div>
   <div id="body">
-    <nav id="nav"></nav>
-    <main id="stage"><div id="empty">Open a week to begin (File ▸ Open Week…).</div></main>
+    <nav id="nav"><div class="nav-title">Pages</div><div id="nav-pages"></div></nav>
+    <main id="stage"><div id="empty">Open a week to begin: File ▸ Open.</div></main>
     <aside id="flowpanel" hidden></aside>
   </div>
   <footer id="statusbar"><span id="counts"></span><span id="status"></span></footer>

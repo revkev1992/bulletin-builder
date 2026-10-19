@@ -2,10 +2,13 @@ import { renderPage, renderPasteboard, layoutTabs, layoutWraps, findOverflow, fo
 import { Editor } from './editor.js';
 import { isFlow, layoutFlow, flowHash } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
+import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
+import { Backstage } from './backstage.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
 const $ = (id) => document.getElementById(id);
+if (!PRINT) buildRibbon($('toolbar'));
 
 let week = null;
 window.__bbWeek = () => week;   // debug aid (--eval)
@@ -97,14 +100,14 @@ async function showSpreads() {
   stage.innerHTML = '';
   shells.clear();
   showingPasteboard = false;
-  $('pasteboard-btn').classList.remove('active');
+  $('pasteboard-btn').checked = false;
   const { width, height } = week.manifest.page;
   const numbers = week.manifest.pages.map((p) => p.number);
   const wrap = document.createElement('div');
   wrap.className = 'spreads';
   wrap.style.setProperty('--page-w', width + 'pt');
   wrap.style.setProperty('--page-h', height + 'pt');
-  const nav = $('nav');
+  const nav = $('nav-pages');
   nav.innerHTML = '';
   for (const pair of spreadsOf(numbers)) {
     const label = pair.filter(Boolean).join('–');
@@ -190,7 +193,7 @@ async function showPasteboard() {
   stage.appendChild(wrap);
   await settle(wrap);
   showingPasteboard = true;
-  $('pasteboard-btn').classList.add('active');
+  $('pasteboard-btn').checked = true;
 }
 
 function applyZoom() {
@@ -201,7 +204,11 @@ function applyZoom() {
 
 function zoomBy(factor) {
   if (!week) return;
-  if (factor === 0) {
+  if (factor === -1) {
+    // page width: the two pages of a spread fill the width of the window
+    const { width } = week.manifest.page;
+    zoom = ($('stage').clientWidth - 64) / (2 * width * 96 / 72);
+  } else if (factor === 0) {
     // whole spread: fit two pages side by side into the stage
     const stage = $('stage');
     const { width, height } = week.manifest.page;
@@ -223,8 +230,8 @@ async function open(file) {
   }
   await ensureLayout();
   document.title = 'Bulletin Builder — ' + week.manifest.title;
-  $('title').textContent = week.manifest.title;
   if (PRINT) return printLayout();
+  $('title').textContent = week.manifest.title;
   if (editor && editor.half) await editor.release();
   await showSpreads();
   zoomBy(0);
@@ -265,8 +272,10 @@ function updateToolbar() {
   const pg = lp != null && editor.pageEntry(lp);
   $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
-  $('lock-page').textContent = pg && pg.locked ? 'Unlock page ' + lp : 'Lock page' + (lp != null ? ' ' + lp : '');
-  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect']) $(id).disabled = !half;
+  setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
+  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste']) $(id).disabled = !half;
+  $('rb-newweek').disabled = !week;
+  syncMirrors();
 }
 
 function onSelection(info) {
@@ -279,7 +288,10 @@ function onSelection(info) {
   for (const id of ['crop', 'fit', 'fill']) $(id).disabled = !pic;
   $('crop').classList.toggle('active', !!(pic && editor.crop));
   $('lock-frame').classList.toggle('active', !!(has && info.frame.locked));
-  $('lock-frame').textContent = has && info.frame.locked ? 'Unlock' : 'Lock';
+  setLabel('lock-frame', has && info.frame.locked ? 'Unlock' : 'Lock');
+  for (const id of ['rb-copy', 'rb-cut']) $(id).disabled = !(has && editor.half && (id === 'rb-copy' || !info.locked));
+  setContextual(has && editor.half ? (info.frame.kind === 'image' ? 'image' : info.frame.kind === 'text' ? 'text' : 'shape') : null);
+  syncMirrors();
   if (has) {
     const f = info.frame;
     $('fx').value = (f.x / IN).toFixed(2);
@@ -316,6 +328,50 @@ async function printLayout() {
   return { missingFonts: missingFonts(fontsUsed(week)), overflow, fontsUsed: fontsUsed(week) };
 }
 
+// ---------------------------------------------------------------- File commands
+async function newWeek() {
+  if (!weekFile) return;
+  if (editor.dirty && !(await editor.save())) return;
+  try {
+    const f = await window.bb.newWeekFrom(weekFile);
+    if (f) { await open(f); setStatus('New week created from the previous one. Check the dates, Sunday name and every item.'); }
+  } catch (err) {
+    setStatus('<span class="warn">' + String(err.message || err) + '</span>');
+  }
+}
+
+// Export and Print render the SAVED week, so pending changes are saved first
+async function savedFirst() {
+  if (!weekFile) return false;
+  if (editor.dirty && !(await editor.save())) return false;
+  return true;
+}
+async function exportPdf() {
+  if (!(await savedFirst())) return;
+  setStatus('Creating PDF…');
+  try {
+    const out = await window.bb.exportPdf(weekFile);
+    setStatus(out ? 'PDF saved: ' + out : '');
+  } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+async function printWeek() {
+  if (!(await savedFirst())) return;
+  setStatus('Preparing to print…');
+  try {
+    const r = await window.bb.print(weekFile);
+    setStatus(r === 'printed' ? 'Sent to the printer.' : '');
+  } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+function weekInfo() {
+  const halves = {};
+  for (const p of week.manifest.pages) halves[p.half] = (halves[p.half] || 0) + 1;
+  return {
+    halves: Object.entries(halves).map(([h, n]) => n + ' ' + h).join(', '),
+    editing: editor && editor.half ? 'You are changing the ' + editor.half + ' pages' : 'View only',
+    fonts: fontsUsed(week), missing: missingFonts(fontsUsed(week)),
+  };
+}
+
 // ---------------------------------------------------------------- wiring
 if (PRINT) {
   window.__bbReady = open(params.get('week'));
@@ -331,17 +387,36 @@ if (PRINT) {
     setStatus,
     onState: updateToolbar,
     onSelection,
-    onTextMode: (on) => { $('textbar').hidden = !on; $('arrange').hidden = on; },
+    // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
+    onTextMode: (on) => {
+      for (const el of document.querySelectorAll('.rb-text button:not(.todo), .rb-text select, .rb-text input')) el.disabled = !on;
+      if (on) selectTab('home');
+    },
   });
   window.__bbEditor = editor;
   editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });
-  $('open').onclick = async () => { const f = await window.bb.chooseWeek(); if (f) open(f); };
+  const backstage = new Backstage($('backstage'), {
+    week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
+    save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
+    newWeek, exportPdf, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
+  });
+  window.bb.version().then((v) => { backstage.api.version = v; });
+  onFileTab(() => backstage.show(week ? 'info' : 'home'));
+  if (!params.get('week') && !params.get('selftest')) backstage.show('home');
   $('zoom-in').onclick = () => zoomBy(1.15);
   $('zoom-out').onclick = () => zoomBy(1 / 1.15);
   $('zoom-fit').onclick = () => zoomBy(0);
+  $('zoom-100').onclick = () => { if (week) { zoom = 1; applyZoom(); } };
+  $('zoom-width').onclick = () => zoomBy(-1);
+  $('show-boundaries').onchange = (e) => document.body.classList.toggle('show-boundaries', e.target.checked);
+  $('show-nav').onchange = (e) => { $('nav').hidden = !e.target.checked; };
+  $('rb-paste').onclick = () => editor.command('paste');
+  $('rb-copy').onclick = () => editor.command('copy');
+  $('rb-cut').onclick = async () => { await editor.command('copy'); await editor.command('delete'); };
+  $('rb-newweek').onclick = () => newWeek();
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
-  $('pasteboard-btn').onclick = () => { if (!week) return; showingPasteboard ? showSpreads() : showPasteboard(); };
+  $('pasteboard-btn').onchange = () => { if (!week) { $('pasteboard-btn').checked = false; return; } if (showingPasteboard) showSpreads(); else showPasteboard(); };
   $('mode').onchange = async (e) => {
     const v = e.target.value;
     const ok = v ? await editor.claim(v) : (await editor.release(), true);
@@ -359,12 +434,11 @@ if (PRINT) {
   for (const [id, cmd] of Object.entries(cmdButtons)) $(id).onclick = () => editor.command(cmd);
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
   // text toolbar: mousedown is cancelled so the caret/selection stays in the frame
-  for (const b of document.querySelectorAll('#textbar button')) b.addEventListener('mousedown', (e) => e.preventDefault());
+  for (const b of document.querySelectorAll('.rb-text button')) b.addEventListener('mousedown', (e) => e.preventDefault());
   $('t-bold').onclick = () => editor.format('bold');
   $('t-italic').onclick = () => editor.format('italic');
   $('t-underline').onclick = () => editor.format('underline');
-  for (const b of document.querySelectorAll('#textbar [data-align]')) b.onclick = () => editor.format('align', b.dataset.align);
-  $('t-done').onclick = () => editor.endTextEdit();
+  for (const b of document.querySelectorAll('.rb-text [data-align]')) b.onclick = () => editor.format('align', b.dataset.align);
   // font and size take focus away from the frame; put the selection back before applying
   let saved = null;
   const keep = () => { const s = window.getSelection(); if (s.rangeCount) saved = s.getRangeAt(0).cloneRange(); };
@@ -374,17 +448,7 @@ if (PRINT) {
   $('t-size').onchange = (e) => { back(); editor.format('size', e.target.value); };
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
-  window.bb.onCommand(async (name) => {
-    if (name !== 'new-week') return editor.command(name);
-    if (!weekFile) return;
-    if (editor.dirty && !(await editor.save())) return;
-    try {
-      const f = await window.bb.newWeekFrom(weekFile);
-      if (f) { await open(f); setStatus('New week created from the previous one. Check the dates, Sunday name and every item.'); }
-    } catch (err) {
-      setStatus('<span class="warn">' + String(err.message || err) + '</span>');
-    }
-  });
+  window.bb.onCommand(async (name) => (name === 'new-week' ? newWeek() : editor.command(name)));
   if (params.get('week')) {
     const opened = open(params.get('week'));
     if (params.get('selftest') === 'flow') {
