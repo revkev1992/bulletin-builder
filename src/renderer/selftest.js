@@ -284,6 +284,22 @@ export async function run(editor, { shells, week }) {
   ok('save succeeds', await editor.save());
   ok('clean after save', editor.dirty === false);
 
+  // ---- 27. pages (Insert ▸ Page, Page Design ▸ Delete / Move) — net zero, so the disk checks below hold
+  const nPages0 = W().manifest.pages.length;
+  const pg = (n) => JSON.stringify(editor.pageEntry(n));
+  const p13 = pg(13), p14 = pg(14);
+  let pr = await window.__bbPageOp({ type: 'insert', ref: 12, where: 'after', count: 4 });
+  ok('insert 4 pages after 12: count +4, later pages renumbered, new pages blank and shown',
+    !!pr && W().manifest.pages.length === nPages0 + 4 && pg(17) === p13 && editor.pageEntry(13).frames.length === 0 && shells.has(nPages0 + 4) && editor.half === 'announcements');
+  for (let k = 0; k < 4; k++) pr = await window.__bbPageOp({ type: 'delete', pages: [13] });
+  ok('delete them again: back to the original pages', W().manifest.pages.length === nPages0 && pg(13) === p13);
+  await window.__bbPageOp({ type: 'move', pages: [13], ref: 15, where: 'after' });
+  ok('move page 13 after 15', pg(15) === p13 && pg(13) === p14);
+  await window.__bbPageOp({ type: 'move', pages: [15], ref: 13, where: 'before' });
+  ok('move it back', pg(13) === p13 && pg(14) === p14);
+  pr = await window.__bbPageOp({ type: 'delete', pages: [3] });
+  ok('a page of the other half cannot be deleted', pr === null && W().manifest.pages.length === nPages0);
+
   diskChecks.push({ name: 'moved picture x', page: P, id: img.id, field: 'x', expect: savedX });
   diskChecks.push({ name: 'moved picture y', page: P, id: img.id, field: 'y', expect: savedY });
   diskChecks.push({ name: 'picture locked', page: P, id: img.id, field: 'locked', expect: true });

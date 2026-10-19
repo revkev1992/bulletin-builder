@@ -112,4 +112,4 @@ function save(file, half, data) {
   return { savedAt: new Date().toISOString() };
 }
 
-module.exports = { claim, release, releaseAll, save, readLock, lockPath, STALE_MS };
+module.exports = { claim, release, releaseAll, save, readLock, lockPath, isMine, STALE_MS };

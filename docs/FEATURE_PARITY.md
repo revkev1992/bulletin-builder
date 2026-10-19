@@ -52,7 +52,7 @@ Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 | Item | Status | Notes |
 |---|---|---|
-| Pages: insert / duplicate / delete / move page | ⬜ | Needed so a week can grow from 9 to 10 worship pages the Publisher way |
+| Pages: insert / duplicate / delete / move page | ✅ | 2026-10-19: Insert ▸ Page ▾ (Blank / Duplicate / Insert Page… dialog), Page Design ▸ Pages ▸ Delete / Move. Renumbers both halves on disk (`src/pages.js`), needs the other half free, history kept. Booklet warns when not a multiple of 4. Undo of a page change ⬜; Rename ⬜ |
 | Tables | ⬜ | |
 | Pictures from file | ✅ | Crop, Fit, Fill |
 | Shapes with fill/outline | 🟡 | Line + rectangle only |

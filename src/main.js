@@ -93,6 +93,16 @@ ipcMain.handle('week:print', async (_e, file) => {
     win.destroy();
   }
 });
+// Insert ▸ Page / Page Design ▸ Pages: renumbers both halves, so it runs here on disk (src/pages.js)
+ipcMain.handle('pages:op', (e, file, half, op) => {
+  const c = claims.get(e.sender.id);
+  if (!c || c.half !== half || path.resolve(c.file) !== path.resolve(file)) throw new Error('Choose which pages you are changing first (Bulletin ▸ I am changing).');
+  const busyElsewhere = (h) => {
+    for (const [id, x] of claims) if (id !== e.sender.id && x.half === h && path.resolve(x.file) === path.resolve(file)) return 'another Bulletin Builder window';
+    return null;
+  };
+  return require('./pages').pageOp(file, half, op, { session, busyElsewhere });
+});
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('file:reveal', (_e, p) => shell.showItemInFolder(p));
 

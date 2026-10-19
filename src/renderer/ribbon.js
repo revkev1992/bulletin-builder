@@ -167,7 +167,7 @@ export const TABS = [
     { label: 'Editing', cols: [[sm('Find', 'find', todo), sm('Replace', 'replace', todo), sm('Select', 'select', todo)], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
   ] },
   { id: 'insert', label: 'Insert', groups: [
-    { label: 'Pages', cols: [[big('Page', 'pageadd', todo)]] },
+    { label: 'Pages', cols: [[big('Page', 'pageadd', { id: 'rb-page', menu: 'page', tip: 'Insert a page' })]] },
     { label: 'Tables', cols: [[big('Table', 'table', todo)]] },
     { label: 'Illustrations', cols: [[big('Pictures', 'picture', { id: 'ins-picture', tip: 'Insert a picture from a file' })], [big('Shapes', 'shapes', { id: 'rb-shapes', menu: 'shapes' })],
       [big('Picture Placeholder', 'placeholder', todo)]] },
@@ -181,7 +181,7 @@ export const TABS = [
     { label: 'Template', cols: [[big('Change Template', 'template', todo)], [big('Options', 'options', todo)]] },
     { label: 'Page Setup', cols: [[big('Margins', 'margins', todo)], [big('Orientation', 'orientation', todo)], [big('Size', 'size', todo)]] },
     { label: 'Layout', cols: [[big('Guides', 'guides', todo)], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { checked: true, todo: true }), chk('Objects', { checked: true, todo: true })]] },
-    { label: 'Pages', cols: [[sm('Delete', 'pagedel', todo), sm('Move', 'pagemove', todo), sm('Rename', 'rename', todo)]] },
+    { label: 'Pages', cols: [[sm('Delete', 'pagedel', { id: 'pg-delete', tip: 'Delete the current page' }), sm('Move', 'pagemove', { id: 'pg-move', tip: 'Move the current page' }), sm('Rename', 'rename', todo)]] },
     { label: 'Schemes', cols: [[big('Color Schemes', 'schemes', todo)], [big('Fonts', 'fonts', todo)]] },
     { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', todo)], [big('Background', 'background', todo)], [big('Master Pages', 'master', todo)]] },
   ] },
@@ -218,6 +218,7 @@ export const TABS = [
 
 const MENUS = {
   shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
+  page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };
 
 function button(it, size) {

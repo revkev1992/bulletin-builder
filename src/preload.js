@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('bb', {
   closeWindow: () => ipcRenderer.send('app:close-window'),
   importPicture: (weekFile) => ipcRenderer.invoke('asset:import', weekFile),
   version: () => ipcRenderer.invoke('app:version'),
+  pageOp: (file, half, op) => ipcRenderer.invoke('pages:op', file, half, op),
   recent: () => ipcRenderer.invoke('recent:list'),
   exportPdf: (file) => ipcRenderer.invoke('week:export-pdf', file),
   print: (file) => ipcRenderer.invoke('week:print', file),

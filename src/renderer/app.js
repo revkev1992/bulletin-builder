@@ -4,6 +4,7 @@ import { isFlow, layoutFlow, flowHash } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
+import { insertPageDialog, movePageDialog, deletePageDialog } from './pagedialogs.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -273,7 +274,7 @@ function updateToolbar() {
   $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
-  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste']) $(id).disabled = !half;
+  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
   syncMirrors();
 }
@@ -372,6 +373,55 @@ function weekInfo() {
   };
 }
 
+// ---------------------------------------------------------------- pages (Insert ▸ Page, Page Design ▸ Pages)
+// The "current page" is the one last clicked; it must belong to the half being changed for Delete
+// and Move. The operation runs on disk in the main process (it renumbers both halves).
+function currentPage() {
+  const nums = week.manifest.pages.map((p) => p.number);
+  const lp = editor.sel ? editor.sel.page : editor.lastPage;
+  if (lp != null && nums.includes(lp)) return lp;
+  const own = week.manifest.pages.find((p) => p.half === editor.half);
+  return own ? own.number : nums[0];
+}
+
+async function runPageOp(op) {
+  if (editor.dirty && !(await editor.save())) return null;
+  let r;
+  try {
+    r = await window.bb.pageOp(weekFile, editor.half, op);
+  } catch (err) {
+    setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+    return null;
+  }
+  editor.undo = []; editor.redo = []; editor.sel = null;
+  editor.lastPage = r.focus;
+  await reload();
+  updateToolbar();
+  const shell = shells.get(r.focus);
+  if (shell) shell.scrollIntoView({ block: 'center' });
+  const what = { insert: op.count > 1 ? op.count + ' pages inserted' : 'Page inserted', delete: 'Page deleted', move: 'Page moved' }[op.type];
+  setStatus(what + ' — now page ' + r.focus + ' of ' + r.pages + '.' + (r.warnings.length ? ' <span class="warn">' + r.warnings.join(' ') + '</span>' : ''));
+  return r;
+}
+
+async function pageCommand(kind) {
+  if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+  const cur = currentPage();
+  const nums = week.manifest.pages.map((p) => p.number);
+  const ownPage = (week.manifest.pages.find((p) => p.number === cur) || {}).half === editor.half;
+  if ((kind === 'delete' || kind === 'move') && !ownPage) {
+    setStatus('<span class="warn">Page ' + cur + ' belongs to the other half. Click one of the ' + editor.half + ' pages first.</span>');
+    return;
+  }
+  let op = null;
+  if (kind === 'blank') op = { type: 'insert', ref: cur, where: 'after', count: 1 };
+  else if (kind === 'dup') op = { type: 'insert', ref: cur, where: 'after', count: 1, duplicate: cur };
+  else if (kind === 'insert') op = await insertPageDialog(cur, nums, week.manifest.preset);
+  else if (kind === 'move') op = await movePageDialog(cur, nums);
+  else if (kind === 'delete') op = await deletePageDialog(cur, (editor.pageEntry(cur)?.frames || []).filter((f) => !f.generated).length);
+  if (op) await runPageOp(op);
+}
+
 // ---------------------------------------------------------------- wiring
 if (PRINT) {
   window.__bbReady = open(params.get('week'));
@@ -414,6 +464,10 @@ if (PRINT) {
   $('rb-copy').onclick = () => editor.command('copy');
   $('rb-cut').onclick = async () => { await editor.command('copy'); await editor.command('delete'); };
   $('rb-newweek').onclick = () => newWeek();
+  for (const [id, kind] of Object.entries({ 'pg-blank': 'blank', 'pg-dup': 'dup', 'pg-insert': 'insert', 'pg-delete': 'delete', 'pg-move': 'move' })) {
+    $(id).onclick = () => pageCommand(kind);
+  }
+  window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
   $('pasteboard-btn').onchange = () => { if (!week) { $('pasteboard-btn').checked = false; return; } if (showingPasteboard) showSpreads(); else showPasteboard(); };
