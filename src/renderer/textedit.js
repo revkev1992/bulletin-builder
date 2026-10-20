@@ -6,6 +6,7 @@
 // reflowStory() then pours a linked story through its frames, measuring with the real renderer.
 
 import { paragraphEl, layoutTabs, layoutWraps, cssFont } from './render.js';
+import { applyStyleToPara } from './styles-gallery.js';
 
 // ------------------------------------------------------------------ DOM -> model
 function hex(rgb) {
@@ -192,6 +193,9 @@ export function formatSelection(cmd, value, flow) {
         if (q.tabs && q.indentFirst < 0) q.tabs = [{ pos: left, align: 'left' }];
         return q;
       });
+      break;
+    case 'style':       // Home ▸ Styles: value = a normalised style (styles-gallery.js)
+      rebuildParas(flow, selectedParas(flow), (p) => applyStyleToPara(p, value));
       break;
     case 'retab': {     // a Tab was just typed: lay the paragraph out again so it lands on its stop now
       rebuildParas(flow, selectedParas(flow), (p) => p);
@@ -435,7 +439,20 @@ function selectedParas(flow) {
   if (!sel.rangeCount) return [];
   const r = sel.getRangeAt(0);
   const ps = [...flow.children].filter((c) => c.tagName === 'P');
-  const hit = ps.filter((p) => r.intersectsNode(p));
+  let hit = ps.filter((p) => r.intersectsNode(p));
+  if (hit.length > 1 && !r.collapsed) {
+    // a paragraph the selection only touches at its very end (or very start) is not selected —
+    // Chrome often moves a selection's start to the end of the paragraph before
+    // the part of the selection inside paragraph p (clip the range to p), non-empty?
+    const inside = (p) => {
+      const x = r.cloneRange();
+      if (r.comparePoint(p, 0) === 0) x.setStart(p, 0);
+      if (r.comparePoint(p, p.childNodes.length) === 0) x.setEnd(p, p.childNodes.length);
+      return x.toString().replace(/​/g, '').length > 0;
+    };
+    const kept = hit.filter(inside);
+    if (kept.length) hit = kept;
+  }
   if (hit.length) return hit;
   const at = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
   const p = at && at.closest('p');
@@ -499,6 +516,14 @@ export function paragraphSettings(flow) {
   const p = selectedParas(flow)[0];
   if (!p) return null;
   try { return JSON.parse(p.dataset.para || '{}'); } catch (_) { return {}; }
+}
+// the paragraph the caret is in, read back in model form (settings + runs)
+export function currentParagraph(flow) {
+  const p = selectedParas(flow)[0];
+  if (!p) return null;
+  let props = {};
+  try { props = JSON.parse(p.dataset.para || '{}'); } catch (_) { /* defaults */ }
+  return readParagraph(p, props);
 }
 
 export function pastePlain(e) {

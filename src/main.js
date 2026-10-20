@@ -103,6 +103,20 @@ ipcMain.handle('pages:op', (e, file, half, op) => {
   };
   return require('./pages').pageOp(file, half, op, { session, busyElsewhere });
 });
+// Home ▸ Styles ▸ New Style…: the week's style list lives in the .bulletin file
+ipcMain.handle('week:set-styles', (e, file, styles) => {
+  const c = claims.get(e.sender.id);
+  if (!c || path.resolve(c.file) !== path.resolve(file)) throw new Error('Choose which pages you are changing first (Bulletin ▸ I am changing).');
+  const abs = path.resolve(file);
+  const m = JSON.parse(fs.readFileSync(abs, 'utf8'));
+  const hist = path.join(path.dirname(abs), 'history');
+  fs.mkdirSync(hist, { recursive: true });
+  fs.copyFileSync(abs, path.join(hist, 'manifest-styles-' + Date.now() + '.bulletin'));
+  m.styles = styles;
+  fs.writeFileSync(abs + '.saving', JSON.stringify(m, null, 1));
+  fs.renameSync(abs + '.saving', abs);
+  return true;
+});
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('file:reveal', (_e, p) => shell.showItemInFolder(p));
 

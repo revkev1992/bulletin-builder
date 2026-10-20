@@ -7,7 +7,7 @@ const path = require('path');
 const WEEK = process.argv[2] ||
   path.join(process.env.USERPROFILE || '', 'OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks/9-20-26 1100/9-20-26 1100.bulletin');
 const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron.exe');
-const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking'];
+const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles'];
 
 // the Order-of-Worship guard runs on an October (flow) week
 const FLOW_WEEK = path.join(path.dirname(path.dirname(WEEK)), '10-18-26 1100', '10-18-26 1100.bulletin');

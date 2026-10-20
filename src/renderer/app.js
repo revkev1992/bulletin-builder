@@ -4,8 +4,9 @@ import { isFlow, layoutFlow, flowHash } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog } from './pagedialogs.js';
-import { paragraphSettings, captureFormat, applyFormat } from './textedit.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, modal } from './pagedialogs.js';
+import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
+import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
 import { FindPane } from './findreplace.js';
 
@@ -615,6 +616,53 @@ if (PRINT) {
   for (const b of [$('rb-find'), $('rb-replace')]) b.addEventListener('mousedown', (e) => e.preventDefault());   // keep the selected text for "Find what"
   $('rb-find').onclick = () => find.show('find');
   $('rb-replace').onclick = () => find.show('replace');
+  // ---- Home ▸ Styles: gallery of the week's styles (applies to the paragraph(s) you are in)
+  $('rb-styles').addEventListener('mousedown', (e) => e.preventDefault());
+  $('rb-styles').onclick = () => {
+    const flow = editor.editingFlow();
+    if (!flow) return;
+    document.querySelectorAll('.ctx-menu').forEach((m) => m.remove());
+    const styles = week.manifest.styles || [];
+    const cur = (paragraphSettings(flow) || {}).style;
+    const m = document.createElement('div');
+    m.className = 'ctx-menu sg-menu';
+    m.innerHTML = galleryHtml(styles, cur);
+    m.addEventListener('mousedown', (e) => { if (!e.target.closest('input')) e.preventDefault(); });   // keep the caret
+    document.body.appendChild(m);
+    const r = $('rb-styles').getBoundingClientRect();
+    m.style.left = r.left + 'px';
+    m.style.top = r.bottom + 2 + 'px';
+    for (const b of m.querySelectorAll('.sg-item')) {
+      b.onclick = () => {
+        m.remove();
+        const s = styles.find((x) => x.name === b.dataset.style);
+        if (s) { editor.format('style', normStyle(s)); setStatus('Style applied: ' + s.name + '.'); }
+      };
+    }
+    m.querySelector('#sg-new').onclick = async () => {
+      m.remove();
+      const para = currentParagraph(flow);
+      const sel = window.getSelection();
+      const saved = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+      const v = await modal('New Style', '<label class="pd-row">Name for the new style: <input name="name" required></label>' +
+        '<p class="pd-note">The new style takes the font, size, spacing and indents of the paragraph you are in.</p>');
+      flow.focus();
+      if (saved) { sel.removeAllRanges(); sel.addRange(saved); }
+      const name = v && v.name.trim();
+      if (!name || !para) return;
+      const list = (week.manifest.styles || []).filter((x) => x.name !== name);
+      const st = styleFromPara(name, para);
+      list.push(st);
+      try {
+        await window.bb.setStyles(weekFile, list);
+        week.manifest.styles = list;
+        editor.format('style', normStyle(st));
+        setStatus('New style "' + name + '" saved in this week and applied.');
+      } catch (err) {
+        setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+      }
+    };
+  };
   for (const id of ['lk-create', 'lk-break', 'lk-prev', 'lk-next']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
   $('lk-create').onclick = () => (editor.linking ? editor.cancelLink('Linking cancelled.') : editor.startLink());
   $('lk-break').onclick = () => editor.breakLink();

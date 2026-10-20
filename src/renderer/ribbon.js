@@ -159,7 +159,7 @@ export const TABS = [
         { row: [ico('align-left', 'Align Left', { align: 'left' }), ico('align-center', 'Center', { align: 'center' }), ico('align-right', 'Align Right', { align: 'right' }),
           ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', { id: 't-linespacing', menu: 'linespacing' }), ico('dropcap', 'Drop Cap', todo)] }],
     ] },
-    { label: 'Styles', cols: [[big('Styles', 'styles', todo)]] },
+    { label: 'Styles', cls: 'rb-text', cols: [[big('Styles', 'styles', { id: 'rb-styles', tip: 'Apply a style to the paragraph you are in, or make a New Style from it' })]] },
     { label: 'Objects', cols: [[big('Draw Text Box', 'textbox', { mirror: 'ins-text' })], [big('Pictures', 'picture', { mirror: 'ins-picture' })],
       [big('Table', 'table', todo)], [big('Shapes', 'shapes', { id: 'rb-shapes-home', menu: 'shapes' })]] },
     { label: 'Arrange', cols: [
