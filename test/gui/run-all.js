@@ -1,0 +1,22 @@
+// Run every GUI suite (real mouse/keyboard input, screenshots in out/gui-<suite>/).
+//   node test/gui/run-all.js ["<week.bulletin>"]
+// Default week = the 9-20-26 Publisher week next to this repo's data folder.
+const { spawnSync } = require('child_process');
+const path = require('path');
+
+const WEEK = process.argv[2] ||
+  path.join(process.env.USERPROFILE || '', 'OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks/9-20-26 1100/9-20-26 1100.bulletin');
+const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron.exe');
+const SUITES = ['text', 'crop', 'pages', 'tabs', 'breaks'];
+
+let failed = 0;
+for (const s of SUITES) {
+  const r = spawnSync(ELECTRON, ['.', '--gui', 'test/gui/' + s + '.js', WEEK, 'out/gui-' + s], { cwd: path.join(__dirname, '../..'), encoding: 'utf8' });
+  const last = (r.stdout || '').trim().split('\n').filter((l) => /^(PASS|FAILED|ERROR)/.test(l)).pop() || 'no result';
+  const fails = (r.stdout || '').split('\n').filter((l) => l.includes('FAIL '));
+  console.log(s.padEnd(8), last);
+  fails.forEach((l) => console.log('        ', l.trim()));
+  if (r.status !== 0) failed++;
+}
+console.log(failed ? failed + ' suite(s) failed' : 'all GUI suites pass');
+process.exit(failed ? 1 : 0);

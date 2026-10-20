@@ -56,18 +56,20 @@ const sameProps = (a, b) => {
 function readParagraph(p, base) {
   const runs = [];
   const push = (text, props) => {
-    text = text && text.replace(/​/g, '');   // caret anchors from editing, never saved
+    text = text && text.replace(/\u200b/g, '');   // caret anchors from editing, never saved
     if (!text) return;
     const last = runs[runs.length - 1];
     if (last && sameProps(last, props)) last.text += text;
     else runs.push({ text, ...props });
   };
   const nodes = [];
+  let brk = null;                    // a manual break marker at the end of the paragraph
   const walk = (n) => {
     for (const c of n.childNodes) {
       if (c.nodeType === 3) nodes.push(c);
       else if (c.nodeType === 1) {
         if (c.classList.contains('tab')) nodes.push({ tab: c });
+        else if (c.classList.contains('brk')) brk = c.classList.contains('brk-frame') ? 'frame' : 'column';
         else if (c.tagName === 'BR') { if (!c.classList.contains('tab-break')) nodes.push({ br: c }); }
         else walk(c);
       }
@@ -88,10 +90,18 @@ function readParagraph(p, base) {
     }
     const props = runPropsOf(n.parentElement, p);
     lastProps = props;
-    push(n.data.replace(/​/g, ''), props);
+    push(n.data.replace(/\u200b/g, ''), props);
   }
   if (runs.length === 1 && runs[0].text === ' ') runs.length = 0; // empty line placeholder
+  // a break is kept only while its marker is there (Backspace over it removes the break)
+  for (const r of runs) r.text = r.text.replace(/\u000c/g, '');
+  if (brk === 'frame') {
+    if (runs.length) runs[runs.length - 1].text += '\u000c';
+    else runs.push({ text: '\u000c', ...(lastProps || { font: (base.mark || {}).font || 'Palatino Linotype', size: (base.mark || {}).size || 11 }) });
+  }
   const para = { ...base, runs };
+  delete para.columnBreak;
+  if (brk === 'column') para.columnBreak = true;
   if (p.style.textAlign) para.align = p.style.textAlign;
   const last = runs[runs.length - 1];
   if (!para.mark && last) para.mark = { font: last.font, size: last.size };
@@ -196,7 +206,7 @@ export function formatSelection(cmd, value, flow) {
         const seg = a.node.nextElementSibling && a.node.nextElementSibling.classList.contains('seg') ? a.node.nextElementSibling : null;
         if (!seg) break;
         const first = document.createTreeWalker(seg, NodeFilter.SHOW_TEXT).nextNode();
-        const z = document.createTextNode('​');
+        const z = document.createTextNode('\u200b');
         if (first) first.parentNode.insertBefore(z, first); else seg.appendChild(z);
         const r = document.createRange();
         r.setStart(z, 1); r.collapse(true);

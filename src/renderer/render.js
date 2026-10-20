@@ -167,6 +167,15 @@ export function paragraphEl(para) {
   // an empty line needs real width: a zero-width character would let blank lines tuck in beside
   // a full-width wrapped picture, where Publisher pushes them below it
   if (!p.textContent) p.appendChild(document.createTextNode(' '));
+  // manual breaks (Ctrl+Enter / Ctrl+Shift+Enter): an invisible marker, shown with ¶ or while typing
+  const brk = para.runs.some((r) => r.text.includes('\u000c')) ? 'frame' : para.columnBreak ? 'column' : null;
+  if (brk) {
+    if (brk === 'column') s.breakAfter = 'column';
+    const m = el('span', 'brk brk-' + brk);
+    m.contentEditable = 'false';
+    m.dataset.label = brk === 'frame' ? 'Text Box Break' : 'Column Break';
+    p.appendChild(m);
+  }
   return p;
 }
 
@@ -462,7 +471,7 @@ export function findOverflow(root) {
       const limit = area.getBoundingClientRect().bottom;
       let lowest = -Infinity;
       for (const p of area.querySelectorAll('p.para')) {
-        if (!p.textContent.replace(/[s ​]/g, '')) continue;
+        if (!p.textContent.replace(/[s \u200b]/g, '')) continue;
         lowest = Math.max(lowest, p.getBoundingClientRect().bottom);
       }
       over = lowest - limit;

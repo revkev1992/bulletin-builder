@@ -541,6 +541,8 @@ if (PRINT) {
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();
+  $('brk-frame').onclick = () => editor.insertBreak('frame');
+  $('brk-column').onclick = () => editor.insertBreak('column');
   // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher
   queueMicrotask(() => editor.app.onTextMode(false));
   editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });

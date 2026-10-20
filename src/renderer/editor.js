@@ -776,6 +776,89 @@ export class Editor {
     return true;
   }
 
+  // Publisher's manual breaks while typing. 'frame' (Ctrl+Enter): the text after the caret starts the
+  // next linked text box (in a linked story that is the next page). 'column' (Ctrl+Shift+Enter): the
+  // next column of a multi-column box; in a one-column box it is a text box break.
+  async insertBreak(kind) {
+    const flow = this.editingFlow();
+    if (!flow) return;
+    const t = this.textEdit;
+    const f = this.anyFrame(t.n, t.id);
+    if (kind === 'column' && !(f.text.columns > 1)) kind = 'frame';
+    const sel = window.getSelection();
+    const pOf = () => { const a = sel.rangeCount ? sel.anchorNode : null; return a && (a.nodeType === 1 ? a : a.parentElement).closest('p'); };
+    // at the very start of a paragraph the break goes on the paragraph before (no empty line is left);
+    // anywhere else the paragraph is split at the caret
+    const here = pOf();
+    let atStart = false;
+    if (here && sel.rangeCount) {
+      const r = document.createRange();
+      r.setStart(here, 0);
+      r.setEnd(sel.anchorNode, sel.anchorOffset);
+      atStart = !r.toString().replace(/​/g, '').length && !!(here.previousElementSibling && here.previousElementSibling.tagName === 'P');
+    }
+    if (!atStart) document.execCommand('insertParagraph');
+    const cur = pOf();
+    const prev = cur && cur.previousElementSibling;
+    if (!prev || prev.tagName !== 'P') return;
+    prev.querySelectorAll('.brk').forEach((b) => b.remove());
+    const m = document.createElement('span');
+    m.className = 'brk brk-' + kind;
+    m.contentEditable = 'false';
+    m.dataset.label = kind === 'frame' ? 'Text Box Break' : 'Column Break';
+    prev.appendChild(m);
+    if (kind === 'column') { prev.style.breakAfter = 'column'; this.setDirty(true); return; }
+    // a text box break: pour the story now (as Publisher does), then keep typing where the text went
+    const where = selectionOffsets(flow);
+    const chain = f.text.chain;
+    await this.endTextEdit();
+    if (chain) {
+      const next = this.storyFrames(chain.story).find((x) => x.frame.text.chain.index === chain.index + 1);
+      if (next && this.beginTextEdit(next.n, next.frame.id)) {
+        const fl = this.editingFlow();
+        const r = document.createRange();
+        r.selectNodeContents(fl); r.collapse(true);
+        sel.removeAllRanges(); sel.addRange(r);
+        const sh = this.app.shellOf(next.n);
+        if (sh) sh.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+    }
+    if (this.beginTextEdit(t.n, t.id)) restoreOffsets(this.editingFlow(), where);
+  }
+
+  // caret at the very start of a linked box (not the first) whose previous box ends in a break
+  atStoryBoxStart() {
+    const t = this.textEdit;
+    const f = t && this.anyFrame(t.n, t.id);
+    if (!f || !f.text.chain || !f.text.chain.index) return false;
+    const o = selectionOffsets(this.editingFlow());
+    if (!o || o.start !== 0 || o.end !== 0) return false;
+    const prev = this.storyFrames(f.text.chain.story).find((x) => x.frame.text.chain.index === f.text.chain.index - 1);
+    const lp = prev && prev.frame.text.paragraphs[prev.frame.text.paragraphs.length - 1];
+    return !!(lp && lp.runs.some((r) => r.text.includes('\u000c')));
+  }
+
+  // Backspace at the start of a box: the story is one text, so this deletes the break that ends the
+  // box before it (Publisher). The text flows back and the caret is where the break was.
+  async removeBreakBefore() {
+    const t = this.textEdit;
+    const f = this.anyFrame(t.n, t.id);
+    const story = f.text.chain.story;
+    const prev = this.storyFrames(story).find((x) => x.frame.text.chain.index === f.text.chain.index - 1);
+    await this.endTextEdit();
+    const lp = prev.frame.text.paragraphs[prev.frame.text.paragraphs.length - 1];
+    const before = lp.runs.reduce((a, r) => a + r.text.replace(/\u000c/g, '').length, 0);
+    const prevLen = prev.frame.text.paragraphs.reduce((a, p) => a + p.runs.reduce((b, r) => b + r.text.replace(/\u000c/g, '').length, 0), 0);
+    await this.commit([prev.n], () => {
+      const live = this.anyFrame(prev.n, prev.frame.id).text.paragraphs;
+      const last = live[live.length - 1];
+      for (const r of last.runs) r.text = r.text.replace(/\u000c/g, '');
+    });
+    await this.app.rerender(this.reflow(story));
+    if (this.beginTextEdit(prev.n, prev.frame.id)) restoreOffsets(this.editingFlow(), { start: prevLen, end: prevLen });
+  }
+
   // a box-level change while typing (Columns…): commit the typing, run fn, then carry on typing
   // with the same text selected — Publisher never throws you out of the text box for these
   async pauseTextEdit(fn) {
@@ -832,6 +915,8 @@ export class Editor {
     if (this.textEdit) {
       if (e.key === 'Escape') { e.preventDefault(); this.endTextEdit(); return; }
       if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); this.format('retab'); return; }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.insertBreak(e.shiftKey ? 'column' : 'frame'); return; }
+      if (e.key === 'Backspace' && !e.ctrlKey && this.atStoryBoxStart()) { e.preventDefault(); this.removeBreakBefore(); return; }
     }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;

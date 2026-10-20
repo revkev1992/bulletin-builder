@@ -175,6 +175,7 @@ export const TABS = [
     { label: 'Illustrations', cols: [[big('Pictures', 'picture', { id: 'ins-picture', tip: 'Insert a picture from a file' })], [big('Shapes', 'shapes', { id: 'rb-shapes', menu: 'shapes' })],
       [big('Picture Placeholder', 'placeholder', todo)]] },
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', todo)], [big('Calendars', 'calendar', todo)], [big('Borders & Accents', 'borders', todo)], [big('Advertisements', 'ads', todo)]] },
+    { label: 'Break', cls: 'rb-text', cols: [[big('Break', 'pagenum', { id: 'ins-break', menu: 'breaks', tip: 'Insert a break where you are typing' })]] },
     { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', todo)],
       [big('Symbol', 'symbol', todo)], [big('Date & Time', 'datetime', todo)]] },
     { label: 'Links', cols: [[big('Link', 'link', todo)], [big('Bookmark', 'bookmark', todo)]] },
@@ -240,6 +241,8 @@ const MENUS = {
     { check: true, label: 'Relative to Margin Guides', id: 'al-margins' }],
   rotate: [sm('Rotate Right 90°', 'rotate', { id: 'rot-right' }), sm('Rotate Left 90°', 'undo', { id: 'rot-left' }),
     sm('Flip Vertical', 'orientation', { id: 'flip-v' }), sm('Flip Horizontal', 'orientation', { id: 'flip-h' })],
+  breaks: [sm('Text Box Break   Ctrl+Enter', 'pagenum', { id: 'brk-frame', tip: 'The text after the caret starts the next linked text box' }),
+    sm('Column Break   Ctrl+Shift+Enter', 'columns', { id: 'brk-column', tip: 'The text after the caret starts the next column' })],
   shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
   page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };
