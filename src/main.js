@@ -191,7 +191,7 @@ function nextWeekDate(text) {
 
 // Copy a week folder to a new one (never history/ or locks/), rename its .bulletin, roll the dates.
 // Returns the new .bulletin path.
-function newWeekFrom(file, destDir) {
+function newWeekFrom(file, destDir, { roll = true } = {}) {
   const srcFile = path.resolve(file);
   const src = path.dirname(srcFile);
   destDir = path.resolve(destDir);
@@ -202,11 +202,11 @@ function newWeekFrom(file, destDir) {
   const manifest = JSON.parse(fs.readFileSync(srcFile, 'utf8'));
   const from = manifest.title;
   manifest.title = name;
-  manifest.createdFrom = { week: from, at: new Date().toISOString() };
+  manifest.createdFrom = { week: from, at: new Date().toISOString(), ...(roll ? {} : { how: 'save-as' }) };
   const out = path.join(destDir, name + '.bulletin');
   fs.writeFileSync(out, JSON.stringify(manifest, null, 1));
   const wp = path.join(destDir, (manifest.halves || {}).worship || 'worship.json');
-  if (fs.existsSync(wp)) {
+  if (roll && fs.existsSync(wp)) {
     const w = JSON.parse(fs.readFileSync(wp, 'utf8'));
     if (w.mode === 'flow' && w.flow && w.flow.cover) {
       w.flow.cover.date = nextWeekDate(w.flow.cover.date);
@@ -229,6 +229,25 @@ ipcMain.handle('week:new-from', async (e, file) => {
   });
   if (r.canceled || !r.filePath) return null;
   return newWeekFrom(file, r.filePath.replace(/\.bulletin$/i, ''));
+});
+
+// File ▸ Save As (F12): a copy of the week folder under a new name; the caller then works in the copy
+ipcMain.handle('week:save-as', async (e, file) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  const parent = path.dirname(path.dirname(path.resolve(file)));
+  let dest = global.__bbTestSaveAs;     // GUI tests: no native dialog
+  if (!dest) {
+    const r = await dialog.showSaveDialog(win, {
+      title: 'Save As — name the copy of this week',
+      defaultPath: path.join(parent, manifest.title + ' copy'),
+      buttonLabel: 'Save',
+      properties: ['createDirectory', 'showOverwriteConfirmation'],
+    });
+    if (r.canceled || !r.filePath) return null;
+    dest = r.filePath;
+  }
+  return newWeekFrom(file, dest.replace(/\.bulletin$/i, ''), { roll: false });
 });
 
 ipcMain.handle('week:choose', async (e) => {
@@ -298,6 +317,7 @@ function buildMenu() {
         },
         { label: 'New Week from This One…', accelerator: 'CmdOrCtrl+N', click: send('new-week') },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: send('save') },
+        { label: 'Save As…', accelerator: 'F12', click: send('save-as') },
         { type: 'separator' },
         { role: 'quit' },
       ],

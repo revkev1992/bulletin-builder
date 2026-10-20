@@ -434,6 +434,33 @@ async function newWeek() {
   }
 }
 
+// File ▸ Save As (F12), as Publisher: the copy gets your unsaved changes, this week stays as last saved
+async function saveAs() {
+  if (!weekFile) return;
+  if (editor.textEdit) await editor.endTextEdit();
+  const half = editor.half;
+  const pending = half && editor.dirty ? JSON.parse(JSON.stringify(week.halves[half])) : null;
+  let nf;
+  try {
+    nf = await window.bb.saveAs(weekFile);
+  } catch (err) {
+    setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+    return;
+  }
+  if (!nf) return;
+  if (half) { editor.setDirty(false); await editor.release(); }    // nothing is written to the old week
+  await open(nf);
+  if (half && (await editor.claim(half)) && pending) {
+    week.halves[half] = pending;
+    await editor.save({ quiet: true });
+    await reload();
+  }
+  updateToolbar();
+  setStatus('Saved as ' + week.manifest.title + ' — you are now working in the copy.');
+  return nf;
+}
+window.__bbSaveAs = saveAs;
+
 // Export and Print render the SAVED week, so pending changes are saved first
 async function savedFirst() {
   if (!weekFile) return false;
@@ -586,7 +613,7 @@ if (PRINT) {
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
     save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
-    newWeek, exportPdf, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
+    newWeek, saveAs, exportPdf, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
   });
   window.bb.version().then((v) => { backstage.api.version = v; });
   onFileTab(() => backstage.show(week ? 'info' : 'home'));
@@ -694,7 +721,7 @@ if (PRINT) {
   }
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
-  window.bb.onCommand(async (name) => (name === 'new-week' ? newWeek() : editor.command(name)));
+  window.bb.onCommand(async (name) => (name === 'new-week' ? newWeek() : name === 'save-as' ? saveAs() : editor.command(name)));
   if (params.get('week')) {
     const opened = open(params.get('week'));
     if (params.get('selftest') === 'flow') {

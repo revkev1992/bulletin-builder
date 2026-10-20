@@ -75,6 +75,12 @@ export class Backstage {
       }
       case 'save':
         return run(this.api.save);
+      case 'saveas':
+        page.innerHTML = '<h1>Save As</h1><div class="bs-actions"><button type="button" class="bs-action" id="bs-saveas"' + (file ? '' : ' disabled') + '>' + icon('open', 40) +
+          '<span>Browse…</span></button></div><p class="bs-note">Saves a copy of this week under a new name (a new week folder, with its pictures) and carries on in the copy. ' +
+          'Changes you have not saved go into the copy; this week stays as it was last saved. Shortcut: F12.</p>';
+        page.querySelector('#bs-saveas').onclick = () => run(this.api.saveAs);
+        break;
       case 'print':
         page.innerHTML = '<h1>Print</h1><div class="bs-actions"><button type="button" class="bs-action" id="bs-print"' + (file ? '' : ' disabled') + '>' + icon('print', 40) +
           '<span>Print</span></button></div><p class="bs-note">Prints the saved week, every page in reading order, at its real size ' +
