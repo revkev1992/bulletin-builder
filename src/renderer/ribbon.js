@@ -142,7 +142,7 @@ export const TABS = [
   { id: 'home', label: 'Home', groups: [
     { label: 'Clipboard', cols: [
       [big('Paste', 'paste', { id: 'rb-paste', tip: 'Paste (Ctrl+V)' })],
-      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', todo)],
+      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', { id: 'rb-painter', tip: 'Format Painter: copy the formatting where you are typing, then select text to paint it (double-click to paint several times; Esc to stop)' })],
     ] },
     { label: 'Font', cls: 'rb-text', cols: [
       [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +

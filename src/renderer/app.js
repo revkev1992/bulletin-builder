@@ -5,7 +5,7 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog } from './pagedialogs.js';
-import { paragraphSettings } from './textedit.js';
+import { paragraphSettings, captureFormat, applyFormat } from './textedit.js';
 import { Rulers } from './ruler.js';
 import { FindPane } from './findreplace.js';
 
@@ -534,11 +534,42 @@ if (PRINT) {
     onTextMode: (on) => {
       for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input')) el.disabled = !on;
       $('rb-columns').disabled = !on && !($('rb-columns').dataset.frameOk === '1');
+      $('rb-painter').disabled = !on && !painter;
       syncMirrors();
       if (on) selectTab('home');
     },
   });
   window.__bbEditor = editor;
+
+  // ---- Home ▸ Clipboard ▸ Format Painter (Publisher): click = paint once, double-click = keep
+  // painting until Esc or a second click on the button
+  let painter = null;
+  const stopPaint = () => {
+    painter = null;
+    document.body.classList.remove('painting');
+    $('rb-painter').classList.remove('active');
+    $('rb-painter').disabled = !editor.textEdit;
+  };
+  $('rb-painter').addEventListener('mousedown', (e) => e.preventDefault());   // keep the text selected
+  $('rb-painter').addEventListener('click', (e) => {
+    if (painter && e.detail < 2) { stopPaint(); return; }
+    const flow = editor.editingFlow();
+    const fmt = painter ? painter.fmt : flow && captureFormat(flow);
+    if (!fmt) { setStatus('Click in some text first: Format Painter copies its formatting.'); return; }
+    painter = { fmt, sticky: e.detail >= 2 };
+    document.body.classList.add('painting');
+    $('rb-painter').classList.add('active');
+    setStatus('Format Painter: select the text to paint' + (painter.sticky ? ' (as many times as you like; Esc to stop).' : '.'));
+  });
+  $('stage').addEventListener('mouseup', () => setTimeout(() => {
+    if (!painter) return;
+    const flow = editor.editingFlow();
+    const s = window.getSelection();
+    if (!flow || !s.rangeCount || s.isCollapsed || !flow.contains(s.anchorNode)) return;
+    if (applyFormat(flow, painter.fmt)) { editor.setDirty(true); setStatus('Formatting painted.'); }
+    if (!painter.sticky) stopPaint();
+  }, 0));
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && painter) stopPaint(); }, true);
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();

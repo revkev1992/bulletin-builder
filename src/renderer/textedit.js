@@ -271,6 +271,42 @@ function styleSelection(flow, fn) {
   for (const e of marked) { e.style.backgroundColor = ''; fn(e, getComputedStyle(e)); }
   return marked.length > 0;
 }
+// ---- Home ▸ Clipboard ▸ Format Painter: copy the character formatting at the caret, paint it on
+// the next text you select
+export function captureFormat(flow) {
+  const s = window.getSelection();
+  if (!s.rangeCount || !flow.contains(s.anchorNode)) return null;
+  const r = s.getRangeAt(0);
+  // the formatting of the first selected character (or the one before the caret)
+  let node = r.startContainer;
+  if (node.nodeType !== 3) { const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT); node = w.nextNode() || node; }
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  const p = el.closest('p');
+  const cs = getComputedStyle(el);
+  const deco = (line) => { for (let e = el; e && e !== p; e = e.parentElement) if ((getComputedStyle(e).textDecorationLine || '').includes(line)) return true; return false; };
+  return {
+    fontFamily: cs.fontFamily, size: ptOf(cs), fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, color: cs.color,
+    letterSpacing: cs.letterSpacing, verticalAlign: cs.verticalAlign, underline: deco('underline'), strike: deco('line-through'),
+    fontVariantCaps: cs.fontVariantCaps, textTransform: cs.textTransform,
+  };
+}
+export function applyFormat(flow, f) {
+  return styleSelection(flow, (e) => {
+    Object.assign(e.style, {
+      fontFamily: f.fontFamily, fontWeight: f.fontWeight, fontStyle: f.fontStyle, color: f.color, letterSpacing: f.letterSpacing,
+      verticalAlign: f.verticalAlign, fontVariantCaps: f.fontVariantCaps, textTransform: f.textTransform,
+      fontSize: f.size * (f.verticalAlign === 'super' || f.verticalAlign === 'sub' ? 0.66 : 1) + 'pt',
+      textDecoration: [f.underline && 'underline', f.strike && 'line-through'].filter(Boolean).join(' ') || 'none',
+    });
+    // formatting nested inside the painted text gives way to the painted format
+    for (const d of [...e.querySelectorAll('*')]) {
+      if (d.classList.contains('tab') || d.tagName === 'BR' || d.classList.contains('brk')) continue;
+      if (/^(SUP|SUB|B|STRONG|I|EM|U|S|STRIKE|FONT)$/.test(d.tagName)) d.replaceWith(...d.childNodes);
+      else d.removeAttribute('style');
+    }
+  });
+}
+
 const SIZES = [6, 7, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 96, 144];
 const shiftedCs = (cs) => cs.verticalAlign === 'super' || cs.verticalAlign === 'sub';
 const ptOf = (cs) => { const v = parseFloat(cs.fontSize) * 0.75; return shiftedCs(cs) ? v / 0.66 : v; };

@@ -434,3 +434,5 @@ body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { v
 #findpane.replacing .fr-rep { display: flex; }
 #findpane.replacing button.fr-rep { display: inline-block; }
 #findpane .fr-msg { color: #444; min-height: 2.4em; }
+/* Format Painter armed: Publisher's paint-brush cursor over text */
+body.painting .page .frame-text, body.painting .frame.editing, body.painting .frame.editing .flow { cursor: copy; }

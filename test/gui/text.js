@@ -116,17 +116,25 @@ exports.run = async (h) => {
   await h.click(w3.x, w3.y);
   await h.shot('click-again');
   h.ok('click in a selected box types again', await ed('!!ed.textEdit'));
-  const other = await h.js(`(() => { const els = [...document.querySelectorAll('.page-shell[data-page="${P}"] .frame-text')].filter((e) => e.dataset.id !== 'f459');
-    return els.length ? els[0].dataset.id : null; })()`);
-  if (other) {
-    const o = await h.rect(`.page-shell[data-page="${P}"] .frame-text[data-id="${other}"]`);
-    await h.click(o.cx, o.cy);
-    await h.wait(500);
-    h.ok('click another box\'s text: typing moves there', await ed(`ed.textEdit && ed.textEdit.id === '${other}'`));
-  }
+  // page 15 has several text boxes: type in one, then click another's text
+  await h.js(`document.querySelector('.page-shell[data-page="15"] .frame[data-id="f445"]').scrollIntoView({ block: 'center' })`);
+  await h.wait(400);
+  const at = (id, w) => h.js(`(() => { const box = document.querySelector('.page-shell[data-page="15"] .frame[data-id="${id}"]'); const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    for (let t; (t = tw.nextNode());) { const i = t.data.indexOf('${w}'); if (i >= 0) { const r = document.createRange(); r.setStart(t, i + 1); r.setEnd(t, i + 2);
+      const b = r.getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2 }; } } return null; })()`);
+  let o = await at('f437', 'peace');
+  await h.click(o.x, o.y);
+  h.ok('click text on page 15: typing there', await ed(`ed.textEdit && ed.textEdit.id === 'f437'`));
+  o = await at('f445', 'Staff');
+  await h.click(o.x, o.y);
+  await h.wait(600);
+  h.ok('click another box\'s text while typing: typing moves there', await ed(`ed.textEdit && ed.textEdit.id === 'f445'`));
+  h.ok('…with the caret where you clicked (inside "Staff")', (await h.js(`(() => { const s = getSelection(); return (s.anchorNode.data || '').slice(s.anchorOffset - 1, s.anchorOffset + 4); })()`)) === 'Staff');
   await h.key('Escape');
 
   // ---- a picture: one click selects, drag moves (no typing)
+  await h.js(`document.querySelector('.page-shell[data-page="${P}"]').scrollIntoView({ block: 'center' })`);
+  await h.wait(400);
   const pic = await h.js(`(() => { const el = document.querySelector('.page-shell[data-page="${P}"] .frame-image'); return el && el.dataset.id; })()`);
   const pr = await h.rect(`.page-shell[data-page="${P}"] .frame-image[data-id="${pic}"]`);
   const px0 = await ed(`ed.topFrame(${P}, '${pic}').y`);
