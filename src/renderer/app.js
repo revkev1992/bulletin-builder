@@ -665,7 +665,7 @@ if (PRINT) {
     pageRestore: (op, toStack) => runPageOp(op, { undoing: toStack }),
     // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
     onTextMode: (on) => {
-      for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input')) el.disabled = !on;
+      for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input, button.rb-typing')) el.disabled = !on;
       $('rb-columns').disabled = !on && !($('rb-columns').dataset.frameOk === '1');
       $('rb-painter').disabled = !on && !painter;
       syncMirrors();
@@ -759,6 +759,28 @@ if (PRINT) {
     };
   };
   $('stage').addEventListener('contextmenu', (e) => { pageContextMenu(e); });
+  // ---- Insert ▸ Symbol / Date & Time (at the caret), View ▸ Zoom ▸ Selected Objects
+  const typeAtCaret = (t) => { if (!editor.editingFlow()) return; document.execCommand('insertText', false, t); editor.setDirty(true); };
+  for (const b of document.querySelectorAll('.sym')) b.onclick = () => { typeAtCaret(b.dataset.sym); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); };
+  $('ins-date').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ins-symbol').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ins-date').addEventListener('click', () => {
+    const d = new Date();
+    const f = (o) => d.toLocaleDateString('en-US', o);
+    const fm = [f({ weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), f({ month: 'long', day: 'numeric', year: 'numeric' }), f({ month: 'numeric', day: 'numeric', year: 'numeric' }),
+      f({ month: 'numeric', day: 'numeric', year: '2-digit' }), f({ month: 'short', day: 'numeric', year: 'numeric' }), d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })];
+    fm.forEach((t, i) => { setLabel('dt-' + i, t); $('dt-' + i).dataset.text = t; });
+  }, true);
+  for (let i = 0; i < 6; i++) $('dt-' + i).onclick = () => typeAtCaret($('dt-' + i).dataset.text || '');
+  $('zoom-sel').onclick = () => {
+    const fs = editor.selection();
+    if (!fs.length) { setStatus('Select an object first.'); return; }
+    const x0 = Math.min(...fs.map((f) => f.x)), y0 = Math.min(...fs.map((f) => f.y)), x1 = Math.max(...fs.map((f) => f.x + f.w)), y1 = Math.max(...fs.map((f) => f.y + f.h));
+    const st = $('stage');
+    zoom = Math.min(4, Math.max(0.2, Math.min((st.clientWidth - 80) / ((x1 - x0) * 96 / 72), (st.clientHeight - 80) / ((y1 - y0 || 1) * 96 / 72))));
+    applyZoom();
+    requestAnimationFrame(() => { const el = shells.get(editor.sel.page).querySelector('.frame[data-id="' + editor.sel.id + '"]'); if (el) el.scrollIntoView({ block: 'center', inline: 'center' }); });
+  };
   $('sel-all').onclick = async () => { if (editor.textEdit) await editor.endTextEdit(); editor.command('select-all'); };
   $('sel-text').onclick = () => { const fl = editor.editingFlow(); if (!fl) return; fl.focus(); const r = document.createRange(); r.selectNodeContents(fl); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
   for (const id of ['lk-create', 'lk-break', 'lk-prev', 'lk-next']) $(id).addEventListener('mousedown', (e) => e.preventDefault());

@@ -177,7 +177,7 @@ export const TABS = [
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', todo)], [big('Calendars', 'calendar', todo)], [big('Borders & Accents', 'borders', todo)], [big('Advertisements', 'ads', todo)]] },
     { label: 'Break', cls: 'rb-text', cols: [[big('Break', 'pagenum', { id: 'ins-break', menu: 'breaks', tip: 'Insert a break where you are typing' })]] },
     { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', todo)],
-      [big('Symbol', 'symbol', todo)], [big('Date & Time', 'datetime', todo)]] },
+      [big('Symbol', 'symbol', { id: 'ins-symbol', menu: 'symbols', cls: 'rb-typing', tip: 'Insert a symbol where you are typing' })], [big('Date & Time', 'datetime', { id: 'ins-date', menu: 'dates', cls: 'rb-typing', tip: 'Insert the date or time where you are typing' })]] },
     { label: 'Links', cols: [[big('Link', 'link', todo)], [big('Bookmark', 'bookmark', todo)]] },
     { label: 'Header & Footer', cols: [[big('Header', 'header', todo)], [big('Footer', 'footer', todo)], [big('Page Number', 'pagenum', todo)]] },
   ] },
@@ -199,7 +199,7 @@ export const TABS = [
     ] },
     { label: 'Zoom', cols: [[big('100%', 'z100', { id: 'zoom-100' })], [big('Whole Page', 'wholepage', { id: 'zoom-fit', tip: 'Whole spread (Ctrl 0)' })],
       [{ html: '<div class="rb-row"><button id="zoom-out" class="rb-ico" title="Zoom Out (Ctrl -)">' + icon('zoomout', 16) + '</button><span id="zoom-label">100%</span><button id="zoom-in" class="rb-ico" title="Zoom In (Ctrl +)">' + icon('zoomin', 16) + '</button></div>' },
-        sm('Page Width', 'pagewidth', { id: 'zoom-width' }), sm('Selected Objects', 'select', todo)]] },
+        sm('Page Width', 'pagewidth', { id: 'zoom-width' }), sm('Selected Objects', 'select', { id: 'zoom-sel', tip: 'Zoom to the selected objects' })]] },
     { label: 'Window', cols: [[big('Arrange All', 'arrangeall', todo)], [big('Cascade', 'cascade', todo)], [big('Switch Windows', 'switchwin', todo)]] },
   ] },
   { id: 'bulletin', label: 'Bulletin', groups: [
@@ -247,6 +247,8 @@ const MENUS = {
     sm('Column Break   Ctrl+Shift+Enter', 'columns', { id: 'brk-column', tip: 'The text after the caret starts the next column' })],
   select: [sm('Select All Objects   Ctrl+A', 'select', { id: 'sel-all', tip: 'Every object on the page you are on' }),
     sm('Select All Text in Text Box', 'textbox', { id: 'sel-text', tip: 'All the text of the box you are typing in' })],
+  symbols: [{ html: '<div class="rb-symbols">' + ["✝","†","‡","℟","℣","©","®","™","—","–","…","•","¶","§","°","½","¼","¾","“","”","‘","’","«","»","♪","♫","✠","✦","★","é","è","ñ","ü","ç","×","÷"].map((c) => '<button type="button" class="sym" data-sym="' + c + '" title="U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + '">' + c + '</button>').join('') + '</div>' }],
+  dates: [sm('date-0', null, { id: 'dt-0' }), sm('date-1', null, { id: 'dt-1' }), sm('date-2', null, { id: 'dt-2' }), sm('date-3', null, { id: 'dt-3' }), sm('date-4', null, { id: 'dt-4' }), sm('date-5', null, { id: 'dt-5' })],
   shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
   page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };

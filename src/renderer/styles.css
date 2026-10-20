@@ -450,3 +450,11 @@ body.linking .page .frame-text:hover { outline: 2px solid #2b7de9; }
 .sg-menu .sg-list { overflow-y: auto; max-height: 50vh; display: flex; flex-direction: column; }
 .sg-menu .sg-item { color: #000; padding: 4px 14px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sg-menu .sg-item.current { background: #e4ecf7; outline: 1px solid #b8cbe6; }
+
+/* free-rotate handle (Publisher: a round arrow above the top edge) */
+.sel-box .rot-handle { position: absolute; left: 50%; top: -24px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+  background: #fff; border: 1.5px solid #2b7de9; pointer-events: auto; cursor: grab; }
+.sel-box .rot-handle::after { content: ''; position: absolute; left: 50%; top: 12px; height: 10px; border-left: 1px solid #2b7de9; }
+.rb-symbols { display: grid; grid-template-columns: repeat(9, 28px); gap: 2px; padding: 4px; }
+.rb-symbols .sym { width: 28px; height: 28px; font: 16px 'Palatino Linotype', 'Segoe UI Symbol', serif; padding: 0; border: 1px solid transparent; background: #fff; }
+.rb-symbols .sym:hover { border-color: #2b7de9; background: #e8f0fb; }

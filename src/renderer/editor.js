@@ -612,6 +612,10 @@ export class Editor {
       e.preventDefault();
       return this.beginDrag(e, n, 'resize', handle.dataset.h);
     }
+    if (e.target.closest('.rot-handle') && this.sel) {
+      e.preventDefault();
+      return this.beginRotate(e, n);
+    }
     if (edge && this.sel) {
       e.preventDefault();
       if (e.shiftKey || e.ctrlKey) { this.toggleMulti(n, this.sel.id); return; }
@@ -683,14 +687,40 @@ export class Editor {
     this.drag = { n, mode, handle, start: p, cx: e.clientX, cy: e.clientY, orig: structuredClone(f), others, started: false, alt: e.altKey, shift: e.shiftKey };
   }
 
+  // free rotate: the angle follows the pointer round the object's centre
+  beginRotate(e, n) {
+    const f = this.frame();
+    if (!f || this.locked(n, f)) return;
+    const el = this.app.shellOf(n).querySelector('.frame[data-id="' + f.id + '"]');
+    const r = el.getBoundingClientRect();
+    const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    this.drag = { n, mode: 'rotate', cx: e.clientX, cy: e.clientY, c, a0: Math.atan2(e.clientY - c.y, e.clientX - c.x), r0: f.rotation || 0,
+      orig: structuredClone(f), el, started: false };
+  }
+
   onMove(e) {
     const d = this.drag;
     if (!d) return;
     if (!d.started && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < DRAG_START_PX) return;
     d.started = true;
+    if (d.mode === 'rotate') {
+      let deg = d.r0 + (Math.atan2(e.clientY - d.c.y, e.clientX - d.c.x) - d.a0) * 180 / Math.PI;
+      deg = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg * 10) / 10;
+      deg = ((deg % 360) + 360) % 360;
+      d.el.style.rotate = (deg - d.r0) + 'deg';      // on top of the frame's own transform
+      d.preview = { ...structuredClone(d.orig), rotation: deg };
+      if (!deg) delete d.preview.rotation;
+      this.app.setStatus('Rotation: ' + Math.round(deg * 10) / 10 + '°');
+      return;
+    }
     const p = this.ptOf(d.n, e);
     const tol = SNAP_PX / p.scale;
     let dx = p.x - d.start.x, dy = p.y - d.start.y;
+    // a rotated object is sized along its own (turned) sides
+    if (d.mode !== 'move' && d.orig.rotation) {
+      const a = -d.orig.rotation * Math.PI / 180;
+      [dx, dy] = [dx * Math.cos(a) - dy * Math.sin(a), dx * Math.sin(a) + dy * Math.cos(a)];
+    }
     const o = d.orig;
     const lines = e.altKey ? { xs: [], ys: [] } : this.snapLines(d.n, o.id);
     const guides = [];
@@ -737,7 +767,7 @@ export class Editor {
     this.drag = null;
     if (this.ending) { await this.ending; this.ending = null; }
     if (!d || !d.started || !d.preview) return;
-    if (d.mode === 'move' && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
+    if (d.mode === 'move' && d.others && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
     await this.apply(d.n, d.preview);
   }
 
@@ -984,6 +1014,7 @@ export class Editor {
       const isLocked = this.locked(this.sel.page, f);
       box.className = 'sel-box' + (isLocked ? ' locked' : '') + (this.textEdit ? ' typing' : '') + (this.crop && this.crop.id === f.id ? ' cropping' : '');
       Object.assign(box.style, { left: f.x + 'pt', top: f.y + 'pt', width: Math.max(f.w, 0.5) + 'pt', height: Math.max(f.h, 0.5) + 'pt' });
+      if (f.rotation) box.style.transform = 'rotate(' + f.rotation + 'deg)';   // the box turns with the object
       if (!isLocked) {
         // the border: Publisher's move cursor — drag it to move the box (needed for text boxes,
         // where a click inside puts the caret in the text)
@@ -996,6 +1027,13 @@ export class Editor {
           const k = document.createElement('div');
           k.className = 'handle h-' + h;
           k.dataset.h = h;
+          box.appendChild(k);
+        }
+        // Publisher's free-rotate handle above the top edge (not while typing or cropping)
+        if (!this.textEdit && !(this.crop && this.crop.id === f.id) && !this.multi.length && f.h > 0) {
+          const k = document.createElement('div');
+          k.className = 'rot-handle';
+          k.title = 'Drag to rotate (Shift: steps of 15°)';
           box.appendChild(k);
         }
       } else {
