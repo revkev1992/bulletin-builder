@@ -851,7 +851,7 @@ export class Editor {
 
   // ------------------------------------------------------------ selection drawing
   drawSelection(boxFrame, guides = []) {
-    document.querySelectorAll('.sel-box, .snap-line').forEach((x) => x.remove());
+    document.querySelectorAll('.sel-box, .snap-line, .crop-ghost').forEach((x) => x.remove());
     document.querySelectorAll('.page-shell').forEach((s) => {
       const n = Number(s.dataset.page);
       s.classList.toggle('not-mine', !!this.half && !this.editable(n));
@@ -881,6 +881,16 @@ export class Editor {
         }
       } else {
         box.title = 'Locked (Ctrl+L to unlock)';
+      }
+      // Publisher shows the whole picture dimmed while cropping, so you see what each handle cuts away
+      if (this.crop && this.crop.id === f.id && f.kind === 'image' && f.image && f.image.asset) {
+        const [l, t, r, b] = f.image.crop || [0, 0, 0, 0];
+        const FW = f.w / Math.max(0.0001, 1 - l - r), FH = f.h / Math.max(0.0001, 1 - t - b);
+        const ghost = document.createElement('img');
+        ghost.className = 'crop-ghost';
+        ghost.src = new URL(f.image.asset, this.week().baseUrl).href;
+        Object.assign(ghost.style, { left: (f.x - l * FW) + 'pt', top: (f.y - t * FH) + 'pt', width: FW + 'pt', height: FH + 'pt' });
+        ov.insertBefore(ghost, ov.firstChild);
       }
       ov.appendChild(box);
       for (const g of guides) {

@@ -364,3 +364,8 @@ body.print .page { break-after: page; }
 .edge-right { top: 0; bottom: 0; right: -4px; width: 8px; }
 .sel-box.cropping .sel-edge { display: none; }
 .screen .frame-text { cursor: text; }
+/* cropping: the cut-away part of the picture shown dimmed (Publisher), chunkier crop handles */
+.page-shell .overlay > .crop-ghost { position: absolute; opacity: .3; pointer-events: none; outline: 1px dotted #555; }
+.sel-box.cropping .handle { width: 14px; height: 5px; margin: -2.5px 0 0 -7px; }
+.sel-box.cropping .h-e, .sel-box.cropping .h-w { width: 5px; height: 14px; margin: -7px 0 0 -2.5px; }
+.sel-box.cropping .h-nw, .sel-box.cropping .h-ne, .sel-box.cropping .h-sw, .sel-box.cropping .h-se { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; }
