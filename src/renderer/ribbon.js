@@ -167,7 +167,7 @@ export const TABS = [
       [sm('Bring Forward', 'forward', { id: 'front', tip: 'Bring to Front' }), sm('Send Backward', 'backward', { id: 'back', tip: 'Send to Back' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
       [sm('Group', 'group', { id: 'rb-group', tip: 'Group (select several with Shift+click)' }), sm('Ungroup', 'group', { id: 'rb-ungroup' }), sm('Rotate', 'rotate', { id: 'rb-rotate', menu: 'rotate' })],
     ] },
-    { label: 'Editing', cols: [[sm('Find', 'find', todo), sm('Replace', 'replace', todo), sm('Select', 'select', todo)], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
+    { label: 'Editing', cols: [[sm('Find', 'find', { id: 'rb-find', tip: 'Find (Ctrl+F)' }), sm('Replace', 'replace', { id: 'rb-replace', tip: 'Replace (Ctrl+H)' }), sm('Select', 'select', todo)], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
   ] },
   { id: 'insert', label: 'Insert', groups: [
     { label: 'Pages', cols: [[big('Page', 'pageadd', { id: 'rb-page', menu: 'page', tip: 'Insert a page' })]] },

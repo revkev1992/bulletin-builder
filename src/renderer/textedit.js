@@ -326,13 +326,24 @@ function atoms(root) {
   const walk = (n) => {
     for (const c of n.childNodes) {
       if (c.nodeType === 3) out.push({ node: c, len: c.data.length });
-      else if (c.nodeType === 1) { if (c.classList.contains('tab')) out.push({ node: c, len: 1, tab: true }); else walk(c); }
+      else if (c.nodeType === 1) {
+        // a tab or a line break is one character (as tab / newline in the saved text)
+        if (c.classList.contains('tab') || (c.tagName === 'BR' && !c.classList.contains('tab-break'))) out.push({ node: c, len: 1, tab: true });
+        else walk(c);
+      }
     }
   };
   walk(root);
   return out;
 }
 export const atomLength = (el) => atoms(el).reduce((a, x) => a + x.len, 0);
+// a Range over characters [start, end) of one paragraph element (offsets as in the saved text)
+export function paragraphRange(p, start, end) {
+  const r = document.createRange();
+  r.setStart(...pointAt(p, start));
+  r.setEnd(...pointAt(p, end));
+  return r;
+}
 function offsetOf(flow, node, off) {
   const list = atoms(flow);
   let total = 0;

@@ -419,3 +419,18 @@ body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { v
   font: 7pt 'Segoe UI', sans-serif; color: #2b7de9; border-top: 1px dashed #2b7de9; user-select: none;
 }
 .screen.show-marks .brk::after, .frame.editing .brk::after { content: attr(data-label); }
+
+/* Home ▸ Editing ▸ Find / Replace: Publisher's task pane on the right */
+#findpane { width: 250px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; }
+#findpane .fp-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 15px; color: var(--rb-accent, #2b579a); }
+#findpane .fr-close { border: 0; background: none; font-size: 13px; padding: 2px 6px; }
+#findpane .fr-body { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 8px; }
+#findpane .fr-radio { display: inline-block; margin-right: 12px; }
+#findpane .fr-lbl { display: flex; flex-direction: column; gap: 3px; }
+#findpane .fr-lbl input { font: 13px 'Segoe UI', sans-serif; padding: 3px 5px; }
+#findpane .fr-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+#findpane fieldset label { display: block; }
+#findpane .fr-rep { display: none; }
+#findpane.replacing .fr-rep { display: flex; }
+#findpane.replacing button.fr-rep { display: inline-block; }
+#findpane .fr-msg { color: #444; min-height: 2.4em; }

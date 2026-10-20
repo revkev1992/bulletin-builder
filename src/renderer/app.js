@@ -7,6 +7,7 @@ import { Backstage } from './backstage.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog } from './pagedialogs.js';
 import { paragraphSettings } from './textedit.js';
 import { Rulers } from './ruler.js';
+import { FindPane } from './findreplace.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -541,6 +542,11 @@ if (PRINT) {
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();
+  const find = new FindPane(editor, { $ });
+  window.__bbFind = find;
+  for (const b of [$('rb-find'), $('rb-replace')]) b.addEventListener('mousedown', (e) => e.preventDefault());   // keep the selected text for "Find what"
+  $('rb-find').onclick = () => find.show('find');
+  $('rb-replace').onclick = () => find.show('replace');
   $('brk-frame').onclick = () => editor.insertBreak('frame');
   $('brk-column').onclick = () => editor.insertBreak('column');
   // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher
