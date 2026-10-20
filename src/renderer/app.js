@@ -624,7 +624,28 @@ if (PRINT) {
     if (e.key === '>' || e.key === '.') { e.preventDefault(); fmt('grow'); }
     if (e.key === '<' || e.key === ',') { e.preventDefault(); fmt('shrink'); }
   });
-  $('rb-marks').onclick = () => { const on = document.body.classList.toggle('show-marks'); $('rb-marks').classList.toggle('active', on); };
+  // Publisher: Font / Size boxes and B I U / alignment buttons show the formatting where the caret is
+  document.addEventListener('selectionchange', () => {
+    const flow = editor.textEdit && editor.editingFlow();
+    const s = window.getSelection();
+    if (!flow || !s.rangeCount || !flow.contains(s.anchorNode)) return;
+    const el = s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement;
+    const cs = getComputedStyle(el);
+    const fam = cs.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '').replace(/^bbx-/, '');
+    const fsel = $('t-font');
+    if (![...fsel.options].some((o) => o.value === fam)) fsel.add(new Option(fam, fam));
+    if (document.activeElement !== fsel) fsel.value = fam;
+    const shifted = cs.verticalAlign === 'super' || cs.verticalAlign === 'sub';
+    if (document.activeElement !== $('t-size')) $('t-size').value = String(Math.round(parseFloat(cs.fontSize) * 0.75 / (shifted ? 0.66 : 1) * 2) / 2);
+    const deco = (line) => { for (let e = el; e && e !== flow; e = e.parentElement) if ((getComputedStyle(e).textDecorationLine || '').includes(line)) return true; return false; };
+    $('t-bold').classList.toggle('active', parseInt(cs.fontWeight, 10) >= 600);
+    $('t-italic').classList.toggle('active', cs.fontStyle === 'italic');
+    $('t-underline').classList.toggle('active', deco('underline'));
+    const p = el.closest('p');
+    const al = p ? getComputedStyle(p).textAlign : 'left';
+    for (const b of document.querySelectorAll('.rb-text [data-align]')) b.classList.toggle('active', b.dataset.align === (al === 'start' ? 'left' : al));
+  });
+  $('rb-marks').onclick =() => { const on = document.body.classList.toggle('show-marks'); $('rb-marks').classList.toggle('active', on); };
   // ---- Arrange
   for (const b of document.querySelectorAll('[id^="col-"]')) b.onclick = () => editor.setColumns(Number(b.id.slice(4)));
   for (const b of document.querySelectorAll('[id^="wrap-"]')) b.onclick = () => editor.setWrap(b.id.slice(5));

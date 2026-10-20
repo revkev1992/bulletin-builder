@@ -7,11 +7,15 @@ const path = require('path');
 const WEEK = process.argv[2] ||
   path.join(process.env.USERPROFILE || '', 'OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks/9-20-26 1100/9-20-26 1100.bulletin');
 const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron.exe');
-const SUITES = ['text', 'crop', 'pages', 'tabs', 'breaks'];
+const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange'];
+
+// the Order-of-Worship guard runs on an October (flow) week
+const FLOW_WEEK = path.join(path.dirname(path.dirname(WEEK)), '10-18-26 1100', '10-18-26 1100.bulletin');
 
 let failed = 0;
-for (const s of SUITES) {
-  const r = spawnSync(ELECTRON, ['.', '--gui', 'test/gui/' + s + '.js', WEEK, 'out/gui-' + s], { cwd: path.join(__dirname, '../..'), encoding: 'utf8' });
+for (const s of [...SUITES, 'flow']) {
+  const week = s === 'flow' ? FLOW_WEEK : WEEK;
+  const r = spawnSync(ELECTRON, ['.', '--gui', 'test/gui/' + s + '.js', week, 'out/gui-' + s], { cwd: path.join(__dirname, '../..'), encoding: 'utf8' });
   const last = (r.stdout || '').trim().split('\n').filter((l) => /^(PASS|FAILED|ERROR)/.test(l)).pop() || 'no result';
   const fails = (r.stdout || '').split('\n').filter((l) => l.includes('FAIL '));
   console.log(s.padEnd(8), last);
