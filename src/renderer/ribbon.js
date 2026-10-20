@@ -213,6 +213,8 @@ export const TABS = [
   // contextual (shown only while something is selected)
   { id: 'format', label: 'Shape Format', contextual: true, groups: [
     { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
+    { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
+      [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
     { label: 'Arrange', cols: [[big('Wrap Text', 'wrap', { mirror: 'rb-wrap', menu: 'wrap' })],
       [sm('Bring Forward', 'forward', { mirror: 'front' }), sm('Send Backward', 'backward', { mirror: 'back' }), sm('Align', 'align', { mirror: 'rb-align', menu: 'align' })],
       [sm('Group', 'group', { mirror: 'rb-group' }), sm('Ungroup', 'group', { mirror: 'rb-ungroup' }), sm('Rotate', 'rotate', { mirror: 'rb-rotate', menu: 'rotate' })]] },

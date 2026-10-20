@@ -7,6 +7,7 @@
 
 import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon, selectionOffsets, restoreOffsets } from './textedit.js';
 import { installArrange } from './arrange.js';
+import { installLinking } from './linking.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages } from './flow.js';
 
@@ -582,6 +583,15 @@ export class Editor {
       this.ending = this.endTextEdit();
     }
     this.lastPage = n;
+    // Create Link is waiting for the box to flow into
+    if (this.linking) {
+      e.preventDefault();
+      const tb = e.target.closest('.frame-text');
+      if (tb) this.finishLink(n, tb.dataset.id); else this.cancelLink('Linking cancelled.');
+      return;
+    }
+    // Publisher's overflow tag on a box whose text doesn't fit: click it to link to another box
+    if (e.target.closest('.overflow-btn')) { e.preventDefault(); this.startLink(); return; }
     const handle = e.target.closest('.handle');
     const edge = e.target.closest('.sel-edge');
     const frameEl = e.target.closest('.frame');
@@ -927,7 +937,11 @@ export class Editor {
     }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (e.key === 'Escape') { if (this.crop) { this.toggleCrop(); return; } this.select(this.lastPage, null); return; }
+    if (e.key === 'Escape') {
+      if (this.linking) { this.cancelLink('Linking cancelled.'); return; }
+      if (this.crop) { this.toggleCrop(); return; }
+      this.select(this.lastPage, null); return;
+    }
     const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && this.half && ['c', 'v', 'd'].includes(e.key.toLowerCase())) {
       e.preventDefault();
@@ -984,6 +998,15 @@ export class Editor {
         Object.assign(ghost.style, { left: (f.x - l * FW) + 'pt', top: (f.y - t * FH) + 'pt', width: FW + 'pt', height: FH + 'pt' });
         ov.insertBefore(ghost, ov.firstChild);
       }
+      // Publisher's overflow tag: the text doesn't fit — click to flow it on into another text box
+      const fel = f.kind === 'text' && this.app.shellOf(this.sel.page).querySelector('.frame[data-id="' + f.id + '"]');
+      if (fel && fel.classList.contains('overflow') && !isLocked && this.editable(this.sel.page)) {
+        const ob = document.createElement('div');
+        ob.className = 'overflow-btn';
+        ob.textContent = 'A…';
+        ob.title = 'The text does not fit. Click here, then click an empty text box to carry it on there.';
+        box.appendChild(ob);
+      }
       ov.appendChild(box);
       for (const g of guides) {
         const l = document.createElement('div');
@@ -1013,3 +1036,4 @@ export class Editor {
 }
 
 installArrange(Editor);
+installLinking(Editor);

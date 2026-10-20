@@ -385,6 +385,10 @@ function onSelection(info) {
   $('rb-columns').dataset.frameOk = can && info.frame.kind === 'text' ? '1' : '';
   $('rb-columns').disabled = !(editor.textEdit || (can && info.frame.kind === 'text'));
   $('rb-textbox-group').hidden = !(has && info.frame.kind === 'text');
+  $('rb-linking-group').hidden = !(has && info.frame.kind === 'text');
+  const lk = editor.linkState();
+  $('lk-create').disabled = !lk.create; $('lk-break').disabled = !lk.brk; $('lk-prev').disabled = !lk.prev; $('lk-next').disabled = !lk.next;
+  $('lk-create').classList.toggle('active', !!editor.linking);
   syncMirrors();
   if (has) {
     const f = info.frame;
@@ -611,6 +615,11 @@ if (PRINT) {
   for (const b of [$('rb-find'), $('rb-replace')]) b.addEventListener('mousedown', (e) => e.preventDefault());   // keep the selected text for "Find what"
   $('rb-find').onclick = () => find.show('find');
   $('rb-replace').onclick = () => find.show('replace');
+  for (const id of ['lk-create', 'lk-break', 'lk-prev', 'lk-next']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  $('lk-create').onclick = () => (editor.linking ? editor.cancelLink('Linking cancelled.') : editor.startLink());
+  $('lk-break').onclick = () => editor.breakLink();
+  $('lk-prev').onclick = () => editor.stepLink(-1);
+  $('lk-next').onclick = () => editor.stepLink(1);
   $('brk-frame').onclick = () => editor.insertBreak('frame');
   $('brk-column').onclick = () => editor.insertBreak('column');
   // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher

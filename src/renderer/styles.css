@@ -436,3 +436,11 @@ body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { v
 #findpane .fr-msg { color: #444; min-height: 2.4em; }
 /* Format Painter armed: Publisher's paint-brush cursor over text */
 body.painting .page .frame-text, body.painting .frame.editing, body.painting .frame.editing .flow { cursor: copy; }
+
+/* Text box linking: Publisher's overflow tag (bottom right of a selected box whose text doesn't fit)
+   and the "pouring" cursor while Create Link waits for a box */
+.sel-box .overflow-btn { position: absolute; right: -6px; bottom: -14px; pointer-events: auto; cursor: pointer;
+  font: 600 10px 'Segoe UI', sans-serif; color: #fff; background: #2b7de9; border-radius: 2px; padding: 0 4px; line-height: 13px; }
+body.linking .page .frame-text, body.linking .page { cursor: copy; }
+body.linking .page .frame-text:hover { outline: 2px solid #2b7de9; }
+.sel-box .overflow-btn { right: -34px; bottom: -9px; font-size: 11px; line-height: 16px; padding: 0 6px; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
