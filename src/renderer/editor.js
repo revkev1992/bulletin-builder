@@ -5,7 +5,7 @@
 // undo, mutates the model, and re-renders the affected pages with the same renderer the PDF uses.
 // Design notes: docs/PHASE2_DESIGN.md.
 
-import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon } from './textedit.js';
+import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon, selectionOffsets, restoreOffsets } from './textedit.js';
 import { installArrange } from './arrange.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages } from './flow.js';
@@ -563,18 +563,29 @@ export class Editor {
     return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale, scale };
   }
 
+  // Publisher's mouse model: a click on the text of a text box selects the box AND puts the caret
+  // where you clicked (a click-drag selects text); the box's border (the selection outline) and its
+  // handles move and size it; any other object moves from anywhere inside it.
   onDown(e, n) {
     if (e.button !== 0) return;
     if (this.textEdit) {
+      // clicks inside the box being typed in belong to the browser (caret, drag-select, double-click word)
       const editing = this.app.shellOf(this.textEdit.n).querySelector('.frame.editing');
       if (editing && editing.contains(e.target)) return;
-      this.endTextEdit();
+      this.ending = this.endTextEdit();
     }
     this.lastPage = n;
     const handle = e.target.closest('.handle');
+    const edge = e.target.closest('.sel-edge');
     const frameEl = e.target.closest('.frame');
     if (handle && this.sel) {
+      e.preventDefault();
       return this.beginDrag(e, n, 'resize', handle.dataset.h);
+    }
+    if (edge && this.sel) {
+      e.preventDefault();
+      if (e.shiftKey || e.ctrlKey) { this.toggleMulti(n, this.sel.id); return; }
+      return this.beginDrag(e, n, 'move');
     }
     if (!frameEl) { this.select(n, null); return; }
     const top = this.topFrame(n, frameEl.dataset.id);
@@ -600,8 +611,24 @@ export class Editor {
       this.app.setStatus('Page ' + n + ' belongs to the ' + this.halfOf(n) + ' half. You are editing the ' + this.half + ' pages.');
       return;
     }
+    if (e.shiftKey || e.ctrlKey) { e.preventDefault(); this.toggleMulti(n, top.id); return; }
+    // text: caret at the click (a grouped text box is reached by clicking it again once the group is selected)
+    const textEl = e.target.closest('.frame-text');
+    const groupFirst = top.kind === 'group' && !(this.sel && this.sel.page === n && this.sel.id === top.id);
+    const inner = textEl && this.anyFrame(n, textEl.dataset.id);
+    if (inner && inner.kind === 'text' && !e.altKey && !groupFirst && !this.multi.length && !this.locked(n, top) &&
+        !(this.crop && this.crop.id === top.id)) {
+      if (this.ending) {
+        // leaving another text box: its page is re-rendered first, then the caret goes where you clicked
+        e.preventDefault();
+        const pt = { clientX: e.clientX, clientY: e.clientY };
+        const id = textEl.dataset.id;
+        this.ending.then(() => { this.ending = null; this.beginTextEdit(n, id, pt); });
+        return;
+      }
+      if (this.beginTextEdit(n, textEl.dataset.id, e, { fromClick: true })) return;
+    }
     e.preventDefault();
-    if (e.shiftKey || e.ctrlKey) { this.toggleMulti(n, top.id); return; }
     if (this.sel && this.sel.page === n && this.multi.includes(top.id)) {
       // drag one of several selected objects: it becomes the primary, the set stays
       this.multi = this.multi.filter((x) => x !== top.id).concat(this.sel.id);
@@ -678,6 +705,7 @@ export class Editor {
   async onUp() {
     const d = this.drag;
     this.drag = null;
+    if (this.ending) { await this.ending; this.ending = null; }
     if (!d || !d.started || !d.preview) return;
     if (d.mode === 'move' && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
     await this.apply(d.n, d.preview);
@@ -702,16 +730,22 @@ export class Editor {
       if (top && top.id === pic.dataset.id && !this.locked(n, top)) { this.sel = { page: n, id: top.id }; this.toggleCrop(true); }
       return;
     }
+    // typing already began on the first click; a double-click then selects a word (the browser does it)
     const el = e.target.closest('.frame-text');
-    if (!el || !this.editable(n)) return;
+    if (!el || !this.editable(n) || this.textEdit) return;
     this.beginTextEdit(n, el.dataset.id, e);
   }
 
-  beginTextEdit(n, id, e) {
+  // e: the click that started typing (caret goes there). opts.fromClick: called from pointerdown —
+  // if the click is on the text itself the browser places the caret (and a drag selects text).
+  beginTextEdit(n, id, e, opts = {}) {
     const f = this.anyFrame(n, id);
     const top = this.topFrame(n, id);
     if (!f || f.kind !== 'text' || !this.editable(n) || this.locked(n, top)) return false;
     if (this.textEdit) this.endTextEdit();
+    if (this.crop) this.crop = null;
+    this.multi = [];
+    this.lastPage = n;
     this.sel = { page: n, id: top.id };
     this.textEdit = { n, id, before: JSON.stringify(this.week().halves[this.half]), dirtyBefore: this.dirty };
     const el = this.app.shellOf(n).querySelector('.frame[data-id="' + id + '"]');
@@ -726,16 +760,32 @@ export class Editor {
       t = setTimeout(() => { layoutTabs(el, this.week().manifest.defaultTabStop || 36); findOverflow(el); }, 250);
       this.setDirty(true);
     });
-    flow.focus();
-    const r = e && document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
-    if (r && flow.contains(r.startContainer)) {
+    const native = opts.fromClick && e && e.target && flow.contains(e.target);
+    if (!native) {
+      // the click was in the box's inset or below the last line: caret at the nearest spot, else the end
+      if (opts.fromClick && e && e.preventDefault) e.preventDefault();
+      flow.focus();
+      const r = e && document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
       const sel = window.getSelection();
       sel.removeAllRanges();
-      sel.addRange(r);
+      if (r && flow.contains(r.startContainer)) sel.addRange(r);
+      else { const end = document.createRange(); end.selectNodeContents(flow); end.collapse(false); sel.addRange(end); }
     }
     this.drawSelection();
     this.app.onTextMode(true);
     return true;
+  }
+
+  // a box-level change while typing (Columns…): commit the typing, run fn, then carry on typing
+  // with the same text selected — Publisher never throws you out of the text box for these
+  async pauseTextEdit(fn) {
+    const t = this.textEdit;
+    if (!t) return fn();
+    const where = selectionOffsets(this.editingFlow());
+    await this.endTextEdit();
+    const r = await fn();
+    if (this.beginTextEdit(t.n, t.id)) restoreOffsets(this.editingFlow(), where);
+    return r;
   }
 
   editingFlow() {
@@ -815,7 +865,14 @@ export class Editor {
       const isLocked = this.locked(this.sel.page, f);
       box.className = 'sel-box' + (isLocked ? ' locked' : '') + (this.textEdit ? ' typing' : '') + (this.crop && this.crop.id === f.id ? ' cropping' : '');
       Object.assign(box.style, { left: f.x + 'pt', top: f.y + 'pt', width: Math.max(f.w, 0.5) + 'pt', height: Math.max(f.h, 0.5) + 'pt' });
-      if (!isLocked && !this.textEdit) {
+      if (!isLocked) {
+        // the border: Publisher's move cursor — drag it to move the box (needed for text boxes,
+        // where a click inside puts the caret in the text)
+        for (const s of ['top', 'right', 'bottom', 'left']) {
+          const k = document.createElement('div');
+          k.className = 'sel-edge edge-' + s;
+          box.appendChild(k);
+        }
         for (const h of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const k = document.createElement('div');
           k.className = 'handle h-' + h;

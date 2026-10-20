@@ -353,3 +353,14 @@ body.print .page { break-after: page; }
 .screen .page p.para.flow-hl { background: rgba(43, 125, 233, .13); }
 .screen .page .frame.flow-hl { outline: 2px solid rgba(43, 125, 233, .5); }
 .screen.flow-editing .page .frame[data-generated] { cursor: pointer; }
+
+/* Publisher's click model (batch-1 fix): the selection outline never swallows clicks — a click
+   inside a text box reaches the text. The border strips and handles are the only grab points. */
+.page-shell .overlay > .sel-box { pointer-events: none; }
+.sel-edge { position: absolute; pointer-events: auto; cursor: move; }
+.edge-top { left: 0; right: 0; top: -4px; height: 8px; }
+.edge-bottom { left: 0; right: 0; bottom: -4px; height: 8px; }
+.edge-left { top: 0; bottom: 0; left: -4px; width: 8px; }
+.edge-right { top: 0; bottom: 0; right: -4px; width: 8px; }
+.sel-box.cropping .sel-edge { display: none; }
+.screen .frame-text { cursor: text; }

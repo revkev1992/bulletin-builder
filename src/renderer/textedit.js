@@ -267,6 +267,38 @@ function changeCase(flow, how) {
     x.n.data = x.n.data.slice(0, x.a) + whole.slice(k, k + len) + x.n.data.slice(x.b);
     k += len;
   }
+  // keep the text selected, as Publisher does (setting .data collapses the selection)
+  if (pieces.length) {
+    const nr = document.createRange();
+    nr.setStart(pieces[0].n, pieces[0].a);
+    nr.setEnd(pieces[pieces.length - 1].n, pieces[pieces.length - 1].b);
+    sel.removeAllRanges();
+    sel.addRange(nr);
+  }
+}
+
+// selection inside a flow as character offsets (survives a re-render of the frame)
+export function selectionOffsets(flow) {
+  const s = window.getSelection();
+  if (!s.rangeCount || !flow.contains(s.anchorNode)) return null;
+  const r = s.getRangeAt(0);
+  const at = (node, off) => { const p = document.createRange(); p.selectNodeContents(flow); p.setEnd(node, off); return p.toString().length; };
+  return { start: at(r.startContainer, r.startOffset), end: at(r.endContainer, r.endOffset) };
+}
+export function restoreOffsets(flow, o) {
+  if (!o) return;
+  const find = (k) => {
+    const w = document.createTreeWalker(flow, NodeFilter.SHOW_TEXT);
+    let n, last = null;
+    while ((n = w.nextNode())) { if (k <= n.data.length) return [n, k]; k -= n.data.length; last = n; }
+    return last ? [last, last.data.length] : [flow, 0];
+  };
+  const r = document.createRange();
+  r.setStart(...find(o.start));
+  r.setEnd(...find(o.end));
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
 }
 
 // ---- Publisher Home > Paragraph. A paragraph's settings ride in data-para; each command rebuilds
@@ -308,6 +340,10 @@ function setList(para, marker) {
   return { ...p, runs, indentLeft: left, indentFirst: -HANG, tabs: [{ pos: left, align: 'left' }] };
 }
 function rebuildParas(flow, ps, fn) {
+  // keep exactly what was selected (Publisher does): character offsets, shifted by any list marker
+  // added/removed in front of it
+  const where = selectionOffsets(flow);
+  const lenBefore = ps.map((p) => p.textContent.length);
   const els = ps.map((p, i) => {
     let props = {};
     try { props = JSON.parse(p.dataset.para || '{}'); } catch (_) { /* keep defaults */ }
@@ -316,6 +352,12 @@ function rebuildParas(flow, ps, fn) {
     return el;
   });
   layoutTabs(flow.closest('.frame') || flow, 36);
+  if (where && els.length) {
+    const d0 = els[0].textContent.length - lenBefore[0];
+    const dAll = els.reduce((a, el, i) => a + el.textContent.length - lenBefore[i], 0);
+    restoreOffsets(flow, { start: Math.max(0, where.start + d0), end: Math.max(0, where.end + dAll) });
+    return true;
+  }
   if (els.length) {
     const r = document.createRange();
     r.setStart(els[0], 0);

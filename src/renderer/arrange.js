@@ -169,7 +169,7 @@ export function installArrange(Editor) {
       if (f.text.chain) await this.app.rerender(this.reflow(f.text.chain.story));
       return true;
     };
-    return t ? this.endTextEdit().then(go) : go();
+    return t ? this.pauseTextEdit(go) : go();
   };
 }
 

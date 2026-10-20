@@ -454,6 +454,8 @@ if (PRINT) {
     },
   });
   window.__bbEditor = editor;
+  // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher
+  queueMicrotask(() => editor.app.onTextMode(false));
   editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),

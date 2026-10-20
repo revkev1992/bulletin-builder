@@ -17,7 +17,7 @@ const { pathToFileURL } = require('url');
 
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
 
-const HEADLESS_FILE = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow');
+const HEADLESS_FILE = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow') || argAfter('--gui');
 const HEADLESS = !!HEADLESS_FILE;
 
 function argAfter(flag) {
@@ -469,6 +469,14 @@ if (exportFile) {
     try {
       if (argAfter('--selftest-edit')) { const ok = await selftestEdit(exportFile); app.exit(ok ? 0 : 1); return; }
       if (argAfter('--selftest-flow')) { const ok = await selftestFlow(exportFile); app.exit(ok ? 0 : 1); return; }
+      if (argAfter('--gui')) {
+        // GUI tests with real input events: --gui <suite.js> <week.bulletin> <outdir>
+        const i = process.argv.indexOf('--gui');
+        const { runGui } = require('../test/gui/harness');
+        const ok = await runGui(process.argv[i + 1], process.argv[i + 2], process.argv[i + 3] || 'out/gui',
+          { BrowserWindow, RENDERER, preload: path.join(__dirname, 'preload.js'), session });
+        app.exit(ok ? 0 : 1); return;
+      }
       if (argAfter('--shot')) await shot(exportFile, process.argv[process.argv.indexOf('--shot') + 2]);
       else if (argAfter('--eval')) await evalIn(exportFile, process.argv[process.argv.indexOf('--eval') + 2]);
       else await exportPdf(exportFile, process.argv[process.argv.indexOf('--export-pdf') + 2]);
