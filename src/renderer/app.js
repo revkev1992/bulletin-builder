@@ -82,13 +82,14 @@ async function rerender(nums) {
     touched.push(pg);
   }
   for (const pg of touched) await settle(pg);
+  thumbsLater(nums);
   refreshStatusCounts();
   if (editor && editor.panel && editor.panel.active()) editor.panel.highlight(editor.panel.tab === 'order' ? editor.panel.selId : null);
 }
 
 let baseStatus = '';
 function refreshStatusCounts() {
-  const over = document.querySelectorAll('.frame.overflow').length;
+  const over = document.querySelectorAll('#stage .frame.overflow').length;
   const bits = [baseStatus];
   if (over) bits.push('<span class="warn">' + over + ' text frame(s) overflow</span>');
   const wh = week && week.halves.worship;
@@ -111,6 +112,7 @@ async function showSpreads() {
   wrap.style.setProperty('--page-h', height + 'pt');
   const nav = $('nav-pages');
   nav.innerHTML = '';
+  nav.style.setProperty('--thumb-ratio', String(width / height));
   for (const pair of spreadsOf(numbers)) {
     const label = pair.filter(Boolean).join('–');
     const sw = document.createElement('section');
@@ -131,16 +133,27 @@ async function showSpreads() {
     sw.appendChild(spread);
     wrap.appendChild(sw);
 
-    const b = document.createElement('button');
-    b.innerHTML = label + ' ' + pair.filter(Boolean).map((n) => {
-      const h = week.manifest.pages.find((p) => p.number === n).half;
-      return '<span class="half-dot half-' + h + '" title="' + h + '"></span>';
-    }).join('');
-    b.onclick = () => sw.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    nav.appendChild(b);
+    // Pages pane, as Publisher: a thumbnail per page, paired in spreads, number underneath
+    const row = document.createElement('div');
+    row.className = 'nav-spread';
+    for (const n of pair) {
+      const cell = document.createElement('div');
+      cell.className = 'nav-page' + (n == null ? ' blank' : '');
+      if (n != null) {
+        const h = week.manifest.pages.find((p) => p.number === n).half;
+        cell.dataset.page = n;
+        cell.title = 'Page ' + n + ' (' + h + ')';
+        cell.innerHTML = '<div class="nav-thumb half-' + h + '"></div><div class="nav-num">' + n + '</div>';
+        cell.addEventListener('click', () => goToPage(n));
+        cell.addEventListener('contextmenu', (e) => { e.preventDefault(); goToPage(n); pageMenu(e.clientX, e.clientY, n); });
+      }
+      row.appendChild(cell);
+    }
+    nav.appendChild(row);
   }
   stage.appendChild(wrap);
   await settle(wrap);
+  refreshThumbs();
   applyZoom();
   const missing = missingFonts(fontsUsed(week));
   const bits = [week.manifest.pages.length + ' pages'];
@@ -151,6 +164,73 @@ async function showSpreads() {
   refreshStatusCounts();
   if (editor) editor.drawSelection();
 }
+
+// ---------------------------------------------------------------- Pages pane (thumbnails + right-click)
+const THUMB_W = 46;   // px
+function refreshThumbs(nums) {
+  if (!week) return;
+  const { width } = week.manifest.page;
+  const scale = THUMB_W / (width * 96 / 72);
+  for (const cell of document.querySelectorAll('#nav-pages .nav-page[data-page]')) {
+    const n = Number(cell.dataset.page);
+    if (nums && !nums.includes(n)) continue;
+    const src = shells.get(n) && shells.get(n).querySelector('.page');
+    const box = cell.querySelector('.nav-thumb');
+    if (!src || !box) continue;
+    const c = src.cloneNode(true);
+    c.querySelectorAll('[contenteditable]').forEach((x) => x.removeAttribute('contenteditable'));
+    c.querySelectorAll('.margin-guide, .editing').forEach((x) => x.classList.contains('margin-guide') ? x.remove() : x.classList.remove('editing'));
+    // a picture only: nothing in it may be found by code looking for pages, frames or lines
+    for (const x of [c, ...c.querySelectorAll('*')]) {
+      for (const a of [...x.attributes]) if (a.name === 'id' || a.name.startsWith('data-')) x.removeAttribute(a.name);
+    }
+    c.className = 'thumb-page';
+    c.style.transform = 'scale(' + scale + ')';
+    box.replaceChildren(c);
+  }
+}
+let thumbTimer = null;
+const thumbsLater = (nums) => { clearTimeout(thumbTimer); thumbTimer = setTimeout(() => refreshThumbs(nums), 400); };
+
+function goToPage(n, { scroll = true } = {}) {
+  if (!editor) return;
+  if (editor.textEdit) editor.endTextEdit();
+  editor.select(n, null);
+  const sh = shells.get(n);
+  if (scroll && sh) sh.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updateToolbar();
+}
+
+// Publisher's right-click menu on a page in the Pages pane
+function pageMenu(x, y, n) {
+  document.querySelectorAll('.ctx-menu').forEach((m) => m.remove());
+  const own = editor.half && (week.manifest.pages.find((p) => p.number === n) || {}).half === editor.half;
+  const why = !editor.half ? 'Choose which pages you are changing first (Bulletin ▸ I am changing)'
+    : 'Page ' + n + ' belongs to the other half of the bulletin';
+  const items = [
+    ['Insert Page…', 'insert', !!editor.half], ['Insert Blank Page', 'blank', !!editor.half], ['Insert Duplicate Page', 'dup', !!editor.half],
+    null, ['Delete Page', 'delete', own], ['Move Page…', 'move', own], ['Rename…', null, false],
+  ];
+  const m = document.createElement('div');
+  m.className = 'ctx-menu';
+  for (const it of items) {
+    if (!it) { m.appendChild(Object.assign(document.createElement('div'), { className: 'ctx-sep' })); continue; }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.cmd = it[1] || '';
+    b.textContent = it[0];
+    b.disabled = !it[2];
+    b.title = it[1] == null ? 'Coming soon — not built yet' : it[2] ? '' : why;
+    b.onclick = () => { m.remove(); pageCommand(it[1]); };
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 4) + 'px';
+  m.style.top = Math.min(y, innerHeight - r.height - 4) + 'px';
+}
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); }, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); });
 
 async function showPasteboard() {
   const stage = $('stage');
@@ -277,6 +357,7 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
+  for (const c of document.querySelectorAll('#nav-pages .nav-page[data-page]')) c.classList.toggle('current', Number(c.dataset.page) === lp);
   syncMirrors();
 }
 

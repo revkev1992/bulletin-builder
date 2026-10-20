@@ -24,6 +24,15 @@ function makeHarness(win, outDir) {
         if (!el) return null; const r = el.getBoundingClientRect();
         return { x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; })()`);
     },
+    // scroll an element into view the way a person would before clicking it
+    async reveal(sel) {
+      const moved = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return false;
+        const r = el.getBoundingClientRect(); let p = el.parentElement;
+        while (p && p !== document.body) { const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowY)) { const pr = p.getBoundingClientRect();
+          if (r.top < pr.top || r.bottom > pr.bottom) { el.scrollIntoView({ block: 'center' }); return true; } break; } p = p.parentElement; }
+        return false; })()`);
+      if (moved) await wait(300);
+    },
     async move(x, y, mods = []) { wc.sendInputEvent({ type: 'mouseMove', x: Math.round(x), y: Math.round(y), modifiers: mods }); await wait(20); },
     async down(x, y, { count = 1, mods = [], button = 'left' } = {}) {
       wc.sendInputEvent({ type: 'mouseDown', x: Math.round(x), y: Math.round(y), button, clickCount: count, modifiers: mods });
@@ -42,6 +51,7 @@ function makeHarness(win, outDir) {
       await wait(o.settle ?? 250);
     },
     async clickSel(sel, o = {}) {
+      await h.reveal(sel);
       const r = await h.rect(sel);
       if (!r) throw new Error('not on screen: ' + sel);
       await h.click(o.dx != null ? r.x + o.dx : r.cx, o.dy != null ? r.y + o.dy : r.cy, o);
