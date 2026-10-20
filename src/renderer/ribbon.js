@@ -167,7 +167,7 @@ export const TABS = [
       [sm('Bring Forward', 'forward', { id: 'front', tip: 'Bring to Front' }), sm('Send Backward', 'backward', { id: 'back', tip: 'Send to Back' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
       [sm('Group', 'group', { id: 'rb-group', tip: 'Group (select several with Shift+click)' }), sm('Ungroup', 'group', { id: 'rb-ungroup' }), sm('Rotate', 'rotate', { id: 'rb-rotate', menu: 'rotate' })],
     ] },
-    { label: 'Editing', cols: [[sm('Find', 'find', { id: 'rb-find', tip: 'Find (Ctrl+F)' }), sm('Replace', 'replace', { id: 'rb-replace', tip: 'Replace (Ctrl+H)' }), sm('Select', 'select', todo)], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
+    { label: 'Editing', cols: [[sm('Find', 'find', { id: 'rb-find', tip: 'Find (Ctrl+F)' }), sm('Replace', 'replace', { id: 'rb-replace', tip: 'Replace (Ctrl+H)' }), sm('Select', 'select', { id: 'rb-select', menu: 'select' })], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
   ] },
   { id: 'insert', label: 'Insert', groups: [
     { label: 'Pages', cols: [[big('Page', 'pageadd', { id: 'rb-page', menu: 'page', tip: 'Insert a page' })]] },
@@ -245,6 +245,8 @@ const MENUS = {
     sm('Flip Vertical', 'orientation', { id: 'flip-v' }), sm('Flip Horizontal', 'orientation', { id: 'flip-h' })],
   breaks: [sm('Text Box Break   Ctrl+Enter', 'pagenum', { id: 'brk-frame', tip: 'The text after the caret starts the next linked text box' }),
     sm('Column Break   Ctrl+Shift+Enter', 'columns', { id: 'brk-column', tip: 'The text after the caret starts the next column' })],
+  select: [sm('Select All Objects   Ctrl+A', 'select', { id: 'sel-all', tip: 'Every object on the page you are on' }),
+    sm('Select All Text in Text Box', 'textbox', { id: 'sel-text', tip: 'All the text of the box you are typing in' })],
   shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
   page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };

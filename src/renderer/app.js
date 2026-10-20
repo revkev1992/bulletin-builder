@@ -232,6 +232,101 @@ function pageMenu(x, y, n) {
   m.style.left = Math.min(x, innerWidth - r.width - 4) + 'px';
   m.style.top = Math.min(y, innerHeight - r.height - 4) + 'px';
 }
+// a right-click menu: items are { label, cmd, run, on, tip } or null (separator)
+function showMenu(x, y, items, cls = '') {
+  document.querySelectorAll('.ctx-menu').forEach((m) => m.remove());
+  const m = document.createElement('div');
+  m.className = 'ctx-menu ' + cls;
+  m.addEventListener('mousedown', (e) => e.preventDefault());   // keep the caret / text selection
+  for (const it of items) {
+    if (!it) { m.appendChild(Object.assign(document.createElement('div'), { className: 'ctx-sep' })); continue; }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.cmd = it.cmd || '';
+    b.textContent = it.label;
+    b.disabled = !it.on;
+    if (it.tip) b.title = it.tip;
+    b.onclick = () => { m.remove(); it.run(); };
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(0, Math.min(x, innerWidth - r.width - 4)) + 'px';
+  m.style.top = Math.max(0, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  return m;
+}
+
+// Publisher's right-click menus on the page: in text, on an object, or on the empty page
+async function pageContextMenu(e) {
+  const shellEl = e.target.closest('.page-shell');
+  if (!shellEl || !week) return;
+  e.preventDefault();
+  const n = Number(shellEl.dataset.page);
+  const ed = editor;
+  const flow = ed.editingFlow();
+  const can = !!ed.half && ed.editable(n);
+  const cmd = (c) => () => ed.command(c);
+  if (flow && flow.closest('.frame').contains(e.target)) {
+    const sel = window.getSelection();
+    const has = sel.rangeCount && !sel.isCollapsed;
+    showMenu(e.clientX, e.clientY, [
+      { label: 'Cut', cmd: 'text-cut', on: has, run: () => window.bb.edit('cut') },
+      { label: 'Copy', cmd: 'text-copy', on: has, run: () => window.bb.edit('copy') },
+      { label: 'Paste', cmd: 'text-paste', on: true, run: () => window.bb.edit('paste') },
+      null,
+      { label: 'Paragraph…', cmd: 'paragraph', on: true, run: () => $('t-paradlg').click() },
+      { label: 'Tabs…', cmd: 'tabs', on: true, run: () => window.__bbRulers.tabsDialog() },
+      { label: 'Styles…', cmd: 'styles', on: true, run: () => $('rb-styles').click() },
+      null,
+      { label: 'Format Text Box…', cmd: 'format', on: true, run: () => selectTab('format') },
+    ], 'ctx-text');
+    return;
+  }
+  const fr = e.target.closest('.frame');
+  const top = fr && ed.topFrame(n, fr.dataset.id);
+  if (top && !top.generated && can) {
+    if (!(ed.sel && ed.sel.page === n && (ed.sel.id === top.id || ed.multi.includes(top.id)))) {
+      if (ed.textEdit) await ed.endTextEdit();
+      ed.select(n, top.id);
+    }
+    const f = ed.frame();
+    const locked = ed.locked(n, f);
+    const several = ed.multi.length > 0;
+    const pic = f.kind === 'image';
+    showMenu(e.clientX, e.clientY, [
+      { label: 'Cut', cmd: 'cut', on: !locked, run: cmd('cut') },
+      { label: 'Copy', cmd: 'copy', on: true, run: cmd('copy') },
+      { label: 'Paste', cmd: 'paste', on: !!ed.clipboard, run: cmd('paste') },
+      null,
+      { label: 'Delete Object', cmd: 'delete', on: !locked, run: cmd('delete') },
+      null,
+      { label: 'Bring to Front', cmd: 'front', on: !locked, run: cmd('front') },
+      { label: 'Send to Back', cmd: 'back', on: !locked, run: cmd('back') },
+      { label: several ? 'Group' : 'Ungroup', cmd: several ? 'group' : 'ungroup', on: several || f.kind === 'group', run: cmd(several ? 'group' : 'ungroup') },
+      { label: f.locked ? 'Unlock' : 'Lock', cmd: 'lock-frame', on: true, run: cmd('lock-frame') },
+      ...(pic ? [null, { label: 'Crop', cmd: 'crop', on: !locked, run: cmd('crop') }, { label: 'Fit', cmd: 'fit', on: !locked, run: cmd('fit') },
+        { label: 'Fill', cmd: 'fill', on: !locked, run: cmd('fill') }] : []),
+      null,
+      { label: pic ? 'Format Picture…' : f.kind === 'text' ? 'Format Text Box…' : 'Format Shape…', cmd: 'format', on: true, run: () => selectTab('format') },
+    ], 'ctx-object');
+    return;
+  }
+  // the empty page (or a laid-out line)
+  if (ed.textEdit) await ed.endTextEdit();
+  ed.select(n, null);
+  updateToolbar();
+  const own = can;
+  showMenu(e.clientX, e.clientY, [
+    { label: 'Paste', cmd: 'paste', on: can && !!ed.clipboard, run: cmd('paste') },
+    { label: 'Select All', cmd: 'select-all', on: can, run: cmd('select-all') },
+    null,
+    { label: 'Insert Page…', cmd: 'insert', on: !!ed.half, run: () => pageCommand('insert') },
+    { label: 'Insert Duplicate Page', cmd: 'dup', on: !!ed.half, run: () => pageCommand('dup') },
+    { label: 'Delete Page', cmd: 'delete-page', on: own, run: () => pageCommand('delete') },
+    { label: 'Move Page…', cmd: 'move', on: own, run: () => pageCommand('move') },
+  ], 'ctx-page');
+}
+
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); });
 
@@ -663,6 +758,9 @@ if (PRINT) {
       }
     };
   };
+  $('stage').addEventListener('contextmenu', (e) => { pageContextMenu(e); });
+  $('sel-all').onclick = async () => { if (editor.textEdit) await editor.endTextEdit(); editor.command('select-all'); };
+  $('sel-text').onclick = () => { const fl = editor.editingFlow(); if (!fl) return; fl.focus(); const r = document.createRange(); r.selectNodeContents(fl); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
   for (const id of ['lk-create', 'lk-break', 'lk-prev', 'lk-next']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
   $('lk-create').onclick = () => (editor.linking ? editor.cancelLink('Linking cancelled.') : editor.startLink());
   $('lk-break').onclick = () => editor.breakLink();

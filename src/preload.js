@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('bb', {
   chooseWeek: () => ipcRenderer.invoke('week:choose'),
   newWeekFrom: (file) => ipcRenderer.invoke('week:new-from', file),
   saveAs: (file) => ipcRenderer.invoke('week:save-as', file),
+  edit: (what) => ipcRenderer.invoke('edit:do', what),
   setStyles: (file, styles) => ipcRenderer.invoke('week:set-styles', file, styles),
   onOpen: (fn) => ipcRenderer.on('week:open', (_e, file) => fn(file)),
   onZoom: (fn) => ipcRenderer.on('view:zoom', (_e, factor) => fn(factor)),

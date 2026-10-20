@@ -255,6 +255,8 @@ export class Editor {
       case 'copy': return this.copy();
       case 'paste': return this.paste();
       case 'duplicate': this.copy(); return this.paste();
+      case 'cut': if (!this.frame()) return; this.copy(); return this.deleteFrame();
+      case 'select-all': return this.selectAllOnPage();
       case 'insert-text': return this.insert('text');
       case 'insert-line': return this.insert('line');
       case 'insert-rect': return this.insert('rect');
@@ -524,6 +526,17 @@ export class Editor {
       pb.splice(i, 1);
       this.pageEntry(n).frames.push(placed);
     }).then(() => { this.select(n, placed.id); return placed; });
+  }
+
+  // Ctrl+A (not typing) / Home ▸ Editing ▸ Select ▸ Select All: every object you can move on the page
+  selectAllOnPage(n = this.sel ? this.sel.page : this.lastPage) {
+    if (n == null || !this.editable(n)) return false;
+    const ids = this.pageEntry(n).frames.filter((f) => !this.locked(n, f)).map((f) => f.id);
+    if (!ids.length) return false;
+    this.sel = { page: n, id: ids[0] };
+    this.multi = ids.slice(1);
+    this.drawSelection();
+    return true;
   }
 
   select(n, id) {
@@ -943,9 +956,9 @@ export class Editor {
       this.select(this.lastPage, null); return;
     }
     const ctrl = e.ctrlKey || e.metaKey;
-    if (ctrl && this.half && ['c', 'v', 'd'].includes(e.key.toLowerCase())) {
+    if (ctrl && this.half && ['c', 'v', 'd', 'x', 'a'].includes(e.key.toLowerCase())) {
       e.preventDefault();
-      return this.command({ c: 'copy', v: 'paste', d: 'duplicate' }[e.key.toLowerCase()]);
+      return this.command({ c: 'copy', v: 'paste', d: 'duplicate', x: 'cut', a: 'select-all' }[e.key.toLowerCase()]);
     }
     if (!this.sel || !this.half) return;
     const step = e.shiftKey ? NUDGE_BIG : NUDGE;

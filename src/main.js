@@ -117,6 +117,8 @@ ipcMain.handle('week:set-styles', (e, file, styles) => {
   fs.renameSync(abs + '.saving', abs);
   return true;
 });
+// right-click Cut / Copy / Paste in text: the browser's own clipboard commands
+ipcMain.handle('edit:do', (e, what) => { if (['cut', 'copy', 'paste'].includes(what)) e.sender[what](); });
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('file:reveal', (_e, p) => shell.showItemInFolder(p));
 
