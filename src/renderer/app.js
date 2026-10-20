@@ -504,7 +504,7 @@ function currentPage() {
   return own ? own.number : nums[0];
 }
 
-async function runPageOp(op) {
+async function runPageOp(op, { undoing = null } = {}) {
   if (editor.dirty && !(await editor.save())) return null;
   let r;
   try {
@@ -513,13 +513,18 @@ async function runPageOp(op) {
     setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
     return null;
   }
-  editor.undo = []; editor.redo = []; editor.sel = null;
+  // a page change is one undo step: Undo puts back the whole week from the snapshot taken before it
+  const step = JSON.stringify({ pageop: r.stamp, focus: currentPage() });
+  if (undoing) undoing.push(step);
+  else { editor.undo.push(step); editor.redo = []; }
+  editor.sel = null;
   editor.lastPage = r.focus;
   await reload();
   updateToolbar();
   const shell = shells.get(r.focus);
   if (shell) shell.scrollIntoView({ block: 'center' });
-  const what = { insert: op.count > 1 ? op.count + ' pages inserted' : 'Page inserted', delete: 'Page deleted', move: 'Page moved' }[op.type];
+  const what = { insert: op.count > 1 ? op.count + ' pages inserted' : 'Page inserted', delete: 'Page deleted', move: 'Page moved',
+    restore: 'Page change ' + (undoing === editor.redo ? 'undone' : 'redone') }[op.type];
   setStatus(what + ' — now page ' + r.focus + ' of ' + r.pages + '.' + (r.warnings.length ? ' <span class="warn">' + r.warnings.join(' ') + '</span>' : ''));
   return r;
 }
@@ -557,6 +562,7 @@ if (PRINT) {
     setStatus,
     onState: updateToolbar,
     onSelection,
+    pageRestore: (op, toStack) => runPageOp(op, { undoing: toStack }),
     // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
     onTextMode: (on) => {
       for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input')) el.disabled = !on;

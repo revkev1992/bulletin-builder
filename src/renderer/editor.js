@@ -156,6 +156,13 @@ export class Editor {
 
   restore(fromStack, toStack) {
     if (!this.half || !fromStack.length) return Promise.resolve();
+    // a page change (insert/delete/move) is undone on disk from its snapshot, for both halves
+    const top = fromStack[fromStack.length - 1];
+    if (top.startsWith('{"pageop"')) {
+      fromStack.pop();
+      const s = JSON.parse(top);
+      return this.app.pageRestore({ type: 'restore', stamp: s.pageop, focus: s.focus }, toStack);
+    }
     const halves = this.week().halves;
     toStack.push(JSON.stringify(halves[this.half]));
     halves[this.half] = JSON.parse(fromStack.pop());

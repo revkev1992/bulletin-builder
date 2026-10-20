@@ -42,6 +42,8 @@ exports.run = async (h) => {
   await h.shot('menu-editing');
   h.ok('own page: every page command enabled', !(await h.disabled(menuItem('delete'))) && !(await h.disabled(menuItem('move'))) && !(await h.disabled(menuItem('dup'))));
   const frames14 = await h.js(`window.__bbEditor.pageEntry(14).frames.length`);
+  const sig = () => h.js(`JSON.stringify(window.__bbWeek().manifest.pages.map((p) => p.number + p.half[0] + (window.__bbEditor.pageEntry(p.number) || { frames: [] }).frames.map((f) => f.id).join(',')))`);
+  const original = await sig();
   await h.clickSel(menuItem('dup'));
   h.ok('Insert Duplicate Page adds a page', await h.until(`window.__bbWeek().manifest.pages.length === ${n0 + 1}`));
   await h.wait(800);
@@ -70,6 +72,26 @@ exports.run = async (h) => {
   h.ok('Delete Page removes it (back to ' + n0 + ' pages)', await h.until(`window.__bbWeek().manifest.pages.length === ${n0}`));
   await h.wait(800);
   await h.shot('after-delete');
+
+  // Undo / Redo of page changes (the quick-access buttons; Ctrl+Z runs the same command)
+  h.ok('Undo is available after a page change', !(await h.disabled('#undo')));
+  const afterDelete = await sig();
+  await h.clickSel('#undo');
+  h.ok('Undo brings the deleted page back', await h.until(`window.__bbWeek().manifest.pages.length === ${n0 + 1}`));
+  await h.wait(600);
+  h.ok('…with its objects (page 12 is the duplicate again)', (await h.js(`window.__bbEditor.pageEntry(12).frames.length`)) === frames14);
+  await h.clickSel('#redo');
+  h.ok('Redo deletes it again', await h.until(`window.__bbWeek().manifest.pages.length === ${n0}`));
+  await h.wait(600);
+  h.ok('…exactly as before', (await sig()) === afterDelete);
+  await h.clickSel('#undo'); await h.until(`window.__bbWeek().manifest.pages.length === ${n0 + 1}`); await h.wait(500);
+  await h.clickSel('#undo'); await h.wait(1200);
+  await h.clickSel('#undo');
+  await h.until(`window.__bbWeek().manifest.pages.length === ${n0}`);
+  await h.wait(600);
+  h.ok('Undo three times takes back the delete, the move and the duplicate: the week is as it started', (await sig()) === original);
+  await h.wait(600);
+  await h.shot('after-undos');
 
   // the ribbon route still works: Page Design ▸ Pages ▸ Delete (Cancel)
   await h.clickSel('.rb-tab[data-tab="design"]');

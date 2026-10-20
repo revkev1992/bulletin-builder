@@ -154,11 +154,27 @@ function pageOp(file, myHalf, op, { session, busyElsewhere = () => null }) {
       const p = path.join(dir, manifest.halves[h]);
       halves[h] = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : { pages: {}, pasteboard: [] };
     }
-    const res = applyPageOp(manifest, halves, op, myHalf);
-    // history first (append-only), then the new files
     const hist = path.join(dir, 'history');
+    // Undo / Redo of a page change: put back the whole week as it was in a history snapshot
+    let res;
+    if (op.type === 'restore') {
+      const mf = path.join(hist, 'manifest-' + op.stamp + '.bulletin');
+      if (!fs.existsSync(mf)) throw new Error('The copy of the week from before that page change is missing, so it cannot be undone.');
+      const m2 = JSON.parse(fs.readFileSync(mf, 'utf8'));
+      const h2 = {};
+      for (const h of names) {
+        const p = path.join(hist, h + '-' + op.stamp + '-pages.json');
+        h2[h] = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : halves[h];
+      }
+      const n = m2.pages.length;
+      res = { manifest: m2, halves: h2, map: {}, focus: Math.min(op.focus || 1, n), warnings: [] };
+    } else {
+      res = applyPageOp(manifest, halves, op, myHalf);
+    }
+    // history first (append-only), then the new files
     fs.mkdirSync(hist, { recursive: true });
-    const st = stamp();
+    let st = stamp();
+    for (let k = 2; fs.existsSync(path.join(hist, 'manifest-' + st + '.bulletin')); k++) st = stamp() + '-' + k;
     fs.copyFileSync(abs, path.join(hist, 'manifest-' + st + '.bulletin'));
     for (const h of names) {
       const p = path.join(dir, manifest.halves[h]);
@@ -166,7 +182,8 @@ function pageOp(file, myHalf, op, { session, busyElsewhere = () => null }) {
     }
     for (const h of names) writeAtomic(path.join(dir, manifest.halves[h]), res.halves[h]);
     writeAtomic(abs, res.manifest);
-    return { focus: res.focus, map: res.map, warnings: res.warnings, pages: res.manifest.pages.length };
+    // `stamp` names the snapshot of the week BEFORE this change (what Undo puts back)
+    return { focus: res.focus, map: res.map, warnings: res.warnings, pages: res.manifest.pages.length, stamp: st };
   } finally {
     for (const h of borrowed) session.release(abs, h);
   }
