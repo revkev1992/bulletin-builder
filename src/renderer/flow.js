@@ -9,7 +9,7 @@
 import { paragraphEl, layoutTabs, cssFont } from './render.js';
 import { splitParagraph } from './textedit.js';
 
-export const LAYOUT_VERSION = 2;   // bump when pagination rules change: saved layouts are redone
+export const LAYOUT_VERSION = 3;   // bump when pagination rules change: saved layouts are redone
 export const KINDS = ['item', 'section', 'dialog', 'prayer', 'scripture', 'hymn', 'image', 'rubric', 'text', 'space'];
 export const KIND_LABEL = {
   item: 'Item', section: 'Section', dialog: 'Leader / People', prayer: 'Prayer', scripture: 'Scripture',
@@ -102,7 +102,12 @@ export function compileBlock(flow, b, natural) {
   };
   if (b.heading && (b.heading.label || b.heading.middle || b.heading.right)) {
     const h = headingText(flow, b.heading);
-    P('item', h.text, { keepWithNext: true, keepTogether: true, props: { tabs: h.tabs } });
+    const hp = P('item', h.text, { keepWithNext: true, keepTogether: true, props: { tabs: h.tabs } });
+    // a hymn's tune name (the right-hand column) is set in small caps, as in the Publisher bulletins
+    if (/^\*?\s*HYMN\b/i.test(b.heading.label || '') && b.heading.right && hp.runs.length === 1) {
+      const r = hp.runs[0], i = r.text.lastIndexOf('\t');
+      if (i >= 0) hp.runs = [{ ...r, text: r.text.slice(0, i + 1) }, { ...r, text: r.text.slice(i + 1), smallCaps: true }];
+    }
   }
   if (b.rubric) for (const line of String(b.rubric).split('\n')) if (line.trim()) P('rubric', line, { keepTogether: true });
   const lines = (arr) => (arr || []).filter((l) => (typeof l === 'string' ? l : l.text || '').length);

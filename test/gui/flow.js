@@ -15,5 +15,14 @@ exports.run = async (h) => {
   h.ok('click a laid-out line: its block is selected in the panel', (await h.js(`window.__bbEditor.panel.selId`)) === line.block, { want: line.block, got: await h.js(`window.__bbEditor.panel.selId`) });
   h.ok('…and no typing starts in a generated frame', !(await ed('!!ed.textEdit')));
   await h.shot('flow-line-selected');
+  // hymn tune names in small caps (Kevin, 2026-10-15)
+  const tunes = await h.js(`[...document.querySelectorAll('#stage p.para')].filter((p) => /HYMN/.test(p.textContent) && /thaxted|slane|foundation/.test(p.textContent))
+    .map((p) => { const s = [...p.querySelectorAll('span.run')].find((x) => /thaxted|slane|foundation/.test(x.textContent)); return { t: s && s.textContent, caps: s && getComputedStyle(s).fontVariantCaps, page: p.closest('[data-page]').dataset.page }; })`);
+  h.ok('hymn tune names (thaxted, slane, foundation) show in small caps', tunes.length === 3 && tunes.every((t) => t.caps === 'small-caps'), { tunes });
+  h.ok('10-18: "O God Beyond All Praising" (thaxted) still on page 2', (tunes.find((t) => t.t === 'thaxted') || {}).page === '2', { tunes });
+  h.ok('no worship block left over', (await h.js(`(window.__bbWeek().halves.worship.layout.overflowBlocks || []).length`)) === 0);
+  await h.js(`document.querySelector('.page-shell[data-page="2"]').scrollIntoView({ block: 'start' })`);
+  await h.wait(300);
+  await h.shot('tune-small-caps');
   h.ok('Pages pane has a thumbnail for every page', (await h.js(`document.querySelectorAll('#nav-pages .nav-page[data-page] .thumb-page').length`)) === (await h.js('window.__bbWeek().manifest.pages.length')));
 };
