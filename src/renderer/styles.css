@@ -389,3 +389,25 @@ body.print .page { break-after: page; }
 .ctx-menu button:disabled { color: #a6a6a6; }
 .ctx-sep { height: 1px; background: #e1dfdd; margin: 4px 0; }
 .thumb-page { position: absolute; overflow: hidden; background: #fff; color: #000; }
+
+/* View ▸ Rulers (Publisher): corner tab-kind button, horizontal + vertical rulers round the stage */
+#stage-wrap { flex: 1; min-width: 0; display: grid; grid-template-columns: 20px 1fr; grid-template-rows: 20px 1fr; }
+#stage-wrap > #stage { grid-column: 2; grid-row: 2; min-height: 0; }
+#ruler-kind { grid-column: 1; grid-row: 1; width: 20px; height: 20px; padding: 0; border: 0; border-right: 1px solid #c8c6c4; border-bottom: 1px solid #c8c6c4; background: #f3f2f1; display: flex; align-items: center; justify-content: center; border-radius: 0; }
+#ruler-h { grid-column: 2; grid-row: 1; position: relative; overflow: hidden; border-bottom: 1px solid #c8c6c4; cursor: default; }
+#ruler-v { grid-column: 1; grid-row: 2; position: relative; overflow: hidden; border-right: 1px solid #c8c6c4; }
+#ruler-h canvas, #ruler-v canvas { position: absolute; left: 0; top: 0; }
+body.no-rulers #stage-wrap { grid-template-columns: 0 1fr; grid-template-rows: 0 1fr; }
+body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { visibility: hidden; }
+.ruler-marks { position: absolute; inset: 0; }
+.rmark { position: absolute; transform: translateX(-50%); cursor: ew-resize; }
+.rmark.tabmark { bottom: 1px; height: 12px; width: 12px; display: flex; align-items: flex-end; justify-content: center; }
+.rmark.tabmark svg { display: block; }
+.rmark.removing { opacity: .25; }
+.rmark.ind-first { top: 0; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #605e5c; }
+.rmark.ind-left { bottom: 0; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid #605e5c; }
+.rmark.ind-right { bottom: 0; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid #605e5c; }
+.tabs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.tabs-grid select[name="list"] { width: 100%; margin-top: 4px; font: 12px 'Segoe UI', sans-serif; }
+.tabs-grid fieldset label { display: block; }
+.tabs-actions { grid-column: 1 / -1; display: flex; gap: 8px; }

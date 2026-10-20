@@ -56,6 +56,7 @@ const sameProps = (a, b) => {
 function readParagraph(p, base) {
   const runs = [];
   const push = (text, props) => {
+    text = text && text.replace(/​/g, '');   // caret anchors from editing, never saved
     if (!text) return;
     const last = runs[runs.length - 1];
     if (last && sameProps(last, props)) last.text += text;
@@ -182,6 +183,36 @@ export function formatSelection(cmd, value, flow) {
         return q;
       });
       break;
+    case 'retab': {     // a Tab was just typed: lay the paragraph out again so it lands on its stop now
+      rebuildParas(flow, selectedParas(flow), (p) => p);
+      // the caret belongs just after the new tab; a zero-width tab lets Chrome snap it back into the
+      // word before, so give the text after the tab a zero-width anchor (dropped when saved)
+      const o = selectionOffsets(flow);
+      if (!o) break;
+      let total = 0;
+      for (const a of atoms(flow)) {
+        total += a.len;
+        if (!a.tab || total !== o.start) continue;
+        const seg = a.node.nextElementSibling && a.node.nextElementSibling.classList.contains('seg') ? a.node.nextElementSibling : null;
+        if (!seg) break;
+        const first = document.createTreeWalker(seg, NodeFilter.SHOW_TEXT).nextNode();
+        const z = document.createTextNode('​');
+        if (first) first.parentNode.insertBefore(z, first); else seg.appendChild(z);
+        const r = document.createRange();
+        r.setStart(z, 1); r.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(r);
+        break;
+      }
+      break;
+    }
+    case 'tabs':        // the ruler / Tabs dialog: the selected paragraphs get exactly these stops
+      rebuildParas(flow, selectedParas(flow), (p) => {
+        const q = { ...p };
+        if (value && value.length) q.tabs = value.map((s) => ({ ...s })).sort((a, b) => a.pos - b.pos); else delete q.tabs;
+        return q;
+      });
+      break;
     case 'lineSpacing':
       rebuildParas(flow, selectedParas(flow), (p) => ({ ...p, lineSpacing: { multiple: Number(value) } }));
       break;
@@ -277,25 +308,64 @@ function changeCase(flow, how) {
   }
 }
 
-// selection inside a flow as character offsets (survives a re-render of the frame)
+// Selection inside a flow as character offsets (survives a re-render of the frame). A tab counts as
+// ONE character whether it is a raw "	" (just typed) or a laid-out .tab span (rendered), and text
+// inside a .tab span is ignored — so offsets taken before a paragraph is rebuilt still fit after.
+function atoms(root) {
+  const out = [];
+  const walk = (n) => {
+    for (const c of n.childNodes) {
+      if (c.nodeType === 3) out.push({ node: c, len: c.data.length });
+      else if (c.nodeType === 1) { if (c.classList.contains('tab')) out.push({ node: c, len: 1, tab: true }); else walk(c); }
+    }
+  };
+  walk(root);
+  return out;
+}
+export const atomLength = (el) => atoms(el).reduce((a, x) => a + x.len, 0);
+function offsetOf(flow, node, off) {
+  const list = atoms(flow);
+  let total = 0;
+  if (node.nodeType === 3) {
+    for (const a of list) { if (a.node === node) return total + off; total += a.len; }
+    return total;
+  }
+  // a boundary between child nodes: count everything before child[off]
+  const stop = node.childNodes[off] || null;
+  for (const a of list) {
+    if (stop && (a.node === stop || (stop.contains && stop.contains(a.node)))) return total;
+    if (!stop && !node.contains(a.node) && total > 0 && node.compareDocumentPosition(a.node) & Node.DOCUMENT_POSITION_FOLLOWING) return total;
+    total += a.len;
+  }
+  return total;
+}
 export function selectionOffsets(flow) {
   const s = window.getSelection();
-  if (!s.rangeCount || !flow.contains(s.anchorNode)) return null;
+  if (!flow || !s.rangeCount || !flow.contains(s.anchorNode)) return null;
   const r = s.getRangeAt(0);
-  const at = (node, off) => { const p = document.createRange(); p.selectNodeContents(flow); p.setEnd(node, off); return p.toString().length; };
-  return { start: at(r.startContainer, r.startOffset), end: at(r.endContainer, r.endOffset) };
+  return { start: offsetOf(flow, r.startContainer, r.startOffset), end: offsetOf(flow, r.endContainer, r.endOffset) };
+}
+function pointAt(flow, k) {
+  const list = atoms(flow);
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    if (a.tab) {
+      if (k === 0) return [a.node.parentNode, [...a.node.parentNode.childNodes].indexOf(a.node)];
+      k -= 1;
+      if (k === 0 && !(list[i + 1] && !list[i + 1].tab)) return [a.node.parentNode, [...a.node.parentNode.childNodes].indexOf(a.node) + 1];
+      continue;
+    }
+    if (k <= a.len) return [a.node, k];
+    k -= a.len;
+  }
+  const last = list[list.length - 1];
+  return last ? (last.tab ? [last.node.parentNode, [...last.node.parentNode.childNodes].indexOf(last.node) + 1] : [last.node, last.len]) : [flow, 0];
 }
 export function restoreOffsets(flow, o) {
-  if (!o) return;
-  const find = (k) => {
-    const w = document.createTreeWalker(flow, NodeFilter.SHOW_TEXT);
-    let n, last = null;
-    while ((n = w.nextNode())) { if (k <= n.data.length) return [n, k]; k -= n.data.length; last = n; }
-    return last ? [last, last.data.length] : [flow, 0];
-  };
+  if (!flow || !o) return;
   const r = document.createRange();
-  r.setStart(...find(o.start));
-  r.setEnd(...find(o.end));
+  r.setStart(...pointAt(flow, o.start));
+  r.setEnd(...pointAt(flow, o.end));
   const s = window.getSelection();
   s.removeAllRanges();
   s.addRange(r);
@@ -343,7 +413,7 @@ function rebuildParas(flow, ps, fn) {
   // keep exactly what was selected (Publisher does): character offsets, shifted by any list marker
   // added/removed in front of it
   const where = selectionOffsets(flow);
-  const lenBefore = ps.map((p) => p.textContent.length);
+  const lenBefore = ps.map((p) => atomLength(p));
   const els = ps.map((p, i) => {
     let props = {};
     try { props = JSON.parse(p.dataset.para || '{}'); } catch (_) { /* keep defaults */ }
@@ -353,8 +423,8 @@ function rebuildParas(flow, ps, fn) {
   });
   layoutTabs(flow.closest('.frame') || flow, 36);
   if (where && els.length) {
-    const d0 = els[0].textContent.length - lenBefore[0];
-    const dAll = els.reduce((a, el, i) => a + el.textContent.length - lenBefore[i], 0);
+    const d0 = atomLength(els[0]) - lenBefore[0];
+    const dAll = els.reduce((a, el, i) => a + atomLength(el) - lenBefore[i], 0);
     restoreOffsets(flow, { start: Math.max(0, where.start + d0), end: Math.max(0, where.end + dAll) });
     return true;
   }

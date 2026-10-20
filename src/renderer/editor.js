@@ -831,7 +831,7 @@ export class Editor {
   onKey(e) {
     if (this.textEdit) {
       if (e.key === 'Escape') { e.preventDefault(); this.endTextEdit(); return; }
-      if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); return; }
+      if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); this.format('retab'); return; }
     }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;

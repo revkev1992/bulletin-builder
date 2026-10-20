@@ -6,6 +6,7 @@ import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel
 import { Backstage } from './backstage.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog } from './pagedialogs.js';
 import { paragraphSettings } from './textedit.js';
+import { Rulers } from './ruler.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -282,6 +283,7 @@ function applyZoom() {
   const w = document.querySelector('.spreads');
   if (w) w.style.setProperty('--zoom', zoom);
   $('zoom-label').textContent = Math.round(zoom * 100) + '%';
+  if (window.__bbRulers) window.__bbRulers.update();
 }
 
 function zoomBy(factor) {
@@ -358,6 +360,7 @@ function updateToolbar() {
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
   for (const c of document.querySelectorAll('#nav-pages .nav-page[data-page]')) c.classList.toggle('current', Number(c.dataset.page) === lp);
+  if (window.__bbRulers) window.__bbRulers.update();
   syncMirrors();
 }
 
@@ -535,6 +538,9 @@ if (PRINT) {
     },
   });
   window.__bbEditor = editor;
+  const rulers = new Rulers(editor, { $ });
+  window.__bbRulers = rulers;
+  $('t-tabsdlg').onclick = () => rulers.tabsDialog();
   // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher
   queueMicrotask(() => editor.app.onTextMode(false));
   editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });

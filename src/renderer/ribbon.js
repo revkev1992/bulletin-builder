@@ -193,7 +193,7 @@ export const TABS = [
     { label: 'Layout', cols: [[big('Single Page', 'single', todo)], [big('Two-Page Spread', 'spread', { id: 'rb-spread', active: true })]] },
     { label: 'Show', cols: [
       [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', todo)],
-      [chk('Rulers', todo), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show the pasteboard: parked items, never printed' })],
+      [chk('Rulers', { id: 'show-rulers', checked: true }), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show the pasteboard: parked items, never printed' })],
       [chk('Graphics Manager', todo), chk('Baselines', todo)],
     ] },
     { label: 'Zoom', cols: [[big('100%', 'z100', { id: 'zoom-100' })], [big('Whole Page', 'wholepage', { id: 'zoom-fit', tip: 'Whole spread (Ctrl 0)' })],
@@ -231,7 +231,7 @@ const MENUS = {
     sm('Loose', null, { id: 'trk-110' }), sm('Very Loose', null, { id: 'trk-125' })],
   color: [{ html: swatches }],
   linespacing: [sm('1.0', null, { id: 'ls-1' }), sm('1.15', null, { id: 'ls-1.15' }), sm('1.5', null, { id: 'ls-1.5' }), sm('2.0', null, { id: 'ls-2' }),
-    sm('2.5', null, { id: 'ls-2.5' }), sm('3.0', null, { id: 'ls-3' }), sm('Paragraph…', 'linespacing', { id: 't-paradlg', tip: 'Indents and spacing' })],
+    sm('2.5', null, { id: 'ls-2.5' }), sm('3.0', null, { id: 'ls-3' }), sm('Paragraph…', 'linespacing', { id: 't-paradlg', tip: 'Indents and spacing' }), sm('Tabs…', 'align-left', { id: 't-tabsdlg', tip: 'Tab stops (or double-click the ruler)' })],
   columns: [sm('One Column', 'single', { id: 'col-1' }), sm('Two Columns', 'columns', { id: 'col-2' }), sm('Three Columns', 'columns', { id: 'col-3' })],
   wrap: [sm('None', 'rect', { id: 'wrap-none' }), sm('Square', 'wrap', { id: 'wrap-square' }), sm('Tight', 'wrap', { id: 'wrap-tight' }), sm('Top and Bottom', 'wrap', { id: 'wrap-topBottom' })],
   align: [sm('Align Left', 'align', { id: 'al-left' }), sm('Align Center', 'align-center', { id: 'al-center' }), sm('Align Right', 'align-right', { id: 'al-right' }),
