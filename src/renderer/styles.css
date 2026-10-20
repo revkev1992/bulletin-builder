@@ -68,6 +68,7 @@ button:disabled { opacity: .45; cursor: default; }
 .rb-small { display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 3px !important; height: 23px; white-space: nowrap; }
 .rb-ico { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; }
 .rb-row { display: flex; align-items: center; gap: 1px; height: 26px; }
+.rb-row > .rb-html { display: flex; align-items: center; margin-right: 4px; }
 .rb-html select, .rb-row select { font: 12px "Segoe UI", sans-serif; height: 22px; border: 1px solid #c8c6c4; border-radius: 3px; background: #fff; }
 #t-font { width: 150px; }
 #t-size { width: 48px; height: 22px; font: 12px "Segoe UI", sans-serif; border: 1px solid #c8c6c4; border-radius: 3px; margin-left: 4px; }
@@ -128,6 +129,16 @@ button:disabled { opacity: .45; cursor: default; }
 .pd-buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px 14px; }
 .pd-buttons button { min-width: 80px; padding: 4px 12px; }
 .pd-ok { background: var(--rb-accent) !important; color: #fff; border-color: var(--rb-accent) !important; }
+
+/* multi-selection: the other selected objects */
+.sel-box.multi { outline: 1.5px dashed #2b7de9; }
+/* Home ▸ Paragraph ▸ Show Special Characters (screen only; absolutely placed so lines never move) */
+.screen.show-marks .page p.para::after { content: '\00B6'; position: absolute; color: #4a86c5; font: 9pt "Segoe UI", sans-serif; }
+.screen.show-marks .page .tab { background: linear-gradient(#4a86c5, #4a86c5) center / 100% 1px no-repeat; }
+.rb-swatches { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; padding: 4px; }
+.swatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
+.rb-more-color { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px; }
+.rb-menu .rb-check { height: 28px; padding-left: 6px; }
 
 /* View ▸ Show ▸ Boundaries */
 .screen.show-boundaries .page .frame { outline: 1px dotted #7aa7c7; }

@@ -1,7 +1,7 @@
 // Publisher's page dialogs: Insert Page, Move Page, and the Delete confirmation.
 // Each returns the page operation for src/pages.js, or null when cancelled.
 
-function modal(title, bodyHtml, okLabel = 'OK') {
+export function modal(title, bodyHtml, okLabel = 'OK') {
   return new Promise((resolve) => {
     const d = document.createElement('dialog');
     d.className = 'pub-dialog';
@@ -53,6 +53,25 @@ export async function movePageDialog(current, pages) {
     '<label class="pd-row">page: <select name="ref">' + options(others, others.find((n) => n > current) ?? others[others.length - 1]) + '</select></label></fieldset>');
   if (!r) return null;
   return { type: 'move', pages: [current], ref: parseInt(r.ref, 10), where: r.where };
+}
+
+// Home ▸ Paragraph ▸ Line Spacing ▸ Paragraph… — Publisher's Paragraph dialog (indents + spacing)
+export async function paragraphDialog(s = {}) {
+  const inch = (v) => ((v || 0) / 72).toFixed(2);
+  const ls = (s.lineSpacing && s.lineSpacing.multiple) || 1;
+  const r = await modal('Paragraph',
+    '<fieldset><legend>Indentation</legend>' +
+    '<label class="pd-row">Left: <input name="indentLeft" type="number" step="0.05" value="' + inch(s.indentLeft) + '">"</label>' +
+    '<label class="pd-row">First line: <input name="indentFirst" type="number" step="0.05" value="' + inch(s.indentFirst) + '">"</label>' +
+    '<label class="pd-row">Right: <input name="indentRight" type="number" step="0.05" value="' + inch(s.indentRight) + '">"</label></fieldset>' +
+    '<fieldset><legend>Line spacing</legend>' +
+    '<label class="pd-row">Before paragraphs: <input name="spaceBefore" type="number" step="1" min="0" value="' + (s.spaceBefore || 0) + '"> pt</label>' +
+    '<label class="pd-row">After paragraphs: <input name="spaceAfter" type="number" step="1" min="0" value="' + (s.spaceAfter || 0) + '"> pt</label>' +
+    '<label class="pd-row">Between lines: <input name="lineSpacing" type="number" step="0.05" min="0.5" value="' + ls + '"> sp</label></fieldset>');
+  if (!r) return null;
+  const n = (k) => parseFloat(r[k]);
+  return { indentLeft: n('indentLeft') * 72, indentFirst: n('indentFirst') * 72, indentRight: n('indentRight') * 72,
+    spaceBefore: n('spaceBefore'), spaceAfter: n('spaceAfter'), lineSpacing: n('lineSpacing') };
 }
 
 export async function deletePageDialog(current, frameCount) {

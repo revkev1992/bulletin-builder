@@ -36,15 +36,15 @@ Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 | Clipboard: cut/copy/paste frames | ✅ | Ribbon + Ctrl+C/V/D; paste text is plain |
 | Clipboard: paste special, format painter | ⬜ | |
 | Font: family, size, B/I/U | ✅ | |
-| Font: grow/shrink, strike, super/subscript, change case, colour, character spacing, clear formatting | ⬜ | |
+| Font: grow/shrink, super/subscript, change case, colour, character spacing, clear formatting | ✅ | 2026-10-19 (Ctrl+Shift+> / <). Strikethrough ⬜ |
 | Paragraph: align L/C/R/justify | ✅ | |
-| Paragraph: bullets, numbering, indents, line spacing, space before/after, tab stops, columns, drop cap | ⬜ | Imported values render; no UI to change them |
+| Paragraph: bullets, numbering, indents, line spacing, space before/after, tab stops, columns, drop cap | 🟡 | ✅ bullets, numbering, indent/outdent, line spacing, Paragraph… dialog (indents + before/after), text-box columns, ¶ show marks. Tab-stop editor + drop cap ⬜ |
 | Styles: named paragraph styles | ⬜ | Imported from Publisher, not offered in the UI |
 | Objects: text box, picture, line, rectangle | ✅ | Insert Text / Picture… / Line / Box |
 | Objects: table, other shapes | ⬜ | |
-| Arrange: wrap text | 🟡 | Imported wraps work; no UI to set wrap |
+| Arrange: wrap text | ✅ | None / Square / Tight / Top and Bottom |
 | Arrange: bring to front / send to back | ✅ | Forward/backward one step ⬜ |
-| Arrange: align & distribute, group/ungroup, multi-select, rotate/flip | ⬜ | Groups imported from Publisher move together |
+| Arrange: align & distribute, group/ungroup, multi-select, rotate/flip | ✅ | Shift/Ctrl+click; Align (6) + Distribute, Relative to Margin Guides; rotate 90° + flips. Free-rotate handle ⬜ |
 | Arrange: size & position with exact numbers | ✅ | X/Y/W/H in inches |
 | Editing: find / replace / select all | ⬜ | |
 

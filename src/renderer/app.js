@@ -4,7 +4,8 @@ import { isFlow, layoutFlow, flowHash } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
-import { insertPageDialog, movePageDialog, deletePageDialog } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog } from './pagedialogs.js';
+import { paragraphSettings } from './textedit.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -292,6 +293,13 @@ function onSelection(info) {
   setLabel('lock-frame', has && info.frame.locked ? 'Unlock' : 'Lock');
   for (const id of ['rb-copy', 'rb-cut']) $(id).disabled = !(has && editor.half && (id === 'rb-copy' || !info.locked));
   setContextual(has && editor.half ? (info.frame.kind === 'image' ? 'image' : info.frame.kind === 'text' ? 'text' : 'shape') : null);
+  const can = !!(has && editor.half && !info.locked);
+  for (const id of ['rb-wrap', 'rb-align', 'rb-rotate']) $(id).disabled = !can;
+  $('rb-group').disabled = !(can && info.count >= 2);
+  $('rb-ungroup').disabled = !(can && info.frame.kind === 'group' && info.count === 1);
+  $('rb-columns').dataset.frameOk = can && info.frame.kind === 'text' ? '1' : '';
+  $('rb-columns').disabled = !(editor.textEdit || (can && info.frame.kind === 'text'));
+  $('rb-textbox-group').hidden = !(has && info.frame.kind === 'text');
   syncMirrors();
   if (has) {
     const f = info.frame;
@@ -439,7 +447,9 @@ if (PRINT) {
     onSelection,
     // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
     onTextMode: (on) => {
-      for (const el of document.querySelectorAll('.rb-text button:not(.todo), .rb-text select, .rb-text input')) el.disabled = !on;
+      for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input')) el.disabled = !on;
+      $('rb-columns').disabled = !on && !($('rb-columns').dataset.frameOk === '1');
+      syncMirrors();
       if (on) selectTab('home');
     },
   });
@@ -500,6 +510,39 @@ if (PRINT) {
   $('t-font').addEventListener('mousedown', keep); $('t-size').addEventListener('mousedown', keep);
   $('t-font').onchange = (e) => { back(); editor.format('font', e.target.value); };
   $('t-size').onchange = (e) => { back(); editor.format('size', e.target.value); };
+  // ---- Home ▸ Font / Paragraph (while typing in a text box)
+  const fmt = (cmd, v) => editor.format(cmd, v);
+  for (const [id, cmd] of Object.entries({ 't-grow': 'grow', 't-shrink': 'shrink', 't-clear': 'clear', 't-sub': 'subscript', 't-sup': 'superscript',
+    't-bullets': 'bullets', 't-numbering': 'numbering', 't-indent': 'indent', 't-outdent': 'outdent' })) $(id).onclick = () => fmt(cmd);
+  for (const b of document.querySelectorAll('[id^="case-"]')) b.onclick = () => fmt('case', b.id.slice(5));
+  for (const b of document.querySelectorAll('[id^="trk-"]')) b.onclick = () => fmt('tracking', Number(b.id.slice(4)));
+  for (const b of document.querySelectorAll('[id^="ls-"]')) b.onclick = () => fmt('lineSpacing', Number(b.id.slice(3)));
+  for (const b of document.querySelectorAll('.swatch')) b.onclick = () => fmt('color', b.dataset.color);
+  $('t-color-more').addEventListener('mousedown', keep);
+  $('t-color-more').addEventListener('change', (e) => { back(); fmt('color', e.target.value.toUpperCase()); });
+  $('t-paradlg').onclick = async () => {
+    const flow = editor.editingFlow();
+    if (!flow) return;
+    keep();
+    const v = await paragraphDialog(paragraphSettings(flow) || {});
+    back();
+    if (v) fmt('paragraph', v);
+  };
+  window.addEventListener('keydown', (e) => {
+    if (!editor.textEdit || !(e.ctrlKey && e.shiftKey)) return;
+    if (e.key === '>' || e.key === '.') { e.preventDefault(); fmt('grow'); }
+    if (e.key === '<' || e.key === ',') { e.preventDefault(); fmt('shrink'); }
+  });
+  $('rb-marks').onclick = () => { const on = document.body.classList.toggle('show-marks'); $('rb-marks').classList.toggle('active', on); };
+  // ---- Arrange
+  for (const b of document.querySelectorAll('[id^="col-"]')) b.onclick = () => editor.setColumns(Number(b.id.slice(4)));
+  for (const b of document.querySelectorAll('[id^="wrap-"]')) b.onclick = () => editor.setWrap(b.id.slice(5));
+  for (const b of document.querySelectorAll('[id^="al-"]:not(input)')) b.onclick = () => editor.alignSelection(b.id.slice(3), $('al-margins').checked);
+  $('dist-h').onclick = () => editor.distributeSelection('h', $('al-margins').checked);
+  $('dist-v').onclick = () => editor.distributeSelection('v', $('al-margins').checked);
+  for (const [id, cmd] of Object.entries({ 'rb-group': 'group', 'rb-ungroup': 'ungroup', 'rot-right': 'rotate-right', 'rot-left': 'rotate-left', 'flip-h': 'flip-h', 'flip-v': 'flip-v' })) {
+    $(id).onclick = () => editor.command(cmd);
+  }
   window.bb.onOpen(open);
   window.bb.onZoom(zoomBy);
   window.bb.onCommand(async (name) => (name === 'new-week' ? newWeek() : editor.command(name)));

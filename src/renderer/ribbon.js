@@ -88,14 +88,14 @@ const ICONS = {
   bold: `<text x="16" y="25" font-size="26" font-weight="700" text-anchor="middle" fill="${G}" font-family="Segoe UI">B</text>`,
   italic: `<text x="16" y="25" font-size="26" font-style="italic" text-anchor="middle" fill="${G}" font-family="Georgia">I</text>`,
   underline: `<text x="16" y="21" font-size="24" text-anchor="middle" fill="${G}" font-family="Segoe UI">U</text><path d="M8 29h16" stroke="${G}" stroke-width="2"/>`,
-  sub: `<text x="11" y="21" font-size="15" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="22" y="27" font-size="9" fill="${B}" font-family="Segoe UI">2</text>`,
-  sup: `<text x="11" y="25" font-size="15" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="20" y="14" font-size="9" fill="${B}" font-family="Segoe UI">2</text>`,
-  grow: `<text x="12" y="24" font-size="18" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M22 10l3-4 3 4" fill="none" stroke="${G}" stroke-width="1.6"/>`,
-  shrink: `<text x="12" y="24" font-size="15" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M22 6l3 4 3-4" fill="none" stroke="${G}" stroke-width="1.6"/>`,
-  case: `<text x="16" y="22" font-size="14" text-anchor="middle" fill="${G}" font-family="Segoe UI">Aa</text>`,
-  clearfmt: `<text x="13" y="22" font-size="16" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M18 20l8 8M26 20l-8 8" stroke="${R}" stroke-width="2"/>`,
-  spacing: `<text x="16" y="20" font-size="13" text-anchor="middle" fill="${G}" font-family="Segoe UI">AV</text><path d="M5 25h22M5 25l3-2M27 25l-3-2" fill="none" stroke="${G}"/>`,
-  color: `<text x="16" y="20" font-size="17" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><rect x="6" y="23" width="20" height="5" fill="${R}"/>`,
+  sub: `<text x="11" y="21" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="22" y="27" font-size="13" fill="${B}" font-family="Segoe UI">2</text>`,
+  sup: `<text x="11" y="25" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="20" y="14" font-size="13" fill="${B}" font-family="Segoe UI">2</text>`,
+  grow: `<text x="12" y="24" font-size="26" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M22 10l3-4 3 4" fill="none" stroke="${G}" stroke-width="1.6"/>`,
+  shrink: `<text x="12" y="24" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M22 6l3 4 3-4" fill="none" stroke="${G}" stroke-width="1.6"/>`,
+  case: `<text x="16" y="22" font-size="20" text-anchor="middle" fill="${G}" font-family="Segoe UI">Aa</text>`,
+  clearfmt: `<text x="13" y="22" font-size="23" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><path d="M18 20l8 8M26 20l-8 8" stroke="${R}" stroke-width="2"/>`,
+  spacing: `<text x="16" y="20" font-size="19" text-anchor="middle" fill="${G}" font-family="Segoe UI">AV</text><path d="M5 25h22M5 25l3-2M27 25l-3-2" fill="none" stroke="${G}"/>`,
+  color: `<text x="16" y="20" font-size="25" text-anchor="middle" fill="${G}" font-family="Segoe UI">A</text><rect x="6" y="23" width="20" height="5" fill="${R}"/>`,
   bullets: `<circle cx="6" cy="8" r="2" fill="${G}"/><circle cx="6" cy="16" r="2" fill="${G}"/><circle cx="6" cy="24" r="2" fill="${G}"/>${lines(11, 8, 3, 17, 8)}`,
   numbering: `<text x="3" y="11" font-size="8" fill="${G}" font-family="Segoe UI">1</text><text x="3" y="19" font-size="8" fill="${G}" font-family="Segoe UI">2</text><text x="3" y="27" font-size="8" fill="${G}" font-family="Segoe UI">3</text>${lines(11, 8, 3, 17, 8)}`,
   outdent: `${lines(13, 6, 5, 15, 5)}<path d="M9 12l-5 4 5 4z" fill="${B}"/>`,
@@ -145,24 +145,27 @@ export const TABS = [
       [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', todo)],
     ] },
     { label: 'Font', cls: 'rb-text', cols: [
-      [{ html: '<div class="rb-row"><select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
-        '</select><input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Font Size (pt)" disabled></div>' },
-      { row: [ico('grow', 'Increase Font Size', todo), ico('shrink', 'Decrease Font Size', todo), ico('clearfmt', 'Clear All Formatting', todo)] },
+      [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
+        '</select><input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Font Size (pt)" disabled>' },
+        ico('grow', 'Increase Font Size (Ctrl+>)', { id: 't-grow' }), ico('shrink', 'Decrease Font Size (Ctrl+<)', { id: 't-shrink' }), ico('clearfmt', 'Clear All Formatting', { id: 't-clear' })] },
       { row: [ico('bold', 'Bold (Ctrl+B)', { id: 't-bold' }), ico('italic', 'Italic (Ctrl+I)', { id: 't-italic' }), ico('underline', 'Underline (Ctrl+U)', { id: 't-underline' }),
-        ico('sub', 'Subscript', todo), ico('sup', 'Superscript', todo), ico('case', 'Change Case', todo), ico('spacing', 'Character Spacing', todo), ico('color', 'Font Color', todo)] }],
+        ico('sub', 'Subscript', { id: 't-sub' }), ico('sup', 'Superscript', { id: 't-sup' }), ico('case', 'Change Case', { id: 't-case', menu: 'case' }),
+        ico('spacing', 'Character Spacing', { id: 't-spacing', menu: 'tracking' }), ico('color', 'Font Color', { id: 't-color', menu: 'color' })] }],
     ] },
     { label: 'Paragraph', cls: 'rb-text', cols: [
-      [{ row: [ico('bullets', 'Bullets', todo), ico('numbering', 'Numbering', todo), ico('outdent', 'Decrease Indent', todo), ico('indent', 'Increase Indent', todo), ico('columns', 'Columns', todo), ico('pilcrow', 'Show Special Characters', todo)] },
+      [{ row: [ico('bullets', 'Bullets', { id: 't-bullets' }), ico('numbering', 'Numbering', { id: 't-numbering' }), ico('outdent', 'Decrease Indent', { id: 't-outdent' }),
+          ico('indent', 'Increase Indent', { id: 't-indent' }), ico('columns', 'Columns (text box)', { id: 'rb-columns', menu: 'columns', cls: 'rb-always' }),
+          ico('pilcrow', 'Show Special Characters', { id: 'rb-marks', cls: 'rb-always' })] },
         { row: [ico('align-left', 'Align Left', { align: 'left' }), ico('align-center', 'Center', { align: 'center' }), ico('align-right', 'Align Right', { align: 'right' }),
-          ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', todo), ico('dropcap', 'Drop Cap', todo)] }],
+          ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', { id: 't-linespacing', menu: 'linespacing' }), ico('dropcap', 'Drop Cap', todo)] }],
     ] },
     { label: 'Styles', cols: [[big('Styles', 'styles', todo)]] },
     { label: 'Objects', cols: [[big('Draw Text Box', 'textbox', { mirror: 'ins-text' })], [big('Pictures', 'picture', { mirror: 'ins-picture' })],
       [big('Table', 'table', todo)], [big('Shapes', 'shapes', { id: 'rb-shapes-home', menu: 'shapes' })]] },
     { label: 'Arrange', cols: [
-      [big('Wrap Text', 'wrap', todo)],
-      [sm('Bring Forward', 'forward', { id: 'front', tip: 'Bring to Front' }), sm('Send Backward', 'backward', { id: 'back', tip: 'Send to Back' }), sm('Align', 'align', todo)],
-      [sm('Group', 'group', todo), sm('Ungroup', 'group', todo), sm('Rotate', 'rotate', todo)],
+      [big('Wrap Text', 'wrap', { id: 'rb-wrap', menu: 'wrap' })],
+      [sm('Bring Forward', 'forward', { id: 'front', tip: 'Bring to Front' }), sm('Send Backward', 'backward', { id: 'back', tip: 'Send to Back' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
+      [sm('Group', 'group', { id: 'rb-group', tip: 'Group (select several with Shift+click)' }), sm('Ungroup', 'group', { id: 'rb-ungroup' }), sm('Rotate', 'rotate', { id: 'rb-rotate', menu: 'rotate' })],
     ] },
     { label: 'Editing', cols: [[sm('Find', 'find', todo), sm('Replace', 'replace', todo), sm('Select', 'select', todo)], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
   ] },
@@ -208,7 +211,10 @@ export const TABS = [
   ] },
   // contextual (shown only while something is selected)
   { id: 'format', label: 'Shape Format', contextual: true, groups: [
-    { label: 'Arrange', cols: [[sm('Bring Forward', 'forward', { mirror: 'front' }), sm('Send Backward', 'backward', { mirror: 'back' })]] },
+    { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
+    { label: 'Arrange', cols: [[big('Wrap Text', 'wrap', { mirror: 'rb-wrap', menu: 'wrap' })],
+      [sm('Bring Forward', 'forward', { mirror: 'front' }), sm('Send Backward', 'backward', { mirror: 'back' }), sm('Align', 'align', { mirror: 'rb-align', menu: 'align' })],
+      [sm('Group', 'group', { mirror: 'rb-group' }), sm('Ungroup', 'group', { mirror: 'rb-ungroup' }), sm('Rotate', 'rotate', { mirror: 'rb-rotate', menu: 'rotate' })]] },
     { label: 'Picture', id: 'rb-picture-group', cols: [[big('Crop', 'crop', { id: 'crop', tip: 'Crop (double-click the picture)' })], [sm('Fit', 'fit', { id: 'fit', tip: 'Show the whole picture inside the frame' }), sm('Fill', 'fill', { id: 'fill', tip: 'Fill the frame, cropping the picture evenly' })]] },
     { label: 'Size', cols: [[{ html: '<label class="rb-num">Height <input id="fh" type="number" step="0.01" min="0" disabled>"</label>' +
       '<label class="rb-num">Width <input id="fw" type="number" step="0.01" min="0.05" disabled>"</label>' },
@@ -216,7 +222,24 @@ export const TABS = [
   ] },
 ];
 
+const swatches = '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+  '</div><label class="rb-more-color">More Colors… <input type="color" id="t-color-more" value="#000000"></label>';
 const MENUS = {
+  case: [sm('Sentence case.', null, { id: 'case-sentence' }), sm('lowercase', null, { id: 'case-lower' }), sm('UPPERCASE', null, { id: 'case-upper' }),
+    sm('Capitalize Each Word', null, { id: 'case-title' }), sm('tOGGLE cASE', null, { id: 'case-toggle' })],
+  tracking: [sm('Very Tight', null, { id: 'trk-80' }), sm('Tight', null, { id: 'trk-90' }), sm('Normal', null, { id: 'trk-100' }),
+    sm('Loose', null, { id: 'trk-110' }), sm('Very Loose', null, { id: 'trk-125' })],
+  color: [{ html: swatches }],
+  linespacing: [sm('1.0', null, { id: 'ls-1' }), sm('1.15', null, { id: 'ls-1.15' }), sm('1.5', null, { id: 'ls-1.5' }), sm('2.0', null, { id: 'ls-2' }),
+    sm('2.5', null, { id: 'ls-2.5' }), sm('3.0', null, { id: 'ls-3' }), sm('Paragraph…', 'linespacing', { id: 't-paradlg', tip: 'Indents and spacing' })],
+  columns: [sm('One Column', 'single', { id: 'col-1' }), sm('Two Columns', 'columns', { id: 'col-2' }), sm('Three Columns', 'columns', { id: 'col-3' })],
+  wrap: [sm('None', 'rect', { id: 'wrap-none' }), sm('Square', 'wrap', { id: 'wrap-square' }), sm('Tight', 'wrap', { id: 'wrap-tight' }), sm('Top and Bottom', 'wrap', { id: 'wrap-topBottom' })],
+  align: [sm('Align Left', 'align', { id: 'al-left' }), sm('Align Center', 'align-center', { id: 'al-center' }), sm('Align Right', 'align-right', { id: 'al-right' }),
+    sm('Align Top', 'align', { id: 'al-top' }), sm('Align Middle', 'align-center', { id: 'al-middle' }), sm('Align Bottom', 'align', { id: 'al-bottom' }),
+    sm('Distribute Horizontally', 'columns', { id: 'dist-h' }), sm('Distribute Vertically', 'linespacing', { id: 'dist-v' }),
+    { check: true, label: 'Relative to Margin Guides', id: 'al-margins' }],
+  rotate: [sm('Rotate Right 90°', 'rotate', { id: 'rot-right' }), sm('Rotate Left 90°', 'undo', { id: 'rot-left' }),
+    sm('Flip Vertical', 'orientation', { id: 'flip-v' }), sm('Flip Horizontal', 'orientation', { id: 'flip-h' })],
   shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
   page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };
@@ -229,6 +252,7 @@ function button(it, size) {
   if (it.align) b.dataset.align = it.align;
   if (it.menu) b.dataset.menu = it.menu;
   if (it.active) b.classList.add('active');
+  if (it.cls) b.classList.add(it.cls);
   b.title = it.todo ? (it.tip || it.label || '') + ' — ' + TODO : (it.tip || it.label || '');
   if (it.todo) { b.disabled = true; b.classList.add('todo'); }
   b.innerHTML = (it.icon ? icon(it.icon, size) : '') + (it.label ? '<span class="rb-label">' + it.label + (it.menu ? ' ▾' : '') + '</span>' : '');
@@ -296,19 +320,22 @@ export function buildRibbon(root, { title = '' } = {}) {
     m.dataset.menuName = name;
     m.hidden = true;
     for (const it of items) { const b = item(it); b.classList.add('rb-menu-item'); m.appendChild(b); }
+    // keep the text selection while choosing from a text menu
+    m.addEventListener('mousedown', (e) => { if (!e.target.closest('input')) e.preventDefault(); });
     root.appendChild(m);
   }
   root.addEventListener('click', (e) => {
+    if (e.target.closest('.rb-menu') && e.target.closest('input')) return;
     const opener = e.target.closest('[data-menu]');
     for (const m of root.querySelectorAll('.rb-menu')) {
-      if (opener && m.dataset.menuName === opener.dataset.menu && m.hidden) {
+      if (opener && !opener.disabled && m.dataset.menuName === opener.dataset.menu && m.hidden) {
         const r = opener.getBoundingClientRect();
         Object.assign(m.style, { left: r.left + 'px', top: r.bottom + 2 + 'px' });
         m.hidden = false;
       } else m.hidden = true;
     }
     const mir = e.target.closest('[data-mirror]');
-    if (mir) document.getElementById(mir.dataset.mirror).click();
+    if (mir && !mir.dataset.menu) document.getElementById(mir.dataset.mirror).click();
   });
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.rb-menu,[data-menu]')) for (const m of root.querySelectorAll('.rb-menu')) m.hidden = true; });
   for (const b of root.querySelectorAll('.rb-tab')) b.addEventListener('click', () => selectTab(b.dataset.tab));

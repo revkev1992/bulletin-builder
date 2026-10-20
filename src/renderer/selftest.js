@@ -300,6 +300,99 @@ export async function run(editor, { shells, week }) {
   pr = await window.__bbPageOp({ type: 'delete', pages: [3] });
   ok('a page of the other half cannot be deleted', pr === null && W().manifest.pages.length === nPages0);
 
+  // ---- 28. Home ▸ Font / Paragraph on the self-test text box (after the save: disk checks unaffected)
+  const tbParas = () => editor.anyFrame(P2, tb.id).text.paragraphs;
+  const runsOf = () => tbParas().flatMap((q) => q.runs).filter((r) => r.text.trim());
+  async function withText(fn, { part } = {}) {
+    editor.select(P2, tb.id);
+    editor.beginTextEdit(P2, tb.id);
+    await wait(80);
+    const flow = editor.editingFlow();
+    const r = document.createRange();
+    const p0 = flow.querySelector('p');
+    if (part) {
+      // the first word only
+      const tn = document.createTreeWalker(p0, NodeFilter.SHOW_TEXT).nextNode();
+      r.setStart(tn, 0); r.setEnd(tn, Math.min(5, tn.data.length));
+    } else {
+      r.selectNodeContents(p0);
+    }
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    await fn(flow);
+    await editor.endTextEdit();
+    await wait(80);
+  }
+  const size0 = runsOf()[0].size;
+  await withText(() => editor.format('grow'));
+  ok('Grow Font steps the size up (Publisher size list)', runsOf()[0].size > size0, { got: [size0, runsOf()[0].size] });
+  await withText(() => editor.format('shrink'));
+  ok('Shrink Font steps it back down', Math.abs(runsOf()[0].size - size0) < 0.05, { got: runsOf()[0].size });
+  await withText(() => editor.format('color', '#C00000'));
+  ok('Font Color', runsOf().every((r) => r.color === '#C00000'), { got: runsOf().map((r) => r.color) });
+  await withText(() => editor.format('case', 'upper'));
+  ok('Change Case ▸ UPPERCASE keeps the formatting', runsOf().every((r) => r.text === r.text.toUpperCase() && r.color === '#C00000'));
+  await withText(() => editor.format('tracking', 125));
+  ok('Character Spacing ▸ Very Loose', runsOf().every((r) => Math.abs((r.tracking || 100) - 125) < 2), { got: runsOf().map((r) => r.tracking) });
+  await withText(() => editor.format('superscript'), { part: true });
+  const supRun = runsOf().find((r) => r.superscript);
+  ok('Superscript on part of a line keeps its point size', !!supRun && Math.abs(supRun.size - size0) < 0.3, { got: supRun });
+  await withText(() => editor.format('clear'));
+  ok('Clear All Formatting', runsOf().every((r) => !r.color && !r.superscript && !r.tracking), { got: runsOf()[0] });
+  await withText(() => editor.format('bullets'));
+  ok('Bullets: marker + hanging indent', tbParas()[0].runs[0].text.startsWith('\u2022\t') && tbParas()[0].indentFirst === -18 && tbParas()[0].indentLeft === 18);
+  await withText(() => editor.format('bullets'));
+  ok('Bullets again turns them off', !tbParas()[0].runs.map((r) => r.text).join('').startsWith('\u2022') && !tbParas()[0].indentLeft);
+  await withText(() => editor.format('numbering'));
+  ok('Numbering', /^1\.\t/.test(tbParas()[0].runs.map((r) => r.text).join('')));
+  await withText(() => editor.format('numbering'));
+  await withText(() => editor.format('indent'));
+  ok('Increase Indent', tbParas()[0].indentLeft === 18);
+  await withText(() => editor.format('outdent'));
+  ok('Decrease Indent', !tbParas()[0].indentLeft);
+  await withText(() => editor.format('lineSpacing', 1.5));
+  ok('Line Spacing 1.5', (tbParas()[0].lineSpacing || {}).multiple === 1.5);
+  await withText(() => editor.format('paragraph', { indentLeft: 9, indentFirst: 0, indentRight: 0, spaceBefore: 6, spaceAfter: 3, lineSpacing: 1 }));
+  ok('Paragraph dialog values', tbParas()[0].indentLeft === 9 && tbParas()[0].spaceBefore === 6 && tbParas()[0].spaceAfter === 3 && tbParas()[0].lineSpacing.multiple === 1);
+
+  // ---- 29. Arrange: several objects, align, distribute, group, rotate, flip, wrap, columns
+  const free = editor.pageEntry(P2).frames.filter((g) => !g.locked && g.kind !== 'group').slice(0, 3);
+  editor.select(P2, free[0].id);
+  editor.toggleMulti(P2, free[1].id);
+  editor.toggleMulti(P2, free[2].id);
+  ok('Shift+click selects several objects', editor.selection().length === 3 && document.querySelectorAll('.sel-box.multi').length === 2);
+  const xs0 = editor.selection().map((g) => g.x);
+  await editor.moveBy(9, 0);
+  ok('nudging moves every selected object', editor.selection().every((g, i) => Math.abs(g.x - xs0[i] - 9) < 0.01));
+  await editor.alignSelection('left', false);
+  const left = Math.min(...editor.selection().map((g) => g.x));
+  ok('Align Left lines them up on the leftmost', editor.selection().every((g) => Math.abs(g.x - left) < 0.01));
+  const vOrder = editor.selection().slice().sort((a, b) => a.y - b.y).map((g) => g.id);
+  await editor.distributeSelection('v', false);
+  const ys = vOrder.map((id) => editor.topFrame(P2, id)).map((g) => [g.y, g.h]);
+  const gaps = [ys[1][0] - ys[0][0] - ys[0][1], ys[2][0] - ys[1][0] - ys[1][1]];
+  ok('Distribute Vertically: equal gaps', Math.abs(gaps[0] - gaps[1]) < 0.05, { got: gaps });
+  const nFrames = editor.pageEntry(P2).frames.length;
+  await editor.groupSelection();
+  const grpNew = editor.frame();
+  ok('Group: one group of 3, selected', grpNew && grpNew.kind === 'group' && grpNew.children.length === 3 && editor.pageEntry(P2).frames.length === nFrames - 2);
+  await editor.rotateSelection(90);
+  ok('Rotate Right 90', editor.frame().rotation === 90 && !!frameEl(P2, grpNew.id));
+  await editor.flipSelection('h');
+  ok('Flip Horizontal', editor.frame().flipH === true);
+  await editor.rotateSelection(-90); await editor.flipSelection('h');
+  await editor.ungroupSelection();
+  ok('Ungroup: the 3 objects come back, all selected', editor.pageEntry(P2).frames.length === nFrames && editor.selection().length === 3);
+  editor.select(P2, pic.id);
+  await editor.setWrap('square');
+  ok('Wrap Text ▸ Square', (editor.topFrame(P2, pic.id).wrap || {}).type === 'square');
+  await editor.setWrap('none');
+  ok('Wrap Text ▸ None', !editor.topFrame(P2, pic.id).wrap);
+  editor.select(P2, tb.id);
+  await editor.setColumns(2);
+  ok('Text box Columns ▸ Two', editor.anyFrame(P2, tb.id).text.columns === 2);
+  await editor.command('undo');
+  ok('undo puts one column back', !editor.anyFrame(P2, tb.id).text.columns);
+
   diskChecks.push({ name: 'moved picture x', page: P, id: img.id, field: 'x', expect: savedX });
   diskChecks.push({ name: 'moved picture y', page: P, id: img.id, field: 'y', expect: savedY });
   diskChecks.push({ name: 'picture locked', page: P, id: img.id, field: 'locked', expect: true });

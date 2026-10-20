@@ -5,7 +5,7 @@
 // browser created, bold/italic/font/size come out right) into the format's paragraphs + runs.
 // reflowStory() then pours a linked story through its frames, measuring with the real renderer.
 
-import { paragraphEl, layoutTabs, layoutWraps } from './render.js';
+import { paragraphEl, layoutTabs, layoutWraps, cssFont } from './render.js';
 
 // ------------------------------------------------------------------ DOM -> model
 function hex(rgb) {
@@ -134,6 +134,80 @@ export function formatSelection(cmd, value, flow) {
       }
       break;
     }
+    case 'grow': case 'shrink':
+      styleSelection(flow, (e, cs) => { e.style.fontSize = stepSize(ptOf(cs), cmd === 'grow' ? 1 : -1) * (shiftedCs(cs) ? 0.66 : 1) + 'pt'; });
+      break;
+    case 'superscript': case 'subscript': {
+      const want = cmd === 'superscript' ? 'super' : 'sub';
+      styleSelection(flow, (e, cs) => {
+        const size = ptOf(cs);
+        if (cs.verticalAlign === want) { e.style.verticalAlign = 'baseline'; e.style.fontSize = size + 'pt'; }
+        else { e.style.verticalAlign = want; e.style.fontSize = (size * 0.66) + 'pt'; }
+      });
+      break;
+    }
+    case 'color':
+      styleSelection(flow, (e) => { e.style.color = value; });
+      break;
+    case 'tracking':
+      styleSelection(flow, (e) => { e.style.letterSpacing = ((Number(value) - 100) / 100) * 0.5 + 'em'; });
+      break;
+    case 'clear': {
+      // back to the paragraph's own font and size, plain (Publisher's Clear All Formatting)
+      const ps = selectedParas(flow);
+      let mark = {};
+      try { mark = (JSON.parse((ps[0] && ps[0].dataset.para) || '{}').mark) || {}; } catch (_) { /* default */ }
+      styleSelection(flow, (e) => {
+        e.style.fontFamily = cssFont(mark.font || 'Palatino Linotype');
+        e.style.fontSize = (mark.size || 11) + 'pt';
+        Object.assign(e.style, { fontWeight: '400', fontStyle: 'normal', textDecoration: 'none', letterSpacing: 'normal',
+          verticalAlign: 'baseline', color: '#000000', fontVariant: 'normal', textTransform: 'none' });
+        // formatting nested inside the selection goes too: inner spans inherit the reset above
+        for (const d of [...e.querySelectorAll('*')]) {
+          if (d.classList.contains('tab') || d.tagName === 'BR') continue;
+          if (/^(SUP|SUB|B|STRONG|I|EM|U|S|STRIKE|FONT)$/.test(d.tagName)) d.replaceWith(...d.childNodes);
+          else d.removeAttribute('style');
+        }
+      });
+      break;
+    }
+    case 'case':
+      changeCase(flow, value);
+      break;
+    case 'indent': case 'outdent':
+      rebuildParas(flow, selectedParas(flow), (p) => {
+        const left = Math.max(0, (p.indentLeft || 0) + (cmd === 'indent' ? HANG : -HANG));
+        const q = { ...p, indentLeft: left };
+        if (q.tabs && q.indentFirst < 0) q.tabs = [{ pos: left, align: 'left' }];
+        return q;
+      });
+      break;
+    case 'lineSpacing':
+      rebuildParas(flow, selectedParas(flow), (p) => ({ ...p, lineSpacing: { multiple: Number(value) } }));
+      break;
+    case 'paragraph':   // Paragraph dialog: { indentLeft, indentFirst, indentRight, spaceBefore, spaceAfter, lineSpacing }
+      rebuildParas(flow, selectedParas(flow), (p) => {
+        const q = { ...p };
+        for (const k of ['indentLeft', 'indentFirst', 'indentRight', 'spaceBefore', 'spaceAfter']) {
+          if (value[k] == null || Number.isNaN(value[k])) continue;
+          if (value[k]) q[k] = value[k]; else delete q[k];
+        }
+        if (value.lineSpacing) q.lineSpacing = { multiple: value.lineSpacing };
+        return q;
+      });
+      break;
+    case 'bullets': {
+      const ps = selectedParas(flow);
+      const allOn = ps.length && ps.every((p) => p.textContent.startsWith('\u2022'));
+      rebuildParas(flow, ps, (p) => setList(p, allOn ? null : BULLET));
+      break;
+    }
+    case 'numbering': {
+      const ps = selectedParas(flow);
+      const allOn = ps.length && ps.every((p) => /^\d+\./.test(p.textContent));
+      rebuildParas(flow, ps, (p, i) => setList(p, allOn ? null : (i + 1) + '.\t'));
+      break;
+    }
     case 'align': {
       const sel = window.getSelection();
       for (const p of flow.querySelectorAll('p')) {
@@ -142,6 +216,120 @@ export function formatSelection(cmd, value, flow) {
       break;
     }
   }
+}
+
+// ---- Publisher Home > Font extras. Each wraps the selection in marker spans (a unique highlight
+// colour), then restyles exactly those spans, so fonts/sizes already in the text are kept.
+const MARK = 'rgb(1, 2, 3)';
+function styleSelection(flow, fn) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return false;
+  document.execCommand('styleWithCSS', false, true);
+  document.execCommand('hiliteColor', false, MARK);
+  const marked = [...flow.querySelectorAll('span, font')].filter((e) => e.style.backgroundColor === MARK);
+  for (const e of marked) { e.style.backgroundColor = ''; fn(e, getComputedStyle(e)); }
+  return marked.length > 0;
+}
+const SIZES = [6, 7, 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 96, 144];
+const shiftedCs = (cs) => cs.verticalAlign === 'super' || cs.verticalAlign === 'sub';
+const ptOf = (cs) => { const v = parseFloat(cs.fontSize) * 0.75; return shiftedCs(cs) ? v / 0.66 : v; };
+export function stepSize(size, dir) {
+  const r = Math.round(size * 2) / 2;
+  if (dir > 0) return SIZES.find((x) => x > r + 0.01) ?? Math.min(1638, r + 12);
+  return [...SIZES].reverse().find((x) => x < r - 0.01) ?? Math.max(1, r - 1);
+}
+const CASES = {
+  lower: (t) => t.toLowerCase(),
+  upper: (t) => t.toUpperCase(),
+  title: (t) => t.toLowerCase().replace(/(^|[\s\-"\u201c(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()),
+  sentence: (t) => t.toLowerCase().replace(/(^\s*|[.!?]\s+)(\p{L})/gu, (m, a, b) => a + b.toUpperCase()),
+  toggle: (t) => [...t].map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join(''),
+};
+function changeCase(flow, how) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0);
+  const fn = CASES[how];
+  // transform the selected text as ONE string (so word/sentence boundaries across runs are seen),
+  // then write each piece back into its own text node: formatting is kept
+  const pieces = [];
+  const walker = document.createTreeWalker(flow, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!r.intersectsNode(n)) continue;
+    const a = n === r.startContainer ? r.startOffset : 0;
+    const b = n === r.endContainer ? r.endOffset : n.data.length;
+    if (b > a) pieces.push({ n, a, b });
+  }
+  const whole = fn(pieces.map((x) => x.n.data.slice(x.a, x.b)).join(''));
+  let k = 0;
+  for (const x of pieces) {
+    const len = x.b - x.a;
+    x.n.data = x.n.data.slice(0, x.a) + whole.slice(k, k + len) + x.n.data.slice(x.b);
+    k += len;
+  }
+}
+
+// ---- Publisher Home > Paragraph. A paragraph's settings ride in data-para; each command rebuilds
+// the selected paragraphs from their current text (readParagraph) with the new settings.
+function selectedParas(flow) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return [];
+  const r = sel.getRangeAt(0);
+  const ps = [...flow.children].filter((c) => c.tagName === 'P');
+  const hit = ps.filter((p) => r.intersectsNode(p));
+  if (hit.length) return hit;
+  const at = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+  const p = at && at.closest('p');
+  return p ? [p] : [];
+}
+const BULLET = '\u2022\t';
+const NUM = /^(\d+)\.\t/;
+const HANG = 18;
+const leadingText = (para) => para.runs.map((x) => x.text).join('');
+function stripMarker(para, re) {
+  const runs = para.runs.map((x) => ({ ...x }));
+  let cut = (leadingText(para).match(re) || [''])[0].length;
+  for (const x of runs) { const t = Math.min(cut, x.text.length); x.text = x.text.slice(t); cut -= t; if (!cut) break; }
+  return { ...para, runs: runs.filter((x) => x.text.length) };
+}
+function setList(para, marker) {
+  let p = para;
+  const had = leadingText(p).startsWith(BULLET) || NUM.test(leadingText(p));
+  if (leadingText(p).startsWith(BULLET)) p = stripMarker(p, /^\u2022\t/);
+  if (NUM.test(leadingText(p))) p = stripMarker(p, NUM);
+  if (!marker) {
+    // back to a plain paragraph: undo the hanging indent the list added
+    if (had) { p = { ...p }; p.indentLeft = Math.max(0, (p.indentLeft || 0) - HANG); delete p.indentFirst; delete p.tabs; }
+    return p;
+  }
+  const first = p.runs[0] || { text: '', font: (p.mark || {}).font, size: (p.mark || {}).size };
+  const runs = [{ ...first, text: marker }, ...p.runs];
+  const left = had ? (p.indentLeft || 0) : (p.indentLeft || 0) + HANG;
+  return { ...p, runs, indentLeft: left, indentFirst: -HANG, tabs: [{ pos: left, align: 'left' }] };
+}
+function rebuildParas(flow, ps, fn) {
+  const els = ps.map((p, i) => {
+    let props = {};
+    try { props = JSON.parse(p.dataset.para || '{}'); } catch (_) { /* keep defaults */ }
+    const el = paragraphEl(fn(readParagraph(p, props), i, ps.length));
+    p.replaceWith(el);
+    return el;
+  });
+  layoutTabs(flow.closest('.frame') || flow, 36);
+  if (els.length) {
+    const r = document.createRange();
+    r.setStart(els[0], 0);
+    r.setEnd(els[els.length - 1], els[els.length - 1].childNodes.length);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  return els.length > 0;
+}
+export function paragraphSettings(flow) {
+  const p = selectedParas(flow)[0];
+  if (!p) return null;
+  try { return JSON.parse(p.dataset.para || '{}'); } catch (_) { return {}; }
 }
 
 export function pastePlain(e) {

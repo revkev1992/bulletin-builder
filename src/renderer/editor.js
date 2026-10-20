@@ -6,6 +6,7 @@
 // Design notes: docs/PHASE2_DESIGN.md.
 
 import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon } from './textedit.js';
+import { installArrange } from './arrange.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages } from './flow.js';
 
@@ -22,6 +23,7 @@ export class Editor {
     this.app = app;           // { week(), file(), shellOf(n), pageNumbers(), rerender(nums), setStatus(html), reload() }
     this.half = null;         // claimed half, or null = view only
     this.sel = null;          // { page, id }  (id of a TOP-LEVEL frame)
+    this.multi = [];          // other selected top-level frame ids on sel.page (Shift+click)
     this.lastPage = null;
     this.undo = [];
     this.redo = [];
@@ -159,6 +161,7 @@ export class Editor {
     halves[this.half] = JSON.parse(fromStack.pop());
     this.setDirty(true);
     if (this.sel && !this.topFrame(this.sel.page, this.sel.id)) this.sel = null;
+    this.multi = this.sel ? this.multi.filter((id) => this.topFrame(this.sel.page, id)) : [];
     const pages = this.app.pageNumbers().filter((n) => this.halfOf(n) === this.half);
     return this.app.rerender(pages).then(() => { this.drawSelection(); if (this.panel) this.panel.refresh(); });
   }
@@ -249,6 +252,12 @@ export class Editor {
       case 'insert-rect': return this.insert('rect');
       case 'insert-picture': return this.insertPicture();
       case 'to-pasteboard': return this.toPasteboard();
+      case 'group': return this.groupSelection();
+      case 'ungroup': return this.ungroupSelection();
+      case 'rotate-right': return this.rotateSelection(90);
+      case 'rotate-left': return this.rotateSelection(-90);
+      case 'flip-h': return this.flipSelection('h');
+      case 'flip-v': return this.flipSelection('v');
     }
   }
 
@@ -270,6 +279,7 @@ export class Editor {
   }
 
   moveBy(dx, dy) {
+    if (this.multi.length) return this.moveSelection(dx, dy);
     const f = this.frame();
     if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return Promise.resolve(false);
     return this.apply(this.sel.page, Editor.moved(f, dx, dy)).then(() => true);
@@ -311,7 +321,14 @@ export class Editor {
     });
   }
 
-  deleteFrame() {
+  async deleteFrame() {
+    if (this.multi.length) {
+      const n = this.sel.page;
+      const ids = [this.sel.id, ...this.multi];
+      this.multi = [];
+      for (const id of ids) { this.sel = { page: n, id }; await this.deleteFrame(); }
+      return;
+    }
     const f = this.frame();
     if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return;
     const n = this.sel.page;
@@ -503,6 +520,7 @@ export class Editor {
 
   select(n, id) {
     if (this.crop && (!id || id !== this.crop.id)) this.crop = null;
+    this.multi = [];
     this.sel = id ? { page: n, id } : null;
     if (n != null) this.lastPage = n;
     this.drawSelection();
@@ -582,8 +600,16 @@ export class Editor {
       this.app.setStatus('Page ' + n + ' belongs to the ' + this.halfOf(n) + ' half. You are editing the ' + this.half + ' pages.');
       return;
     }
-    this.select(n, top.id);
     e.preventDefault();
+    if (e.shiftKey || e.ctrlKey) { this.toggleMulti(n, top.id); return; }
+    if (this.sel && this.sel.page === n && this.multi.includes(top.id)) {
+      // drag one of several selected objects: it becomes the primary, the set stays
+      this.multi = this.multi.filter((x) => x !== top.id).concat(this.sel.id);
+      this.sel = { page: n, id: top.id };
+      this.drawSelection();
+    } else if (!(this.sel && this.sel.page === n && this.sel.id === top.id)) {
+      this.select(n, top.id);
+    }
     this.beginDrag(e, n, 'move');
   }
 
@@ -596,7 +622,8 @@ export class Editor {
       return;
     }
     const p = this.ptOf(n, e);
-    this.drag = { n, mode, handle, start: p, cx: e.clientX, cy: e.clientY, orig: structuredClone(f), started: false, alt: e.altKey, shift: e.shiftKey };
+    const others = mode === 'move' ? this.multi.map((id) => this.topFrame(n, id)).filter((g) => g && !this.locked(n, g)).map((g) => structuredClone(g)) : [];
+    this.drag = { n, mode, handle, start: p, cx: e.clientX, cy: e.clientY, orig: structuredClone(f), others, started: false, alt: e.altKey, shift: e.shiftKey };
   }
 
   onMove(e) {
@@ -619,6 +646,8 @@ export class Editor {
       if (sx) { dx += sx.d; guides.push({ axis: 'v', at: sx.at }); }
       if (sy) { dy += sy.d; guides.push({ axis: 'h', at: sy.at }); }
       preview = Editor.moved(o, dx, dy);
+      d.dx = dx; d.dy = dy;
+      for (const g of d.others) this.previewFrame(d.n, Editor.moved(g, dx, dy));
     } else {
       const h = d.handle;
       let x0 = o.x, y0 = o.y, x1 = o.x + o.w, y1 = o.y + o.h;
@@ -650,6 +679,7 @@ export class Editor {
     const d = this.drag;
     this.drag = null;
     if (!d || !d.started || !d.preview) return;
+    if (d.mode === 'move' && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
     await this.apply(d.n, d.preview);
   }
 
@@ -803,11 +833,24 @@ export class Editor {
         ov.appendChild(l);
       }
     }
+    if (this.sel && this.multi.length) {
+      const ov = this.app.shellOf(this.sel.page).querySelector('.overlay');
+      for (const id of this.multi) {
+        const g = this.topFrame(this.sel.page, id);
+        if (!g) continue;
+        const b = document.createElement('div');
+        b.className = 'sel-box multi';
+        Object.assign(b.style, { left: g.x + 'pt', top: g.y + 'pt', width: Math.max(g.w, 0.5) + 'pt', height: Math.max(g.h, 0.5) + 'pt' });
+        ov.appendChild(b);
+      }
+    }
     if (!boxFrame) this.showBox(f);
     this.app.onState();
   }
 
   showBox(f) {
-    this.app.onSelection(f && this.sel ? { frame: f, page: this.sel.page, locked: this.locked(this.sel.page, f) } : null);
+    this.app.onSelection(f && this.sel ? { frame: f, page: this.sel.page, locked: this.locked(this.sel.page, f), count: 1 + this.multi.length } : null);
   }
 }
+
+installArrange(Editor);
