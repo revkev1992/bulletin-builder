@@ -10,11 +10,13 @@ const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron
 const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles', 'context', 'misc', 'zoom', 'print'];
 
 // the Order-of-Worship guard runs on an October (flow) week
-const FLOW_WEEK = path.join(path.dirname(path.dirname(WEEK)), '10-18-26 1100', '10-18-26 1100.bulletin');
+const weekNamed = (t) => path.join(path.dirname(path.dirname(WEEK)), t, t + '.bulletin');
+// Order-of-Worship suites run on October weeks (10-11 is untouched by hand tests)
+const FLOW_SUITES = { flow: weekNamed('10-18-26 1100'), finish: weekNamed('10-11-26 1100') };
 
 let failed = 0;
-for (const s of [...SUITES, 'flow']) {
-  const week = s === 'flow' ? FLOW_WEEK : WEEK;
+for (const s of [...SUITES, ...Object.keys(FLOW_SUITES)]) {
+  const week = FLOW_SUITES[s] || WEEK;
   const r = spawnSync(ELECTRON, ['.', '--gui', 'test/gui/' + s + '.js', week, 'out/gui-' + s], { cwd: path.join(__dirname, '../..'), encoding: 'utf8' });
   const last = (r.stdout || '').trim().split('\n').filter((l) => /^(PASS|FAILED|ERROR)/.test(l)).pop() || 'no result';
   const fails = (r.stdout || '').split('\n').filter((l) => l.includes('FAIL '));

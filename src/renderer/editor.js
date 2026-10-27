@@ -9,7 +9,7 @@ import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, can
 import { installArrange } from './arrange.js';
 import { installLinking } from './linking.js';
 import { findOverflow, layoutTabs } from './render.js';
-import { isFlow, layoutFlow, worshipPages } from './flow.js';
+import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
 const SNAP_PX = 6;            // snapping distance on screen
 const DRAG_START_PX = 3;      // a click that moves less than this is just a click
@@ -99,6 +99,40 @@ export class Editor {
     this.setDirty(true);
     await this.app.rerender(worshipPages(this.week()));
     this.drawSelection();
+    return true;
+  }
+
+  // Bulletin ▸ Finish Layout / Back to Draft (item 6): one undo step each
+  async finishLayout() {
+    const half = this.flowHalf();
+    if (!half) { this.app.setStatus('Choose Bulletin ▸ I am changing ▸ Worship pages first (only a drafted order of worship can be finished).'); return false; }
+    if (this.textEdit) await this.endTextEdit();
+    this.undo.push(JSON.stringify(half));
+    if (this.undo.length > UNDO_LIMIT) this.undo.shift();
+    this.redo = [];
+    const r = await finishLayout(this.week(), half);
+    this.sel = null; this.multi = [];
+    this.setDirty(true);
+    await this.app.rerender(worshipPages(this.week()));
+    this.drawSelection();
+    if (this.panel) this.panel.refresh();
+    this.app.setStatus('Layout finished: the worship pages are now ordinary text boxes (' + r.boxes + ' linked boxes, one story). Click in to type. Each page ends with a text box break — ¶ shows them.');
+    return true;
+  }
+  async backToDraft() {
+    const half = this.half === 'worship' ? this.week().halves.worship : null;
+    if (!isFinished(half)) return false;
+    if (this.textEdit) await this.endTextEdit();
+    this.undo.push(JSON.stringify(half));
+    if (this.undo.length > UNDO_LIMIT) this.undo.shift();
+    this.redo = [];
+    await backToDraft(this.week(), half);
+    this.sel = null; this.multi = [];
+    this.setDirty(true);
+    await this.app.rerender(worshipPages(this.week()));
+    this.drawSelection();
+    if (this.panel) this.panel.refresh();
+    this.app.setStatus('Back to the draft: the Order of Worship panel lays out the worship pages again.');
     return true;
   }
 

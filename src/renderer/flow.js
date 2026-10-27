@@ -295,6 +295,7 @@ function placePage(items, start, limit, H, g, bottom, defaultTab) {
       const [head, tail] = splitParagraph(para, cuts[best]);
       delete head.continues;
       delete tail.continues;
+      head.splitHead = true;     // Finish Layout links the pages: this paragraph carries on in the next box
       if (head.align === 'justify') head.justifyLast = true;
       H.flow.appendChild(paragraphEl(head));
       seg.paras.push(head);
@@ -508,3 +509,62 @@ export function newBlock(kind, id) {
 }
 
 export { cssFont };
+
+// ------------------------------------------------------------------ Finish Layout (item 6)
+// Bulletin ▸ Finish Layout: the laid-out worship pages become ordinary Publisher-style objects.
+// Every body text box (pages 2…) is linked, in reading order, into ONE story; each page's last box
+// ends with a text box break so the page breaks stay where the layout put them (delete one with ¶ on
+// to let text flow on), and is stretched to the bottom margin so added lines have room. Pictures,
+// margin notes and the cover become ordinary unlocked objects. The draft (blocks, styles, cover) is
+// kept in half.draft, so Back to Draft can lay it out again — throwing away hand changes to the
+// converted boxes (boxes added by hand stay).
+export async function finishLayout(week, half) {
+  await layoutFlow(week, half);                       // fresh, so split paragraphs are marked
+  const g = grid(half.flow);
+  const bottom = g.top + g.height;
+  const pages = worshipPages(week);
+  const story = 'worship-' + Date.now().toString(36);
+  let index = 0;
+  for (const n of pages) {
+    const pg = half.pages[String(n)];
+    if (!pg) continue;
+    const gen = pg.frames.filter((f) => f.generated);
+    const texts = n === pages[0] ? [] : gen.filter((f) => f.kind === 'text' && !f.note).sort((a, b) => a.y - b.y);
+    for (const t of texts) {
+      t.text.chain = { story, index: index++ };
+      for (const p of t.text.paragraphs) { if (p.splitHead) p.continues = true; delete p.splitHead; }
+    }
+    const last = texts[texts.length - 1];
+    if (last) {
+      const lp = last.text.paragraphs[last.text.paragraphs.length - 1];
+      if (lp && !lp.continues) {
+        if (lp.runs.length) lp.runs[lp.runs.length - 1].text += '\u000c';
+        else lp.runs.push({ text: '\u000c', font: (lp.mark || {}).font || 'Palatino Linotype', size: (lp.mark || {}).size || 11 });
+      }
+      const below = gen.some((f) => f !== last && !f.note && f.kind !== 'shape' && f.y >= last.y + last.h - 1);
+      if (!below) last.h = Math.round((bottom - last.y) * 100) / 100;
+    }
+    for (const f of gen) { delete f.generated; f.fromDraft = true; }
+  }
+  half.draft = { flow: half.flow, layout: half.layout, finishedAt: new Date().toISOString() };
+  delete half.flow;
+  delete half.layout;
+  half.mode = 'finished';
+  return { story, boxes: index };
+}
+
+// Bulletin ▸ Back to Draft: the order of worship lays the pages out again from the kept draft
+export async function backToDraft(week, half) {
+  if (!half.draft) return false;
+  half.mode = 'flow';
+  half.flow = half.draft.flow;
+  half.layout = half.draft.layout;
+  delete half.draft;
+  for (const n of worshipPages(week)) {
+    const pg = half.pages[String(n)];
+    if (pg) pg.frames = pg.frames.filter((f) => !f.fromDraft);
+  }
+  await layoutFlow(week, half);
+  return true;
+}
+export const isFinished = (half) => !!(half && half.mode === 'finished' && half.draft);

@@ -549,6 +549,8 @@ export function splitParagraph(p, k) {
   const head = { ...p, runs: [], continues: true };
   const tail = { ...p, runs: [] };
   delete tail.continues;
+  delete tail.justifyLast;    // only a head (cut mid-paragraph) stretches its last line; the real last line never does
+  if (p.align === 'justify') head.justifyLast = true;
   delete tail.spaceBefore;   // the continuation is not a new paragraph
   delete tail.indentFirst;
   let left = k;
@@ -568,6 +570,7 @@ export function joinStory(frames) {
     for (const p of f.text.paragraphs) {
       const prev = out[out.length - 1];
       if (prev && prev.continues) {
+        delete prev.justifyLast;   // whole again: its last line is the paragraph's real last line
         prev.runs.push(...p.runs.map((r) => ({ ...r })));
         if (p.continues) prev.continues = true; else delete prev.continues;
         if (p.runs.length) prev.mark = p.mark || prev.mark;

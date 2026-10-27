@@ -1,6 +1,6 @@
 import { renderPage, renderPasteboard, layoutTabs, layoutWraps, findOverflow, fontsUsed, missingFonts } from './render.js';
 import { Editor } from './editor.js';
-import { isFlow, layoutFlow, flowHash } from './flow.js';
+import { isFlow, layoutFlow, flowHash, isFinished } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
@@ -467,6 +467,9 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
+  const wh = week && week.halves.worship;
+  $('rb-finish').disabled = !(half === 'worship' && isFlow(wh));
+  $('rb-draft').disabled = !(half === 'worship' && isFinished(wh));
   for (const p of ['legal', 'ledger', 'letter']) $('pr-' + p).disabled = !week;
   for (const c of document.querySelectorAll('#nav-pages .nav-page[data-page]')) c.classList.toggle('current', Number(c.dataset.page) === lp);
   if (window.__bbRulers) window.__bbRulers.update();
@@ -843,6 +846,15 @@ if (PRINT) {
   $('rb-cut').onclick = async () => { await editor.command('copy'); await editor.command('delete'); };
   $('rb-newweek').onclick = () => newWeek();
   for (const p of ['legal', 'ledger', 'letter']) $('pr-' + p).onclick = () => printOn(p);
+  $('rb-finish').onclick = async () => {
+    const v = await modal('Finish Layout', '<p>The worship pages become ordinary text boxes, linked as one story, that you edit by hand like Publisher. The Order of Worship panel stops rearranging them.</p>' +
+      '<p class="pd-note">Each page ends with a text box break, so the page breaks stay where they are. You can go Back to Draft later, but hand changes to these pages would be lost. Undo (Ctrl+Z) also takes it back.</p>', 'Finish Layout');
+    if (v) { await editor.finishLayout(); updateToolbar(); }
+  };
+  $('rb-draft').onclick = async () => {
+    const v = await modal('Back to Draft', '<p>Lay the worship pages out again from the Order of Worship?</p><p class="pd-note">Changes you made by hand on the worship pages since finishing will be lost (boxes you added yourself stay). Undo (Ctrl+Z) takes it back.</p>', 'Back to Draft');
+    if (v) { await editor.backToDraft(); updateToolbar(); }
+  };
   for (const [id, kind] of Object.entries({ 'pg-blank': 'blank', 'pg-dup': 'dup', 'pg-insert': 'insert', 'pg-delete': 'delete', 'pg-move': 'move' })) {
     $(id).onclick = () => pageCommand(kind);
   }
