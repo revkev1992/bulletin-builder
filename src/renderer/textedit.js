@@ -158,6 +158,13 @@ export function formatSelection(cmd, value, flow) {
       });
       break;
     }
+    case 'smallcaps': {   // toggle: small caps on, or back to regular letters if the selection already is
+      const s = window.getSelection();
+      const at = s.rangeCount && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
+      const on = at && getComputedStyle(at).fontVariantCaps === 'small-caps';
+      styleSelection(flow, (e) => { e.style.fontVariantCaps = on ? 'normal' : 'small-caps'; });
+      break;
+    }
     case 'color':
       styleSelection(flow, (e) => { e.style.color = value; });
       break;

@@ -87,6 +87,7 @@ const ICONS = {
   newweek: `${sheet(4, 3, 18, 26)}<path d="M8 11h10M8 15h10" stroke="${G}"/><circle cx="23" cy="23" r="6" fill="${T}"/><path d="M23 19v8M19 23h8" stroke="#fff" stroke-width="2"/>`,
   bold: `<text x="16" y="25" font-size="26" font-weight="700" text-anchor="middle" fill="${G}" font-family="Segoe UI">B</text>`,
   italic: `<text x="16" y="25" font-size="26" font-style="italic" text-anchor="middle" fill="${G}" font-family="Georgia">I</text>`,
+  smallcaps: `<text x="3" y="24" font-size="22" fill="${G}" font-family="Georgia">S</text><text x="16" y="24" font-size="14" fill="${G}" font-family="Georgia">C</text>`,
   underline: `<text x="16" y="21" font-size="24" text-anchor="middle" fill="${G}" font-family="Segoe UI">U</text><path d="M8 29h16" stroke="${G}" stroke-width="2"/>`,
   sub: `<text x="11" y="21" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="22" y="27" font-size="13" fill="${B}" font-family="Segoe UI">2</text>`,
   sup: `<text x="11" y="25" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="20" y="14" font-size="13" fill="${B}" font-family="Segoe UI">2</text>`,
@@ -148,7 +149,7 @@ export const TABS = [
       [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
         '</select><input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Font Size (pt)" disabled>' },
         ico('grow', 'Increase Font Size (Ctrl+>)', { id: 't-grow' }), ico('shrink', 'Decrease Font Size (Ctrl+<)', { id: 't-shrink' }), ico('clearfmt', 'Clear All Formatting', { id: 't-clear' })] },
-      { row: [ico('bold', 'Bold (Ctrl+B)', { id: 't-bold' }), ico('italic', 'Italic (Ctrl+I)', { id: 't-italic' }), ico('underline', 'Underline (Ctrl+U)', { id: 't-underline' }),
+      { row: [ico('bold', 'Bold (Ctrl+B)', { id: 't-bold' }), ico('italic', 'Italic (Ctrl+I)', { id: 't-italic' }), ico('underline', 'Underline (Ctrl+U)', { id: 't-underline' }), ico('smallcaps', 'Small Caps (Ctrl+Shift+K) — click again for regular letters', { id: 't-smallcaps' }),
         ico('sub', 'Subscript', { id: 't-sub' }), ico('sup', 'Superscript', { id: 't-sup' }), ico('case', 'Change Case', { id: 't-case', menu: 'case' }),
         ico('spacing', 'Character Spacing', { id: 't-spacing', menu: 'tracking' }), ico('color', 'Font Color', { id: 't-color', menu: 'color' })] }],
     ] },

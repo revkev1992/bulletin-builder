@@ -970,6 +970,8 @@ export class Editor {
     if (!flow) return;
     formatSelection(cmd, value, flow);
     this.setDirty(true);
+    // the Font boxes and B/I/U/Sc buttons show the new formatting straight away
+    document.dispatchEvent(new Event('selectionchange'));
   }
 
   async endTextEdit() {

@@ -50,6 +50,19 @@ exports.run = async (h) => {
   h.ok('Clear All Formatting puts the word back to plain', (await cs('letterSpacing')) === 'normal' && (await cs('verticalAlign')) === 'baseline' &&
     !(await h.js(`(() => { let e = getSelection().anchorNode.parentElement; while (e && !e.classList.contains('flow')) { if (/underline/.test(getComputedStyle(e).textDecorationLine)) return true; e = e.parentElement; } return false; })()`)));
 
+  // Small Caps button next to Underline (Kevin, batch 2) and Ctrl+Shift+K
+  h.ok('a Small Caps button sits right after Underline', await h.js(`document.getElementById('t-underline').nextElementSibling.id === 't-smallcaps'`));
+  await h.clickSel('#t-smallcaps');
+  h.ok('Small Caps puts the word in small caps', (await cs('fontVariantCaps')) === 'small-caps');
+  h.ok('…and the button shows it is on', await h.js(`document.getElementById('t-smallcaps').classList.contains('active')`));
+  await h.clickSel('#t-smallcaps');
+  h.ok('clicking it again goes back to regular letters', (await cs('fontVariantCaps')) === 'normal');
+  await h.key('K', ['control', 'shift']);
+  h.ok('Ctrl+Shift+K toggles small caps on', (await cs('fontVariantCaps')) === 'small-caps');
+  await h.key('K', ['control', 'shift']);
+  h.ok('…and off', (await cs('fontVariantCaps')) === 'normal');
+  await h.key('K', ['control', 'shift']);       // leave it on for the save check below
+
   // font + size boxes
   await h.js(`(() => { const s = document.getElementById('t-font'); s.value = 'Georgia'; s.dispatchEvent(new Event('mousedown')); s.dispatchEvent(new Event('change')); })()`);
   h.ok('Font box ▸ Georgia', /Georgia/.test(await cs('fontFamily')));
@@ -112,7 +125,7 @@ exports.run = async (h) => {
   await h.key('Escape', [], 600);
   const m = await ed(`JSON.parse(JSON.stringify(ed.anyFrame(${P}, 'f459').text.paragraphs))`);
   const run = m.flatMap((p) => p.runs).find((r) => r.text.includes('budget'));
-  h.ok('saved: "budget" in Georgia 16 pt, plain', run && run.font === 'Georgia' && Math.abs(run.size - 16) < 0.2 && !run.underline && !run.superscript, { run });
+  h.ok('saved: "budget" in Georgia 16 pt, small caps, no underline', run && run.font === 'Georgia' && Math.abs(run.size - 16) < 0.2 && !run.underline && !run.superscript && run.smallCaps, { run });
   const lp = m.find((p) => p.runs.map((r) => r.text).join('').startsWith('Looking'));
   h.ok('saved: "Looking…" paragraph has 12 pt before, no bullet', lp && lp.spaceBefore === 12, { lp: lp && { spaceBefore: lp.spaceBefore, start: lp.runs[0].text.slice(0, 8) } });
 };

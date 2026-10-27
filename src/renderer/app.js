@@ -850,6 +850,7 @@ if (PRINT) {
   $('t-bold').onclick = () => editor.format('bold');
   $('t-italic').onclick = () => editor.format('italic');
   $('t-underline').onclick = () => editor.format('underline');
+  $('t-smallcaps').onclick = () => editor.format('smallcaps');
   for (const b of document.querySelectorAll('.rb-text [data-align]')) b.onclick = () => editor.format('align', b.dataset.align);
   // font and size take focus away from the frame; put the selection back before applying
   let saved = null;
@@ -880,6 +881,7 @@ if (PRINT) {
     if (!editor.textEdit || !(e.ctrlKey && e.shiftKey)) return;
     if (e.key === '>' || e.key === '.') { e.preventDefault(); fmt('grow'); }
     if (e.key === '<' || e.key === ',') { e.preventDefault(); fmt('shrink'); }
+    if (e.key.toLowerCase() === 'k') { e.preventDefault(); fmt('smallcaps'); }
   });
   // Publisher: Font / Size boxes and B I U / alignment buttons show the formatting where the caret is
   document.addEventListener('selectionchange', () => {
@@ -898,6 +900,7 @@ if (PRINT) {
     $('t-bold').classList.toggle('active', parseInt(cs.fontWeight, 10) >= 600);
     $('t-italic').classList.toggle('active', cs.fontStyle === 'italic');
     $('t-underline').classList.toggle('active', deco('underline'));
+    $('t-smallcaps').classList.toggle('active', cs.fontVariantCaps === 'small-caps');
     const p = el.closest('p');
     const al = p ? getComputedStyle(p).textAlign : 'left';
     for (const b of document.querySelectorAll('.rb-text [data-align]')) b.classList.toggle('active', b.dataset.align === (al === 'start' ? 'left' : al));
