@@ -458,3 +458,13 @@ body.linking .page .frame-text:hover { outline: 2px solid #2b7de9; }
 .rb-symbols { display: grid; grid-template-columns: repeat(9, 28px); gap: 2px; padding: 4px; }
 .rb-symbols .sym { width: 28px; height: 28px; font: 16px 'Palatino Linotype', 'Segoe UI Symbol', serif; padding: 0; border: 1px solid transparent; background: #fff; }
 .rb-symbols .sym:hover { border-color: #2b7de9; background: #e8f0fb; }
+
+/* rotating: dashed guides through the centre when the object is straight, and the angle */
+.page-shell .overlay > .rot-guide { position: absolute; pointer-events: none; border: 0 dashed #2b7de9; }
+.rot-guide.h { left: -40pt; right: -40pt; border-top-width: 1px; }
+.rot-guide.v { top: -40pt; bottom: -40pt; border-left-width: 1px; }
+.page-shell .overlay > .rot-angle { position: absolute; transform: translateX(-50%); pointer-events: none; font: 600 11px 'Segoe UI', sans-serif;
+  background: #fff; color: #333; border: 1px solid #c8c6c4; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+.rot-angle.straight { color: #fff; background: #2b7de9; border-color: #2b7de9; }
+.page-shell .overlay > .rot-guide.h { left: -40pt; right: -40pt; height: 0; border-top: 1px dashed #2b7de9; }
+.page-shell .overlay > .rot-guide.v { top: -40pt; bottom: -40pt; width: 0; border-left: 1px dashed #2b7de9; }

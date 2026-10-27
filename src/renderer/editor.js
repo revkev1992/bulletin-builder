@@ -707,10 +707,30 @@ export class Editor {
       let deg = d.r0 + (Math.atan2(e.clientY - d.c.y, e.clientX - d.c.x) - d.a0) * 180 / Math.PI;
       deg = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg * 10) / 10;
       deg = ((deg % 360) + 360) % 360;
+      // straight (0/90/180/270) is magnetic within 3°, and shows dashed guides through the centre (Office)
+      const q = Math.round(deg / 90) * 90;
+      if (!e.altKey && Math.abs(deg - q) <= 3) deg = q % 360;
+      const straight = deg % 90 === 0;
       d.el.style.rotate = (deg - d.r0) + 'deg';      // on top of the frame's own transform
       d.preview = { ...structuredClone(d.orig), rotation: deg };
       if (!deg) delete d.preview.rotation;
-      this.app.setStatus('Rotation: ' + Math.round(deg * 10) / 10 + '°');
+      const ov = this.app.shellOf(d.n).querySelector('.overlay');
+      ov.querySelectorAll('.rot-guide, .rot-angle').forEach((x) => x.remove());
+      const o = d.orig, cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+      if (straight) {
+        for (const axis of ['h', 'v']) {
+          const g = document.createElement('div');
+          g.className = 'rot-guide ' + axis;
+          g.style[axis === 'h' ? 'top' : 'left'] = (axis === 'h' ? cy : cx) + 'pt';
+          ov.appendChild(g);
+        }
+      }
+      const lab = document.createElement('div');
+      lab.className = 'rot-angle' + (straight ? ' straight' : '');
+      lab.textContent = Math.round(deg * 10) / 10 + '°' + (straight ? ' — straight' : '');
+      Object.assign(lab.style, { left: cx + 'pt', top: (o.y - 30) + 'pt' });
+      ov.appendChild(lab);
+      this.app.setStatus('Rotation: ' + Math.round(deg * 10) / 10 + '°' + (straight ? ' (straight)' : '') + ' — Shift: 15° steps · Alt: no snapping');
       return;
     }
     const p = this.ptOf(d.n, e);
@@ -1008,7 +1028,7 @@ export class Editor {
 
   // ------------------------------------------------------------ selection drawing
   drawSelection(boxFrame, guides = []) {
-    document.querySelectorAll('.sel-box, .snap-line, .crop-ghost').forEach((x) => x.remove());
+    document.querySelectorAll('.sel-box, .snap-line, .crop-ghost, .rot-guide, .rot-angle').forEach((x) => x.remove());
     document.querySelectorAll('.page-shell').forEach((s) => {
       const n = Number(s.dataset.page);
       s.classList.toggle('not-mine', !!this.half && !this.editable(n));

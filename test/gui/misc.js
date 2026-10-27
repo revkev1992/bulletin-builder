@@ -24,12 +24,33 @@ exports.run = async (h) => {
   h.ok('dragging the handle a quarter turn rotates it ~90°', Math.abs(rot - 90) < 3, { rot });
   await h.shot('rotated');
   const rh2 = await h.rect(`.page-shell[data-page="${P}"] .rot-handle`);
-  await h.drag(rh2.cx, rh2.cy, rh2.cx + 25, rh2.cy + 4, { mods: ['shift'], steps: 6 });
+  // with Shift, turn on to about 122° (from the handle, now on the right side of the centre)
+  const a2 = 122 * Math.PI / 180;
+  await h.drag(rh2.cx, rh2.cy, r.cx + R * Math.sin(a2), r.cy - R * Math.cos(a2), { mods: ['shift'], steps: 10 });
   const rot2 = await ed(`ed.topFrame(${P}, '${pic}').rotation || 0`);
   h.ok('with Shift it turns in steps of 15°', rot2 % 15 === 0 && rot2 !== rot, { rot2 });
   await h.clickSel('#undo'); await h.wait(300);
   await h.clickSel('#undo'); await h.wait(300);
   h.ok('Undo twice: back upright', !(await ed(`ed.topFrame(${P}, '${pic}').rotation`)));
+
+  // near-straight snaps to straight, with dashed guides through the centre (Kevin, batch 2)
+  r = await h.rect(S);
+  await h.click(r.cx, r.cy);
+  const rh3 = await h.rect(`.page-shell[data-page="${P}"] .rot-handle`);
+  const R3 = r.cy - rh3.cy;
+  // aim at ~92°: straight right of the centre, a little below
+  const a = 92 * Math.PI / 180, tx = r.cx + R3 * Math.sin(a), ty = r.cy - R3 * Math.cos(a);
+  await h.move(rh3.cx, rh3.cy); await h.down(rh3.cx, rh3.cy);
+  for (let k = 1; k <= 10; k++) await h.move(rh3.cx + (tx - rh3.cx) * k / 10, rh3.cy + (ty - rh3.cy) * k / 10);
+  await h.wait(100);
+  const mid = await h.js(`({ guides: document.querySelectorAll('.page-shell[data-page="${P}"] .rot-guide').length, label: (document.querySelector('.page-shell[data-page="${P}"] .rot-angle') || {}).textContent })`);
+  await h.shot('rotate-straight');
+  await h.up(tx, ty);
+  await h.wait(300);
+  h.ok('rotating to ~92° shows "90° — straight" with two dashed guides', mid.guides === 2 && /^90° — straight/.test(mid.label || ''), mid);
+  h.ok('…and lets go exactly straight (90°)', (await ed(`ed.topFrame(${P}, '${pic}').rotation`)) === 90);
+  h.ok('…the guides go away afterwards', (await h.js(`document.querySelectorAll('.rot-guide, .rot-angle').length`)) === 0);
+  await h.clickSel('#undo'); await h.wait(300);
 
   // View ▸ Zoom ▸ Selected Objects
   r = await h.rect(S);
