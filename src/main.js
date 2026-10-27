@@ -16,6 +16,8 @@ const session = require('./session');
 const { pathToFileURL } = require('url');
 
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
+// Bulletin ▸ Print sheets (inches, width × height as laid out); booklets print 2-sided, short-edge flip
+const PAPER = { legal: { w: 14, h: 8.5, booklet: true }, ledger: { w: 17, h: 11, booklet: true }, letter: { w: 8.5, h: 11, booklet: false } };
 
 const HEADLESS_FILE = argAfter('--export-pdf') || argAfter('--eval') || argAfter('--shot') || argAfter('--selftest-edit') || argAfter('--selftest-flow') || argAfter('--gui');
 const HEADLESS = !!HEADLESS_FILE;
@@ -65,28 +67,34 @@ ipcMain.handle('recent:list', () => readRecent().map((r) => ({ ...r, exists: fs.
 
 // File ▸ Export ▸ PDF and File ▸ Print both render the SAVED week in print mode (what prints is
 // exactly what the PDF/fidelity test sees)
-ipcMain.handle('week:export-pdf', async (e, file) => {
+ipcMain.handle('week:export-pdf', async (e, file, paperName) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
-  const r = await dialog.showSaveDialog(win, {
+  const r = global.__bbTestExportPdf ? { filePath: global.__bbTestExportPdf } : await dialog.showSaveDialog(win, {   // GUI tests: no native dialog
     title: 'Export as PDF',
-    defaultPath: path.join(path.dirname(path.resolve(file)), manifest.title + '.pdf'),
+    defaultPath: path.join(path.dirname(path.resolve(file)), manifest.title + (PAPER[paperName] ? ' - ' + paperName : '') + '.pdf'),
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
   });
   if (r.canceled || !r.filePath) return null;
-  await exportPdf(file, r.filePath, { report: false });
+  await exportPdf(file, r.filePath, { report: false, paper: paperName });
   return r.filePath;
 });
-ipcMain.handle('week:print', async (_e, file) => {
+ipcMain.handle('week:print', async (_e, file, paperName) => {
   const week = loadWeek(file);
+  const paper = PAPER[paperName] ? paperName : null;
   const win = new BrowserWindow({ show: false, webPreferences: { preload: path.join(__dirname, 'preload.js') } });
   try {
-    await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
+    await win.loadFile(RENDERER, { query: { week: file, mode: 'print', ...(paper ? { paper } : {}) } });
     await win.webContents.executeJavaScript('window.__bbReady');
     const { width, height } = week.manifest.page;
+    const P = paper && PAPER[paper];
+    // the printer driver gets the sheet portrait-way-up plus a landscape flag for a booklet sheet
+    const sw = P ? Math.min(P.w, P.h) * 25400 : Math.round(width / 72 * 25400), sh = P ? Math.max(P.w, P.h) * 25400 : Math.round(height / 72 * 25400);
     return await new Promise((resolve) => win.webContents.print({
       silent: false, printBackground: true,
-      pageSize: { width: Math.round(width / 72 * 25400), height: Math.round(height / 72 * 25400) },
+      pageSize: { width: Math.round(sw), height: Math.round(sh) },
+      landscape: !!(P && P.w > P.h),
+      ...(P && P.booklet ? { duplexMode: 'shortEdge' } : {}),
       margins: { marginType: 'none' },
     }, (ok, reason) => resolve(ok ? 'printed' : (reason || 'cancelled'))));
   } finally {
@@ -372,15 +380,16 @@ function buildMenu() {
 // ---------------------------------------------------------------- headless PDF export
 async function exportPdf(file, out, opts = {}) {
   const week = loadWeek(file);
+  const paper = PAPER[opts.paper] ? opts.paper : null;
   const win = new BrowserWindow({ show: false, webPreferences: { preload: path.join(__dirname, 'preload.js') } });
-  await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
+  await win.loadFile(RENDERER, { query: { week: file, mode: 'print', ...(paper ? { paper } : {}) } });
   // the renderer sets document.title to "ready" once fonts are loaded and tabs are laid out
   const report = await win.webContents.executeJavaScript('window.__bbReady');
   const { width, height } = week.manifest.page;
   const pdf = await win.webContents.printToPDF({
     printBackground: true,
     preferCSSPageSize: true,
-    pageSize: { width: width / 72, height: height / 72 },
+    pageSize: paper ? { width: PAPER[paper].w, height: PAPER[paper].h } : { width: width / 72, height: height / 72 },
     margins: { marginType: 'none' },
   });
   fs.writeFileSync(out, pdf);
@@ -515,7 +524,7 @@ if (exportFile) {
       }
       if (argAfter('--shot')) await shot(exportFile, process.argv[process.argv.indexOf('--shot') + 2]);
       else if (argAfter('--eval')) await evalIn(exportFile, process.argv[process.argv.indexOf('--eval') + 2]);
-      else await exportPdf(exportFile, process.argv[process.argv.indexOf('--export-pdf') + 2]);
+      else await exportPdf(exportFile, process.argv[process.argv.indexOf('--export-pdf') + 2], { paper: argAfter('--paper') });
       app.exit(0);
     } catch (err) {
       console.error(err);

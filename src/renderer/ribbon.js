@@ -207,6 +207,9 @@ export const TABS = [
     { label: 'Editing', cols: [[{ html: '<div class="rb-caption">I am changing</div><select id="mode" title="Which half of the bulletin you are changing"><option value="">View only</option>' +
       '<option value="worship">Worship pages</option><option value="announcements">Announcements pages</option></select>' }]] },
     { label: 'Week', cols: [[big('New Week from This One', 'newweek', { id: 'rb-newweek', tip: 'Copy this week, a week later (Ctrl+N)' })]] },
+    { label: 'Print', cols: [[big('Legal 8.5 × 14 in', 'print', { id: 'pr-legal', tip: 'Folded booklet, two pages per side, actual size' })],
+      [big('Ledger 11 × 17 in', 'print', { id: 'pr-ledger', tip: 'Folded booklet, enlarged to fill the sheet (large print)' })],
+      [big('Letter 8.5 × 11 in', 'print', { id: 'pr-letter', tip: 'One page per sheet, actual size' })]] },
     { label: 'Protect', cols: [[big('Lock', 'lock', { id: 'lock-frame', tip: 'Lock frame (Ctrl+L)' })], [big('Lock Page', 'lockpage', { id: 'lock-page' })]] },
     { label: 'Pasteboard', cols: [[big('Park', 'park', { id: 'to-pasteboard', tip: 'Park on the pasteboard (never printed)' })]] },
     { label: 'Show', cols: [[chk('Who owns each page', { id: 'show-halves', checked: true })]] },

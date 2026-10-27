@@ -9,6 +9,7 @@ import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from 
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
 import { FindPane } from './findreplace.js';
+import { PAPER, buildSheets, describe as describePaper } from './impose.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -466,6 +467,7 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
+  for (const p of ['legal', 'ledger', 'letter']) $('pr-' + p).disabled = !week;
   for (const c of document.querySelectorAll('#nav-pages .nav-page[data-page]')) c.classList.toggle('current', Number(c.dataset.page) === lp);
   if (window.__bbRulers) window.__bbRulers.update();
   syncMirrors();
@@ -522,12 +524,14 @@ function numericChange() {
 async function printLayout() {
   document.body.classList.add('print');
   const { width, height } = week.manifest.page;
+  const paper = PAPER[params.get('paper')] ? params.get('paper') : null;   // Bulletin ▸ Print: legal / ledger / letter
   const st = document.createElement('style');
-  st.textContent = '@page { size: ' + width + 'pt ' + height + 'pt; margin: 0; }';
+  st.textContent = '@page { size: ' + (paper ? PAPER[paper].w + 'pt ' + PAPER[paper].h : width + 'pt ' + height) + 'pt; margin: 0; }';
   document.head.appendChild(st);
   const stage = $('stage');
   stage.innerHTML = '';
-  for (const p of week.manifest.pages) stage.appendChild(renderPage(week, p.number));
+  if (paper) buildSheets(stage, paper, week.manifest.page, week.manifest.pages.map((p) => p.number), (n) => renderPage(week, n));
+  else for (const p of week.manifest.pages) stage.appendChild(renderPage(week, p.number));
   const overflow = await settle(stage);
   return { missingFonts: missingFonts(fontsUsed(week)), overflow, fontsUsed: fontsUsed(week) };
 }
@@ -585,6 +589,22 @@ async function exportPdf() {
     setStatus(out ? 'PDF saved: ' + out : '');
   } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
 }
+// Bulletin ▸ Print ▸ Legal / Ledger / Letter: says what will come out, then prints or saves a PDF
+async function printOn(paper) {
+  if (!week) return;
+  const nums = week.manifest.pages.map((p) => p.number);
+  const text = describePaper(paper, week.manifest.page, nums.length);
+  const v = await modal('Print — ' + PAPER[paper].label + ' ' + PAPER[paper].inches,
+    '<p>' + text + '</p><fieldset><legend>Do</legend><label><input type="radio" name="how" value="print" checked> Print (choose the printer next)</label>' +
+    '<label><input type="radio" name="how" value="pdf"> Save as a PDF</label></fieldset><p class="pd-note">Your changes are saved first.</p>', 'Continue');
+  if (!v || !(await savedFirst())) return;
+  try {
+    if (v.how === 'pdf') { setStatus('Creating ' + PAPER[paper].label + ' PDF…'); const out = await window.bb.exportPdf(weekFile, paper); setStatus(out ? 'PDF saved: ' + out : ''); }
+    else { setStatus('Preparing to print…'); const r = await window.bb.print(weekFile, paper); setStatus(r === 'printed' ? 'Sent to the printer (' + PAPER[paper].label + ').' : ''); }
+  } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+window.__bbPrintOn = printOn;
+
 async function printWeek() {
   if (!(await savedFirst())) return;
   setStatus('Preparing to print…');
@@ -822,6 +842,7 @@ if (PRINT) {
   $('rb-copy').onclick = () => editor.command('copy');
   $('rb-cut').onclick = async () => { await editor.command('copy'); await editor.command('delete'); };
   $('rb-newweek').onclick = () => newWeek();
+  for (const p of ['legal', 'ledger', 'letter']) $('pr-' + p).onclick = () => printOn(p);
   for (const [id, kind] of Object.entries({ 'pg-blank': 'blank', 'pg-dup': 'dup', 'pg-insert': 'insert', 'pg-delete': 'delete', 'pg-move': 'move' })) {
     $(id).onclick = () => pageCommand(kind);
   }

@@ -19,8 +19,8 @@ contextBridge.exposeInMainWorld('bb', {
   version: () => ipcRenderer.invoke('app:version'),
   pageOp: (file, half, op) => ipcRenderer.invoke('pages:op', file, half, op),
   recent: () => ipcRenderer.invoke('recent:list'),
-  exportPdf: (file) => ipcRenderer.invoke('week:export-pdf', file),
-  print: (file) => ipcRenderer.invoke('week:print', file),
+  exportPdf: (file, paper) => ipcRenderer.invoke('week:export-pdf', file, paper),
+  print: (file, paper) => ipcRenderer.invoke('week:print', file, paper),
   reveal: (p) => ipcRenderer.invoke('file:reveal', p),
   importPicturePath: (weekFile, src) => ipcRenderer.invoke('asset:import-path', weekFile, src),
 });
