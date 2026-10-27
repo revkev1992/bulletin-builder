@@ -65,3 +65,8 @@ Publisher", which this is not.
 About 1 session: conversion + link-story (~half), Back to Draft + panel outline mode (~quarter),
 GUI tests (~quarter). Items 7 (ruler/tabs) and 8 (breaks) are being built now and apply to the
 finished pages automatically.
+
+## Kevin's answers (2026-10-27) — APPROVED, build it
+1. **Finish Layout: YES** — draft in the panel, finish once per week, then edit like Publisher.
+2. **New Week from This One: ask each time.** Show the **three most recent weeks** to start from, plus a way to choose an **older** one; for a finished source week, ask whether to start from its finished pages or its draft.
+3. **Trigger: button only** (Bulletin ▸ Finish Layout). No automatic conversion on click.

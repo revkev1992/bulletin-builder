@@ -40,6 +40,21 @@ exports.run = async (h) => {
     h.ok('…and stays in crop mode', await ed('!!ed.crop'));
   }
   await h.shot('after-8-crops');
+  // WHILE dragging the top-left handle (mouse still down) the picture stays put on screen and only
+  // the frame edge moves (Kevin, batch 2: it looked cropped from the bottom right until let go)
+  const imgRect = () => h.js(`(() => { const r = document.querySelector('${S} img').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; })()`);
+  const i0 = await imgRect();
+  const hnw = await h.rect(`.page-shell[data-page="${P}"] .sel-box.cropping .handle.h-nw`);
+  await h.move(hnw.cx, hnw.cy, ['alt']); await h.down(hnw.cx, hnw.cy, { mods: ['alt'] });
+  for (let k = 1; k <= 6; k++) await h.move(hnw.cx + 3 * k, hnw.cy + 3 * k, ['alt']);
+  await h.wait(100);
+  const i1 = await imgRect();
+  await h.shot('mid-drag-nw');
+  await h.up(hnw.cx + 18, hnw.cy + 18, { mods: ['alt'] });
+  await h.wait(300);
+  const i2 = await imgRect();
+  h.ok('mid-drag (top-left handle): the picture stays put, only the frame edge moves', Math.abs(i1.x - i0.x) < 1 && Math.abs(i1.y - i0.y) < 1 && Math.abs(i1.w - i0.w) < 1, { i0, i1 });
+  h.ok('…and nothing jumps when the mouse is let go', Math.abs(i2.x - i1.x) < 1 && Math.abs(i2.y - i1.y) < 1, { i1, i2 });
   // dragging inside slides the picture within the frame (frame stays put)
   const b0 = await box();
   const rr = await h.rect(S);

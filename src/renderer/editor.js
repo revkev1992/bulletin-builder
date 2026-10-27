@@ -779,6 +779,14 @@ export class Editor {
       el.style.left = g.x + 'pt';
       el.style.top = g.y + 'pt';
       if (g.kind !== 'shape') { el.style.width = g.w + 'pt'; el.style.height = g.h + 'pt'; }
+      // a picture being cropped or resized: place the picture inside the frame exactly as it will
+      // render (otherwise it looks cropped from the wrong side until the mouse is let go)
+      const img = g.kind === 'image' && g.image && el.querySelector('img');
+      if (img) {
+        const [l, t, r, b] = g.image.crop || [0, 0, 0, 0];
+        const fw = g.w / Math.max(0.0001, 1 - l - r), fh = g.h / Math.max(0.0001, 1 - t - b);
+        Object.assign(img.style, { left: (-l * fw) + 'pt', top: (-t * fh) + 'pt', width: fw + 'pt', height: fh + 'pt' });
+      }
     });
   }
 
