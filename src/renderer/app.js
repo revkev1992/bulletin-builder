@@ -697,6 +697,11 @@ async function runPageOp(op, { undoing = null } = {}) {
   editor.sel = null;
   editor.lastPage = r.focus;
   await reload();
+  // text from deleted linked boxes was put back into the story: pour it through the remaining boxes and save
+  if (r.reflow && r.reflow.length) {
+    for (const st of r.reflow) await rerender(editor.reflow(st));
+    await editor.save({ quiet: true });
+  }
   updateToolbar();
   const shell = shells.get(r.focus);
   if (shell) shell.scrollIntoView({ block: 'center' });

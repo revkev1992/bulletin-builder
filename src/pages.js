@@ -40,6 +40,26 @@ function duplicateContent(page, tag) {
  *                  deleted or moved)
  * @returns { manifest, halves, map: {old: new|null}, focus: new page number, warnings: [] }
  */
+// the paragraphs of a linked story, in link order, with paragraphs split across boxes made whole
+// again (same rule as renderer/textedit.js joinStory)
+function joinParagraphs(frames) {
+  const out = [];
+  for (const f of frames) {
+    for (const p of f.text.paragraphs || []) {
+      const prev = out[out.length - 1];
+      if (prev && prev.continues) {
+        delete prev.justifyLast;
+        prev.runs.push(...p.runs.map((r) => ({ ...r })));
+        if (p.continues) prev.continues = true; else delete prev.continues;
+        if (p.runs.length) prev.mark = p.mark || prev.mark;
+      } else out.push(clone(p));
+    }
+  }
+  if (out.length) delete out[out.length - 1].continues;
+  return out;
+}
+const allFrames = (f, acc = []) => { acc.push(f); (f.children || []).forEach((c) => allFrames(c, acc)); return acc; };
+
 function applyPageOp(manifest, halves, op, myHalf) {
   const m = clone(manifest);
   const hs = clone(halves);
@@ -49,6 +69,7 @@ function applyPageOp(manifest, halves, op, myHalf) {
   const need = (n) => { if (!order.some((x) => x.old === n)) throw new Error('There is no page ' + n + '.'); };
   const mine = (n) => { need(n); if (halfOf(n) !== myHalf) throw new Error('Page ' + n + ' belongs to the ' + halfOf(n) + ' pages — you are changing the ' + myHalf + ' pages.'); };
   let focusEntry = null;
+  const reflow = [];         // linked stories the app must pour again after this change
 
   if (op.type === 'insert') {
     const count = Math.max(1, Math.min(32, parseInt(op.count, 10) || 1));
@@ -68,6 +89,20 @@ function applyPageOp(manifest, halves, op, myHalf) {
     const del = [...new Set(op.pages)];
     del.forEach(mine);
     if (del.length >= order.length) throw new Error('A publication needs at least one page.');
+    // linked text on the deleted pages is not lost: the story is poured into its remaining boxes
+    // (as Publisher does); the app re-flows those stories right after (result.reflow)
+    const stories = new Set();
+    for (const x of order) if (del.includes(x.old) && x.content) for (const f of x.content.frames || []) for (const g of allFrames(f)) if (g.text && g.text.chain) stories.add(g.text.chain.story);
+    for (const story of stories) {
+      const members = [];
+      for (const x of order) if (x.content) for (const f of x.content.frames || []) for (const g of allFrames(f)) if (g.text && g.text.chain && g.text.chain.story === story) members.push({ g, gone: del.includes(x.old) });
+      members.sort((a, b) => a.g.text.chain.index - b.g.text.chain.index);
+      const kept = members.filter((x) => !x.gone);
+      if (!kept.length) continue;
+      const paras = joinParagraphs(members.map((x) => x.g));
+      kept.forEach((x, i) => { x.g.text.paragraphs = i === 0 ? paras : []; x.g.text.chain.index = i; });
+      reflow.push(story);
+    }
     const left = order.filter((x) => !del.includes(x.old));
     const firstIdx = order.findIndex((x) => del.includes(x.old));
     focusEntry = left[Math.min(firstIdx, left.length - 1)];
@@ -108,7 +143,7 @@ function applyPageOp(manifest, halves, op, myHalf) {
   if (/booklet/.test(m.preset || '') && total % 4) {
     warnings.push('A folded booklet needs a multiple of 4 pages — this one now has ' + total + '.');
   }
-  return { manifest: m, halves: hs, map, focus: m.pages[order.indexOf(focusEntry)]?.number ?? 1, warnings };
+  return { reflow, manifest: m, halves: hs, map, focus: m.pages[order.indexOf(focusEntry)]?.number ?? 1, warnings };
 }
 
 function stamp(d = new Date()) {
@@ -183,7 +218,7 @@ function pageOp(file, myHalf, op, { session, busyElsewhere = () => null }) {
     for (const h of names) writeAtomic(path.join(dir, manifest.halves[h]), res.halves[h]);
     writeAtomic(abs, res.manifest);
     // `stamp` names the snapshot of the week BEFORE this change (what Undo puts back)
-    return { focus: res.focus, map: res.map, warnings: res.warnings, pages: res.manifest.pages.length, stamp: st };
+    return { focus: res.focus, map: res.map, warnings: res.warnings, pages: res.manifest.pages.length, stamp: st, reflow: res.reflow || [] };
   } finally {
     for (const h of borrowed) session.release(abs, h);
   }

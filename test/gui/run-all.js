@@ -12,7 +12,7 @@ const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 
 // the Order-of-Worship guard runs on an October (flow) week
 const weekNamed = (t) => path.join(path.dirname(path.dirname(WEEK)), t, t + '.bulletin');
 // Order-of-Worship suites run on October weeks (10-11 is untouched by hand tests)
-const FLOW_SUITES = { flow: weekNamed('10-18-26 1100'), finish: weekNamed('10-11-26 1100') };
+const FLOW_SUITES = { flow: weekNamed('10-18-26 1100'), finish: weekNamed('10-11-26 1100'), combos: weekNamed('10-11-26 1100') };
 
 let failed = 0;
 for (const s of [...SUITES, ...Object.keys(FLOW_SUITES)]) {
