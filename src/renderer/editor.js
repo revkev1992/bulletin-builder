@@ -373,31 +373,29 @@ export class Editor {
     });
   }
 
+  // Delete: the selected object(s), one undo step. Linked text in a deleted box is poured into the
+  // story's remaining boxes (as Publisher does)
   async deleteFrame() {
-    if (this.multi.length) {
-      const n = this.sel.page;
-      const ids = [this.sel.id, ...this.multi];
-      this.multi = [];
-      for (const id of ids) { this.sel = { page: n, id }; await this.deleteFrame(); }
-      return;
-    }
-    const f = this.frame();
-    if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return;
+    if (!this.sel) return;
     const n = this.sel.page;
+    if (!this.editable(n)) return;
+    const gone = [this.sel.id, ...this.multi].map((id) => this.topFrame(n, id)).filter((f) => f && !this.locked(n, f));
+    if (!gone.length) return;
+    this.multi = [];
     this.sel = null;
     const stories = new Set();
-    Editor.each(f, (g) => { if (g.text && g.text.chain) stories.add(g.text.chain.story); });
+    for (const f of gone) Editor.each(f, (g) => { if (g.text && g.text.chain) stories.add(g.text.chain.story); });
     return this.commit([n], () => {
       for (const st of stories) {
         const all = this.storyFrames(st);
-        const keep = all.filter((x) => !(x.n === n && this.topFrame(n, x.frame.id) === f));
+        const keep = all.filter((x) => !(x.n === n && gone.includes(this.topFrame(n, x.frame.id))));
         if (keep.length && keep.length < all.length) {
           keep[0].frame.text.paragraphs = joinStory(all.map((x) => x.frame));
           keep.slice(1).forEach((x) => { x.frame.text.paragraphs = []; });
         }
       }
       const pg = this.pageEntry(n);
-      pg.frames = pg.frames.filter((x) => x.id !== f.id);
+      pg.frames = pg.frames.filter((x) => !gone.includes(x));
     }).then(async () => {
       for (const st of stories) if (this.storyFrames(st).length) await this.app.rerender(this.reflow(st));
     });

@@ -115,4 +115,13 @@ exports.run = async (h) => {
   r = await frameRect(ids[1]); await h.click(r.cx, r.cy);
   await h.key('Delete');
   h.ok('Delete key removes the selected shape', !(await ed(`!!ed.topFrame(${P}, '${ids[1]}')`)));
+  // several selected objects: Delete removes them all, ONE Undo brings them all back (2026-10-27 fix)
+  r = await frameRect(ids[0]); await h.click(r.cx, r.cy);
+  r = await frameRect(ids[2]); await h.click(r.cx, r.cy, { mods: ['shift'] });
+  await h.key('Delete');
+  await h.wait(400);
+  h.ok('Delete with 2 selected removes both', !(await ed(`!!ed.topFrame(${P}, '${ids[0]}') || !!ed.topFrame(${P}, '${ids[2]}')`)));
+  await h.clickSel('#undo');
+  await h.wait(600);
+  h.ok('…one Undo puts both back', await ed(`!!ed.topFrame(${P}, '${ids[0]}') && !!ed.topFrame(${P}, '${ids[2]}')`));
 };
