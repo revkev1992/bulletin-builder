@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 15 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 20 suites; see `test/gui/harness.js`).
 
 ## Ribbon / overall look
 
@@ -39,7 +39,7 @@ mouse/keyboard input (`node test/gui/run-all.js`, 15 suites; see `test/gui/harne
 | Open / Save / Recent | ✅ | |
 | Save As | ✅ | 2026-10-20: copies the week folder; unsaved changes go into the copy (F12) |
 | New (blank sizes, templates) | 🟡 | Only "New Week from This One" |
-| Print (printer, copies, range, booklet imposition, preview) | 🟡 | Windows print dialog; booklet imposition + preview ⬜ |
+| Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. Print preview ⬜ |
 | Export PDF | ✅ | |
 | Export pages as PNG/JPG, Pack and Go | ⬜ | |
 | Info (fonts used, image manager) | 🟡 | Fonts used/missing; image manager ⬜ |
@@ -52,7 +52,7 @@ mouse/keyboard input (`node test/gui/run-all.js`, 15 suites; see `test/gui/harne
 | Clipboard: cut/copy/paste objects | ✅ | Ribbon, right-click, Ctrl+X/C/V/D |
 | Clipboard: Format Painter | ✅ | 2026-10-20: click = once, double-click = until Esc |
 | Clipboard: Paste Special | ⬜ | |
-| Font: family, size, B/I/U, grow/shrink, sub/superscript, case, colour, spacing, clear | ✅ | Boxes and B/I/U follow the caret (2026-10-20). Strikethrough ⬜ |
+| Font: family, size, B/I/U, grow/shrink, sub/superscript, case, colour, spacing, clear | ✅ | Boxes and B/I/U follow the caret (2026-10-20). Small Caps button + Ctrl+Shift+K (2026-10-27). Strikethrough ⬜ |
 | Paragraph: align, bullets, numbering, indents, line spacing, Paragraph… dialog, columns, ¶ | ✅ | |
 | Paragraph: tab stops | ✅ | 2026-10-20: ruler (click/drag/drag-off), Tabs dialog (position, alignment, leader), indent markers |
 | Paragraph: drop cap | ⬜ | |
@@ -60,7 +60,7 @@ mouse/keyboard input (`node test/gui/run-all.js`, 15 suites; see `test/gui/harne
 | Objects: text box, picture, line, rectangle | ✅ | |
 | Objects: table, other shapes | ⬜ | |
 | Arrange: wrap text, front/back, align & distribute, group, rotate/flip, multi-select | ✅ | GUI-tested 2026-10-20 |
-| Arrange: free-rotate handle | ✅ | 2026-10-20 (Shift = 15° steps) |
+| Arrange: free-rotate handle | ✅ | 2026-10-20 (Shift = 15° steps); 2026-10-27 snaps to 90° with dashed guides, Alt = free |
 | Arrange: forward/backward one step | ⬜ | Front/back only |
 | Arrange: size & position with exact numbers | ✅ | |
 | Editing: Find / Replace | ✅ | 2026-10-20: task pane, Ctrl+F / Ctrl+H, whole word, match case |
@@ -109,5 +109,5 @@ Publisher `.pub` import (fidelity 0.948).
 ## Beyond Publisher (built already; frozen until parity)
 
 Order of Worship flow layout (Phase 3), Word `.docx` import, Cover/Styles tabs, New Week, hymn tune
-names in small caps. Worship pages become hand-editable once **item 6** is approved
-(`docs/ITEM6_DESIGN.md`).
+names in small caps. **Item 6 built 2026-10-27:** Finish Layout makes the worship pages one linked
+story you edit like Publisher (Back to Draft returns to the Order of Worship); New Week chooser.

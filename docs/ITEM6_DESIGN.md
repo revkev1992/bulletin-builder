@@ -1,7 +1,7 @@
-# Item 6 — hand-editable worship pages (DESIGN, awaiting Kevin's OK)
+# Item 6 — hand-editable worship pages (BUILT 2026-10-27 — be211c3, e1fed75)
 
 *2026-10-20. From test batch 1: "the worship pages must be hand-editable, just like Publisher."
-Nothing below is built. Kevin asked to see the design first.*
+Kevin approved 2026-10-27 (answers at the bottom); built as designed, in TEST_BATCH_3.*
 
 ## The problem today
 
