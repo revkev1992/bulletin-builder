@@ -34,7 +34,7 @@ export class Editor {
     this.crop = null;         // { n, id } while cropping a picture
     this.clipboard = null;    // a copied frame (deep copy)
     this.idSeq = 0;
-    setInterval(() => { if (this.dirty && this.half) this.save({ quiet: true }); }, AUTOSAVE_MS);
+    setInterval(() => this.autosave(), AUTOSAVE_MS);
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
     window.addEventListener('keydown', (e) => this.onKey(e));
@@ -214,8 +214,16 @@ export class Editor {
     this.app.onState();
   }
 
+  // every 2 minutes. Not while you are typing: the words in the box are not in the week yet, and
+  // saving would clear "unsaved changes" — closing the window would then lose the typing
+  autosave() {
+    if (this.dirty && this.half && !this.textEdit) return this.save({ quiet: true });
+    return Promise.resolve(false);
+  }
+
   async save({ quiet = false } = {}) {
     if (!this.half) return false;
+    if (this.textEdit) await this.endTextEdit();   // the typing goes into the week before it is written
     try {
       const r = await window.bb.save(this.week().halves[this.half]);
       this.setDirty(false);

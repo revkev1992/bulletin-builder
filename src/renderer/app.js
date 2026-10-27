@@ -784,7 +784,8 @@ if (PRINT) {
     if (applyFormat(flow, painter.fmt)) { editor.setDirty(true); setStatus('Formatting painted.'); }
     if (!painter.sticky) stopPaint();
   }, 0));
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && painter) stopPaint(); }, true);
+  // Esc cancels Format Painter only (Publisher) — you stay in the text you were in
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && painter) { stopPaint(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();

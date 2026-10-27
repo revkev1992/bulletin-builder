@@ -143,4 +143,19 @@ exports.run = async (h) => {
   h.ok('picture: drag from inside moves it', px1 - px0 > 8, { moved: px1 - px0 });
   h.ok('Picture Format tab shown', (await h.js(`document.querySelector('.rb-tab[data-tab="format"]').textContent`)) === 'Picture Format');
   await h.shot('picture-selected');
+
+  // autosave must not swallow typing (bug hunt 2026-10-27): it used to save the week WITHOUT the
+  // words in the box and clear "unsaved changes", so closing the window would not ask
+  const fs = require('fs');
+  const path = require('path');
+  const box2 = await h.rect(BOX);
+  await h.click(box2.cx, box2.y + 20);
+  await h.type('AUTOSAVE PROBE ');
+  await h.js('window.__bbEditor.autosave()');
+  await h.wait(400);
+  h.ok('autosave while typing leaves "unsaved changes" on', await ed('ed.dirty && !!ed.textEdit'));
+  await h.clickSel('#save');
+  await h.wait(800);
+  const disk = fs.readFileSync(path.join(h.tmp, 'announcements.json'), 'utf8');
+  h.ok('Save while typing writes the words in the box', disk.includes('AUTOSAVE PROBE') && !(await ed('ed.dirty')));
 };
