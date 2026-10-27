@@ -457,8 +457,9 @@ function updateToolbar() {
   $('badge').className = half ? 'editing-' + half : '';
   $('save').disabled = !half;
   $('save').classList.toggle('dirty', !!(editor && editor.dirty));
-  $('undo').disabled = !(half && editor.undo.length);
-  $('redo').disabled = !(half && editor.redo.length);
+  // while typing, Undo/Redo step through the typing (as in Publisher), so they stay live
+  $('undo').disabled = !(half && (editor.undo.length || editor.textEdit));
+  $('redo').disabled = !(half && (editor.redo.length || editor.textEdit));
   document.title = (editor && editor.dirty ? '• ' : '') + 'Bulletin Builder' + (week ? ' — ' + week.manifest.title : '');
   const lp = editor && (editor.sel ? editor.sel.page : editor.lastPage);
   const pg = lp != null && editor.pageEntry(lp);
@@ -751,6 +752,7 @@ if (PRINT) {
       $('rb-columns').disabled = !on && !($('rb-columns').dataset.frameOk === '1');
       $('rb-painter').disabled = !on && !painter;
       syncMirrors();
+      updateToolbar();
       if (on) selectTab('home');
     },
   });

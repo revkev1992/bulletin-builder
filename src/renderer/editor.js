@@ -276,7 +276,13 @@ export class Editor {
       return;
     }
     if (this.textEdit) {
-      if (name === 'undo' || name === 'redo') { document.execCommand(name); return; }
+      if (name === 'undo' || name === 'redo') {
+        // the typing first; with nothing typed to undo, the previous change (as in Publisher)
+        const host = this.app.shellOf(this.textEdit.n).querySelector('.frame[data-id="' + this.textEdit.id + '"]');
+        const was = host && host.innerHTML;
+        document.execCommand(name);
+        if (!host || host.innerHTML !== was || !(name === 'undo' ? this.undo : this.redo).length) return;
+      }
       await this.endTextEdit();
     }
     if (name.startsWith('claim:')) return this.claim(name.slice(6));

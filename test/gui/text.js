@@ -158,4 +158,23 @@ exports.run = async (h) => {
   await h.wait(800);
   const disk = fs.readFileSync(path.join(h.tmp, 'announcements.json'), 'utf8');
   h.ok('Save while typing writes the words in the box', disk.includes('AUTOSAVE PROBE') && !(await ed('ed.dirty')));
+  // the ribbon Undo while typing (bug hunt 2026-10-27): it was greyed out until you left the box
+  const words = async () => (await model()).text.paragraphs.map((p) => p.runs.map((r) => r.text).join('')).join('|');
+  const box3 = await h.rect(BOX);
+  await h.click(box3.cx, box3.y + 20);
+  await h.key('End', ['control']);
+  h.ok('Undo is clickable while typing', !(await h.disabled('#undo')));
+  await h.type('QZX');
+  await h.clickSel('#undo');
+  await h.wait(300);
+  const dom = await h.js(`document.querySelector('${BOX}').textContent`);
+  h.ok('…clicking it undoes the typing and you are still typing', !dom.includes('QZX') && dom.includes('QZ') && await ed('!!ed.textEdit'), { tail: dom.slice(-20) });
+  await h.key('Escape', [], 600);
+  h.ok('…the box keeps what is left', (await words()).includes('QZ') && !(await words()).includes('QZX'));
+  // click back in, type nothing, Undo: the previous change (that typing) is undone, as in Publisher
+  await h.click(box3.cx, box3.y + 20);
+  await h.wait(200);
+  await h.clickSel('#undo');
+  await h.wait(800);
+  h.ok('Undo with nothing typed yet undoes the previous change', !(await words()).includes('QZ'));
 };
