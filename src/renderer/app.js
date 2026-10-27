@@ -376,9 +376,19 @@ async function showPasteboard() {
   $('pasteboard-btn').checked = true;
 }
 
+// Publisher keeps the spot you are looking at in the middle of the window when you zoom
 function applyZoom() {
   const w = document.querySelector('.spreads');
+  const stage = $('stage');
+  const old = w ? Number(w.style.getPropertyValue('--zoom')) || zoom : zoom;
+  const pad = 32;
+  const cx = stage.scrollLeft + stage.clientWidth / 2 - pad, cy = stage.scrollTop + stage.clientHeight / 2 - pad;
   if (w) w.style.setProperty('--zoom', zoom);
+  if (w && old && old !== zoom) {
+    const r = zoom / old;
+    stage.scrollLeft = cx * r + pad - stage.clientWidth / 2;
+    stage.scrollTop = cy * r + pad - stage.clientHeight / 2;
+  }
   $('zoom-label').textContent = Math.round(zoom * 100) + '%';
   if (window.__bbRulers) window.__bbRulers.update();
 }
