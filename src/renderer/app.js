@@ -540,16 +540,60 @@ async function printLayout() {
 }
 
 // ---------------------------------------------------------------- File commands
+// File ▸ New Week (Ctrl+N), Kevin 2026-10-27: choose the week to start from — the three most recent,
+// or an older one — name the new week, and for a finished week choose its finished pages or its draft
 async function newWeek() {
   if (!weekFile) return;
   if (editor.dirty && !(await editor.save())) return;
+  const list = await window.bb.recentWeeks(weekFile);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let choices = list.weeks.slice(0, 3);
+  const d = document.createElement('dialog');
+  d.className = 'pub-dialog newweek-dialog';
+  const render = (picked) => {
+    const src = choices.find((w) => w.file === picked) || choices[0];
+    d.innerHTML = '<form method="dialog"><div class="pd-title">New Week</div><div class="pd-body">' +
+      '<fieldset><legend>Start from</legend>' + choices.map((w) => '<label><input type="radio" name="src" value="' + esc(w.file) + '"' + (w === src ? ' checked' : '') + '> ' + esc(w.title) +
+        (w.finished ? ' <span class="pd-note">(finished)</span>' : '') + '</label>').join('') +
+      '<button type="button" class="nw-older">Another week…</button></fieldset>' +
+      (src && src.finished ? '<fieldset><legend>' + esc(src.title) + ' is finished — start from</legend>' +
+        '<label><input type="radio" name="from" value="finished" checked> Its finished pages (edit them by hand; the date is updated)</label>' +
+        '<label><input type="radio" name="from" value="draft"> Its draft (the Order of Worship lays the pages out again)</label></fieldset>' : '') +
+      '<label class="pd-row">Name of the new week: <input name="name" value="' + esc(list.suggested || '') + '" required></label>' +
+      '<p class="pd-note">The new week is made next to the others, with its cover date a week later than the one you start from.</p>' +
+      '</div><div class="pd-buttons"><button value="ok" class="pd-ok">Create Week</button><button value="cancel" formnovalidate>Cancel</button></div></form>';
+    for (const r of d.querySelectorAll('input[name="src"]')) r.onchange = () => { const name = d.querySelector('input[name="name"]').value; render(r.value); d.querySelector('input[name="name"]').value = name; };
+    d.querySelector('.nw-older').onclick = async () => {
+      const f = await window.bb.chooseWeek();
+      if (!f) return;
+      const info = await window.bb.describeWeek(f);
+      if (!choices.some((w) => w.file.toLowerCase() === info.file.toLowerCase())) choices = [...choices, info];
+      const name = d.querySelector('input[name="name"]').value;
+      render(info.file);
+      d.querySelector('input[name="name"]').value = name;
+    };
+  };
+  if (!choices.length) choices = [await window.bb.describeWeek(weekFile)];
+  render(choices[0].file);
+  document.body.appendChild(d);
+  const v = await new Promise((resolve) => {
+    d.addEventListener('close', () => {
+      const ok = d.returnValue === 'ok';
+      const data = ok ? Object.fromEntries(new FormData(d.querySelector('form'))) : null;
+      d.remove();
+      resolve(data);
+    });
+    d.showModal();
+  });
+  if (!v) return;
   try {
-    const f = await window.bb.newWeekFrom(weekFile);
-    if (f) { await open(f); setStatus('New week created from the previous one. Check the dates, Sunday name and every item.'); }
+    const f = await window.bb.createWeek(v.src, v.name, v.from || 'as-is');
+    if (f) { await open(f); setStatus('New week created. Check the dates, Sunday name and every item.'); }
   } catch (err) {
-    setStatus('<span class="warn">' + String(err.message || err) + '</span>');
+    setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
   }
 }
+window.__bbNewWeek = newWeek;
 
 // File ▸ Save As (F12), as Publisher: the copy gets your unsaved changes, this week stays as last saved
 async function saveAs() {

@@ -206,7 +206,7 @@ export const TABS = [
   { id: 'bulletin', label: 'Bulletin', groups: [
     { label: 'Editing', cols: [[{ html: '<div class="rb-caption">I am changing</div><select id="mode" title="Which half of the bulletin you are changing"><option value="">View only</option>' +
       '<option value="worship">Worship pages</option><option value="announcements">Announcements pages</option></select>' }]] },
-    { label: 'Week', cols: [[big('New Week from This One', 'newweek', { id: 'rb-newweek', tip: 'Copy this week, a week later (Ctrl+N)' })]] },
+    { label: 'Week', cols: [[big('New Week', 'newweek', { id: 'rb-newweek', tip: 'Start next week from one of the recent weeks (Ctrl+N)' })]] },
     { label: 'Worship Pages', cols: [[big('Finish Layout', 'parts', { id: 'rb-finish', tip: 'Turn the drafted worship pages into ordinary text boxes you can edit by hand' })],
       [big('Back to Draft', 'undo', { id: 'rb-draft', tip: 'Lay the worship pages out again from the Order of Worship (hand changes to them are lost)' })]] },
     { label: 'Print', cols: [[big('Legal 8.5 × 14 in', 'print', { id: 'pr-legal', tip: 'Folded booklet, two pages per side, actual size' })],

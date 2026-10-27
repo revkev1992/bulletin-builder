@@ -215,7 +215,7 @@ function nextWeekDate(text) {
 
 // Copy a week folder to a new one (never history/ or locks/), rename its .bulletin, roll the dates.
 // Returns the new .bulletin path.
-function newWeekFrom(file, destDir, { roll = true } = {}) {
+function newWeekFrom(file, destDir, { roll = true, start = 'as-is' } = {}) {
   const srcFile = path.resolve(file);
   const src = path.dirname(srcFile);
   destDir = path.resolve(destDir);
@@ -230,16 +230,64 @@ function newWeekFrom(file, destDir, { roll = true } = {}) {
   const out = path.join(destDir, name + '.bulletin');
   fs.writeFileSync(out, JSON.stringify(manifest, null, 1));
   const wp = path.join(destDir, (manifest.halves || {}).worship || 'worship.json');
-  if (roll && fs.existsSync(wp)) {
+  if (fs.existsSync(wp)) {
     const w = JSON.parse(fs.readFileSync(wp, 'utf8'));
-    if (w.mode === 'flow' && w.flow && w.flow.cover) {
-      w.flow.cover.date = nextWeekDate(w.flow.cover.date);
-      if (w.layout) w.layout.flowHash = null;   // lay out again on open (the date changed)
-      fs.writeFileSync(wp, JSON.stringify(w, null, 1));
+    let changed = false;
+    // a finished week (item 6) started again from its draft: the panel lays it out afresh
+    if (w.mode === 'finished' && w.draft && start === 'draft') {
+      w.mode = 'flow'; w.flow = w.draft.flow; w.layout = null; delete w.draft;
+      for (const pg of Object.values(w.pages || {})) pg.frames = (pg.frames || []).filter((f) => !f.fromDraft);
+      changed = true;
     }
+    if (roll) {
+      const cover = w.mode === 'flow' ? w.flow && w.flow.cover : w.draft && w.draft.flow && w.draft.flow.cover;
+      if (cover && cover.date) {
+        const old = cover.date, next = nextWeekDate(old);
+        cover.date = next;
+        if (w.mode === 'flow') { if (w.layout) w.layout.flowHash = null; }   // lay out again on open (the date changed)
+        else if (next !== old) {
+          // finished pages: the date is ordinary text now — change it wherever it is printed
+          for (const pg of Object.values(w.pages || {})) for (const f of pg.frames || []) {
+            const walk = (g) => { if (g.text) for (const p of g.text.paragraphs) for (const r of p.runs) r.text = r.text.split(old).join(next); (g.children || []).forEach(walk); };
+            walk(f);
+          }
+        }
+        changed = true;
+      }
+    }
+    if (changed) fs.writeFileSync(wp, JSON.stringify(w, null, 1));
   }
   return out;
 }
+
+// File ▸ New Week: the weeks next to this one, newest first (by the date in the folder name)
+function weekDate(title) { const m = /^(\d{1,2})-(\d{1,2})-(\d{2})/.exec(title || ''); return m ? new Date(2000 + Number(m[3]), Number(m[1]) - 1, Number(m[2])).getTime() : null; }
+ipcMain.handle('weeks:recent', (_e, file) => {
+  const parent = path.dirname(path.dirname(path.resolve(file)));
+  const out = [];
+  for (const d of fs.readdirSync(parent, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue;
+    const f = path.join(parent, d.name, d.name + '.bulletin');
+    if (!fs.existsSync(f)) continue;
+    let finished = false;
+    try { const m = JSON.parse(fs.readFileSync(f, 'utf8')); const w = JSON.parse(fs.readFileSync(path.join(parent, d.name, (m.halves || {}).worship || 'worship.json'), 'utf8')); finished = w.mode === 'finished'; } catch (_) { /* unreadable: list it anyway */ }
+    out.push({ title: d.name, file: f, finished, at: weekDate(d.name) ?? fs.statSync(f).mtimeMs });
+  }
+  out.sort((a, b) => b.at - a.at);
+  return { parent, weeks: out, suggested: out.length ? nextWeekName(out[0].title) : null };
+});
+ipcMain.handle('week:describe', (_e, file) => {
+  const m = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  let finished = false;
+  try { finished = JSON.parse(fs.readFileSync(path.join(path.dirname(path.resolve(file)), (m.halves || {}).worship || 'worship.json'), 'utf8')).mode === 'finished'; } catch (_) { /* no worship half */ }
+  return { title: m.title, file: path.resolve(file), finished };
+});
+ipcMain.handle('week:create', (_e, src, name, from) => {
+  const parent = path.dirname(path.dirname(path.resolve(src)));
+  const clean = String(name || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim();
+  if (!clean) throw new Error('Give the new week a name.');
+  return newWeekFrom(src, path.join(parent, clean), { roll: true, start: from });
+});
 
 ipcMain.handle('week:new-from', async (e, file) => {
   const win = BrowserWindow.fromWebContents(e.sender);
