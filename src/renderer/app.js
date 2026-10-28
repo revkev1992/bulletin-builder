@@ -332,20 +332,23 @@ document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-me
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); });
 
 
-// Publisher keeps the spot you are looking at in the middle of the window when you zoom
-function applyZoom() {
+// Publisher keeps the spot you are looking at in the middle of the window when you zoom; a pinch or
+// Ctrl+wheel keeps the spot under the pointer (at = a point on screen)
+function applyZoom(at) {
   const w = document.querySelector('.spreads');
   const stage = $('stage');
   const old = w ? Number(w.style.getPropertyValue('--zoom')) || zoom : zoom;
   // the stage's padding (wider on the left while the Shelf is shown) is not zoomed
   const cs = getComputedStyle(stage);
   const padL = parseFloat(cs.paddingLeft) || 0, padT = parseFloat(cs.paddingTop) || 0;
-  const cx = stage.scrollLeft + stage.clientWidth / 2 - padL, cy = stage.scrollTop + stage.clientHeight / 2 - padT;
+  const sr = stage.getBoundingClientRect();
+  const ax = at ? at.x - sr.left : stage.clientWidth / 2, ay = at ? at.y - sr.top : stage.clientHeight / 2;
+  const cx = stage.scrollLeft + ax - padL, cy = stage.scrollTop + ay - padT;
   if (w) w.style.setProperty('--zoom', zoom);
   if (w && old && old !== zoom) {
     const r = zoom / old;
-    stage.scrollLeft = cx * r + padL - stage.clientWidth / 2;
-    stage.scrollTop = cy * r + padT - stage.clientHeight / 2;
+    stage.scrollLeft = cx * r + padL - ax;
+    stage.scrollTop = cy * r + padT - ay;
   }
   $('zoom-label').textContent = Math.round(zoom * 100) + '%';
   if (window.__bbRulers) window.__bbRulers.update();
@@ -368,6 +371,25 @@ function zoomBy(factor) {
     zoom = Math.min(4, Math.max(0.2, zoom * factor));
   }
   applyZoom();
+}
+
+// Touchpad pinch and Ctrl+mouse wheel (Chromium sends both as a wheel event with ctrlKey): zoom
+// around the pointer. A mouse notch (100) is one Zoom In step; a pinch sends many small steps, so it
+// is smooth. Steps are gathered and applied once per frame.
+let wheelZoom = null;
+function onWheelZoom(e) {
+  if (!e.ctrlKey || !week) return;
+  e.preventDefault();
+  const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+  const f = Math.min(2, Math.max(0.5, Math.exp(-dy * Math.log(1.15) / 100)));
+  if (wheelZoom) { wheelZoom.f *= f; wheelZoom.at = { x: e.clientX, y: e.clientY }; return; }
+  wheelZoom = { f, at: { x: e.clientX, y: e.clientY } };
+  requestAnimationFrame(() => {
+    const { f: k, at } = wheelZoom;
+    wheelZoom = null;
+    const z = Math.min(4, Math.max(0.2, zoom * k));
+    if (z !== zoom) { zoom = z; applyZoom(at); }
+  });
 }
 
 async function open(file) {
@@ -855,6 +877,7 @@ if (PRINT) {
   $('zoom-fit').onclick = () => zoomBy(0);
   $('zoom-100').onclick = () => { if (week) { zoom = 1; applyZoom(); } };
   $('zoom-width').onclick = () => zoomBy(-1);
+  $('stage').addEventListener('wheel', onWheelZoom, { passive: false });
   $('show-boundaries').onchange = (e) => document.body.classList.toggle('show-boundaries', e.target.checked);
   $('show-nav').onchange = (e) => { $('nav').hidden = !e.target.checked; };
   $('rb-paste').onclick = () => editor.command('paste');

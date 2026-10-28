@@ -43,6 +43,11 @@ function makeHarness(win, outDir) {
       await wait(60);
     },
     async click(x, y, o = {}) { await h.move(x, y, o.mods); await h.down(x, y, o); await h.up(x, y, o); await wait(o.settle ?? 150); },
+    // a mouse-wheel notch (Electron: deltaY > 0 = wheel turned up/away); a touchpad pinch arrives as ctrl+wheel too
+    async wheel(x, y, deltaY, mods = [], settle = 60) {
+      wc.sendInputEvent({ type: 'mouseWheel', x: Math.round(x), y: Math.round(y), deltaX: 0, deltaY, modifiers: mods });
+      await wait(settle);
+    },
     async rightClick(x, y, o = {}) { await h.click(x, y, { ...o, button: 'right' }); },
     async dblclick(x, y, o = {}) {
       await h.move(x, y);
