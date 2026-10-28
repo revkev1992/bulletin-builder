@@ -547,7 +547,14 @@ export async function finishLayout(week, half) {
       const below = gen.some((f) => f !== last && !f.note && f.kind !== 'shape' && f.y >= last.y + last.h - 1);
       if (!below) last.h = Math.round((bottom - last.y) * 100) / 100;
     }
-    for (const f of gen) { delete f.generated; f.fromDraft = true; }
+    for (const f of gen) {
+      delete f.generated; f.fromDraft = true;
+      // text pushed on to this page goes around the notes and music instead of under them (as a
+      // Publisher picture does). Notes wrap square, just inside the gap their own lines already
+      // leave; music top-and-bottom. A hair inside each edge, so nothing moves at finishing.
+      if (f.note) f.wrap = { type: 'square', dist: [-0.5, 0, -0.5, NOTE.gap - 0.5] };
+      else if (f.kind === 'image') { f.wrap = { type: 'topBottom', dist: [-0.5, 0, -0.5, 0] }; f.z = Math.max(f.z || 0, 2); }
+    }
   }
   half.draft = { flow: half.flow, layout: half.layout, finishedAt: new Date().toISOString() };
   delete half.flow;

@@ -142,4 +142,30 @@ exports.run = async (h) => {
   await h.until(`window.__bbWeek().halves.worship.mode === 'finished'`, 8000);
   await h.wait(600);
   h.ok('Undo: finished again, with the typing', JSON.stringify(await pagesNow()).includes('ADDED LINE ONE'));
+
+  // delete a page: its text pours into the later pages, and must go AROUND their margin notes and
+  // music, not under them (batch-3 run 2026-10-28: 10-11 page 6 deleted → the sermon line ran under
+  // the "Lift Up Your Hearts" note)
+  const overlaps = () => h.js(`(() => { const w = window.__bbWeek().halves.worship; const ids = new Set();
+    for (const pg of Object.values(w.pages)) for (const f of pg.frames) if (f.note || f.kind === 'image') ids.add(f.id);
+    const hit = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+    const out = [];
+    for (const sh of document.querySelectorAll('.page-shell')) {
+      const obs = [...sh.querySelectorAll('.frame')].filter((e) => ids.has(e.dataset.id)).map((e) => e.getBoundingClientRect());
+      for (const p of sh.querySelectorAll('.frame[data-story] p.para')) {
+        const r = document.createRange(); r.selectNodeContents(p);
+        for (const line of r.getClientRects()) if (line.width > 2 && obs.some((o) => hit(line, o))) out.push(sh.dataset.page + ': ' + p.textContent.slice(0, 40));
+      }
+    } return [...new Set(out)]; })()`);
+  h.ok('finished pages: no text under a margin note or music', (await overlaps()).length === 0, { over: await overlaps() });
+  await h.clickSel('.rb-tab[data-tab="design"]');
+  await h.clickSel('#nav-pages .nav-page[data-page="6"]');
+  await h.wait(600);
+  await h.clickSel('#pg-delete');
+  await h.until(`!!document.querySelector('dialog.pub-dialog[open]')`, 2000);
+  await h.clickSel('dialog .pd-ok');
+  await h.wait(2000);
+  const over = await overlaps();
+  h.ok('…after deleting page 6, its text flows on around the notes and music', over.length === 0, { over });
+  await h.shot('page-deleted');
 };
