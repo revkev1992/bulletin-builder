@@ -277,11 +277,8 @@ export class Editor {
     }
     if (this.textEdit) {
       if (name === 'undo' || name === 'redo') {
-        // the typing first; with nothing typed to undo, the previous change (as in Publisher)
-        const host = this.app.shellOf(this.textEdit.n).querySelector('.frame[data-id="' + this.textEdit.id + '"]');
-        const was = host && host.innerHTML;
-        document.execCommand(name);
-        if (!host || host.innerHTML !== was || !(name === 'undo' ? this.undo : this.redo).length) return;
+        // the typing first, a word at a time; with nothing typed to undo, the previous change (as in Publisher)
+        if (this.typingStep(name) || !(name === 'undo' ? this.undo : this.redo).length) return;
       }
       await this.endTextEdit();
     }
@@ -957,7 +954,32 @@ export class Editor {
     flow.spellcheck = true;
     flow.addEventListener('paste', pastePlain);
     let t = null;
-    flow.addEventListener('input', () => {
+    // Undo while typing goes a word (or a burst) at a time, as in Publisher — the browser's own undo
+    // went a letter at a time. Each change starts a new step when: a new word begins after a space,
+    // typing turns to deleting (or back), the caret was moved, after a 2-second pause, or for
+    // anything else (Enter, paste, formatting). A step = the box as it was before it.
+    const snap = () => ({ html: flow.innerHTML, sel: selectionOffsets(flow) });
+    const hist = this.textEdit.hist = { undo: [], redo: [], state: snap(), kind: null, at: 0, afterSpace: false, caret: null, pre: null, flow, snap };
+    flow.addEventListener('beforeinput', (e) => {
+      if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); this.command(e.inputType === 'historyUndo' ? 'undo' : 'redo'); return; }
+      hist.pre = selectionOffsets(flow);
+    });
+    flow.addEventListener('input', (e) => {
+      const kind = e.inputType === 'insertText' ? 'type' : e.inputType.startsWith('delete') ? 'delete' : 'other';
+      const data = e.data || '';
+      const now = Date.now();
+      const moved = !!(hist.pre && hist.caret && (hist.pre.start !== hist.caret.start || hist.pre.end !== hist.caret.end));
+      if (!hist.kind || kind !== hist.kind || kind === 'other' || moved || now - hist.at > 2000 ||
+          (kind === 'type' && hist.afterSpace && !/^\s/.test(data))) {
+        hist.undo.push(hist.state);
+        hist.redo = [];
+      }
+      hist.state = snap();
+      hist.kind = kind;
+      hist.at = now;
+      hist.afterSpace = kind === 'type' && /\s$/.test(data);
+      hist.caret = hist.state.sel;
+      hist.pre = null;
       clearTimeout(t);
       t = setTimeout(() => { layoutTabs(el, this.week().manifest.defaultTabStop || 36); findOverflow(el); }, 250);
       this.setDirty(true);
@@ -975,6 +997,27 @@ export class Editor {
     }
     this.drawSelection();
     this.app.onTextMode(true);
+    return true;
+  }
+
+  // Undo / Redo one typing step in the box being typed in; false when there is none left that way
+  typingStep(name) {
+    const h = this.textEdit && this.textEdit.hist;
+    if (!h || !h.flow.isConnected) return false;
+    const from = name === 'undo' ? h.undo : h.redo;
+    if (!from.length) return false;
+    (name === 'undo' ? h.redo : h.undo).push(h.snap());
+    const s = from.pop();
+    h.flow.innerHTML = s.html;
+    h.flow.focus();
+    restoreOffsets(h.flow, s.sel);
+    h.state = h.snap();
+    h.kind = null;
+    h.caret = h.state.sel;
+    const el = h.flow.closest('.frame');
+    layoutTabs(el, this.week().manifest.defaultTabStop || 36);
+    findOverflow(el);
+    this.setDirty(true);
     return true;
   }
 

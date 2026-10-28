@@ -164,13 +164,34 @@ exports.run = async (h) => {
   await h.click(box3.cx, box3.y + 20);
   await h.key('End', ['control']);
   h.ok('Undo is clickable while typing', !(await h.disabled('#undo')));
-  await h.type('QZX');
+  // Undo while typing goes a word at a time, as in Publisher (it went a letter at a time)
+  const tail = async () => (await h.js(`document.querySelector('${BOX}').textContent`)).replace(/ /g, ' ').trimEnd().slice(-24);
+  await h.type(' QZALPHA QZBETA QZGAMMA');
   await h.clickSel('#undo');
   await h.wait(300);
-  const dom = await h.js(`document.querySelector('${BOX}').textContent`);
-  h.ok('…clicking it undoes the typing and you are still typing', !dom.includes('QZX') && dom.includes('QZ') && await ed('!!ed.textEdit'), { tail: dom.slice(-20) });
+  let tz = await tail();
+  h.ok('…clicking it undoes the last word, and you are still typing', tz.endsWith('QZALPHA QZBETA') && await ed('!!ed.textEdit'), { tz });
+  await h.clickSel('#undo');
+  await h.wait(300);
+  tz = await tail();
+  h.ok('…Undo again: the word before', tz.endsWith('QZALPHA') && !tz.includes('QZBETA'), { tz });
+  await h.clickSel('#redo');
+  await h.wait(300);
+  tz = await tail();
+  h.ok('…Redo brings that word back', tz.endsWith('QZALPHA QZBETA'), { tz });
+  // three Backspaces are one step
+  for (let k = 0; k < 3; k++) await h.key('Backspace', [], 40);
+  h.ok('three Backspaces (the space Undo left, then two letters)', (await tail()).endsWith('QZALPHA QZBE'), { t: await tail() });
+  await h.clickSel('#undo');
+  await h.wait(300);
+  h.ok('…one Undo puts all three letters back', (await tail()).endsWith('QZALPHA QZBETA'), { t: await tail() });
+  // typing straight after an Undo starts afresh (Redo has nothing left)
+  await h.type('X');
+  h.ok('…typing after it, Redo is spent', (await tail()).endsWith('QZBETA X') && (await h.js('window.__bbEditor.textEdit.hist.redo.length')) === 0);
+  await h.clickSel('#undo');
+  await h.wait(300);
   await h.key('Escape', [], 600);
-  h.ok('…the box keeps what is left', (await words()).includes('QZ') && !(await words()).includes('QZX'));
+  h.ok('…the box keeps what is left', (await words()).includes('QZALPHA QZBETA') && !(await words()).includes('QZBETA X'));
   // click back in, type nothing, Undo: the previous change (that typing) is undone, as in Publisher
   await h.click(box3.cx, box3.y + 20);
   await h.wait(200);
