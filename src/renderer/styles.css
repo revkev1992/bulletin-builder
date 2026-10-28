@@ -229,6 +229,9 @@ p.para {
   top: 0.1em;
 }
 .measuring p.para { top: 0; }
+/* an in-line picture (render.js paragraphEl): no text, so no Publisher text nudge; sits exactly where the layout put it */
+p.para.pic-para { top: 0; }
+.inline-pic { user-select: none; pointer-events: none; }
 .tab { display: inline-block; height: 1px; }
 .tab.leader-dot { border-bottom: 1.2pt dotted currentColor; }
 .tab.leader-dash { border-bottom: 1pt dashed currentColor; }

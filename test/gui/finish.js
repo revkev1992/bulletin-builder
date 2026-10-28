@@ -21,6 +21,13 @@ exports.run = async (h) => {
   await h.wait(800);
   h.ok('Finish Layout enabled for a drafted week; Back to Draft greyed', !(await h.disabled('#rb-finish')) && (await h.disabled('#rb-draft')));
   const before = await pagesNow();
+  // where the music is: picture boxes now, in-line pictures after finishing (page + rectangle, to the pixel)
+  const musicAt = () => h.js(`(() => { const w = window.__bbWeek(); const first = w.manifest.pages.filter((p) => p.half === 'worship')[0].number; const out = [];
+    for (const p of w.manifest.pages.filter((p) => p.half === 'worship' && p.number !== first)) {
+      const sh = document.querySelector('.page-shell[data-page="' + p.number + '"] .page');
+      for (const e of sh.querySelectorAll('.frame-image, img.inline-pic')) { const r = e.getBoundingClientRect(), o = sh.getBoundingClientRect(); out.push([p.number, (r.left - o.left).toFixed(1), (r.top - o.top).toFixed(1), r.width.toFixed(1), r.height.toFixed(1)].join(',')); } }
+    return out.sort(); })()`);
+  const music0 = await musicAt();
 
   await h.clickSel('#rb-finish');
   h.ok('Finish Layout asks first', await h.until(`!!document.querySelector('dialog.pub-dialog[open]')`, 2000));
@@ -39,6 +46,10 @@ exports.run = async (h) => {
   const after = await pagesNow();
   h.ok('the pages read exactly the same after finishing', JSON.stringify(after) === JSON.stringify(before),
     { diff: Object.keys(before).filter((n) => JSON.stringify(before[n]) !== JSON.stringify(after[n])) });
+  const music1 = await musicAt();
+  const inl = await h.js(`document.querySelectorAll('#stage img.inline-pic').length`);
+  h.ok('the music is in the text now (in-line pictures), each exactly where it was', inl > 0 && inl === music0.length && JSON.stringify(music1) === JSON.stringify(music0),
+    { inl, n0: music0.length, diff: music0.filter((x, i) => x !== music1[i]).slice(0, 4), now: music1.slice(0, 4) });
   await h.shot('finished');
 
   // the text of the whole story (to prove nothing is lost when text flows on)
@@ -117,6 +128,18 @@ exports.run = async (h) => {
     { t0: t0.length, t1: t1.length, at: i, around: JSON.stringify(t1.slice(t1.indexOf('ADDED') - 10, t1.indexOf('ADDED') + 90)) });
   const lastOver = await h.js(`document.querySelectorAll('#stage .frame[data-story].overflow').length`);
   h.ok('…and the story still fits (nothing left over at the end)', lastOver === 0, { lastOver });
+  // the music went along with its text: every in-line picture is still below the line before it
+  // (batch-3 run 2026-10-28: the psalm music stayed put and PSALTER ended up under it)
+  const musicOrder = await h.js(`(() => { const boxes = [...document.querySelectorAll('#stage .frame[data-story]')]
+      .sort((a, b) => Number(a.dataset.story.split('#')[1]) - Number(b.dataset.story.split('#')[1]));
+    const ps = []; for (const b of boxes) for (const p of b.querySelectorAll('p.para')) ps.push({ p, page: Number(b.closest('[data-page]').dataset.page) });
+    const bad = []; let n = 0;
+    ps.forEach((x, i) => { if (!x.p.querySelector('img.inline-pic')) return; n++;
+      let j = i - 1; while (j >= 0 && !ps[j].p.textContent.trim()) j--; if (j < 0) return;
+      const a = ps[j].p.getBoundingClientRect(), b = x.p.querySelector('img.inline-pic').getBoundingClientRect();
+      if (!(ps[j].page < x.page || (ps[j].page === x.page && a.bottom <= b.top + 1))) bad.push(x.page + ': under "' + ps[j].p.textContent.slice(0, 30) + '"'); });
+    return { n, bad }; })()`);
+  h.ok('…and the music moved with its text: each picture still follows the line before it', musicOrder.n > 0 && musicOrder.bad.length === 0, musicOrder);
   const badJust = await h.js(`(() => { const out = []; for (const [n, pg] of Object.entries(window.__bbWeek().halves.worship.pages)) for (const f of pg.frames)
     if (f.text) for (const p of f.text.paragraphs) if (p.justifyLast && !p.continues) out.push(n + ': ' + p.runs.map((r) => r.text).join('').slice(0, 40)); return out; })()`);
   h.ok('only a paragraph cut at a box edge stretches its last line (no stretched real last lines)', badJust.length === 0, { badJust });
@@ -151,8 +174,10 @@ exports.run = async (h) => {
     const hit = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
     const out = [];
     for (const sh of document.querySelectorAll('.page-shell')) {
-      const obs = [...sh.querySelectorAll('.frame')].filter((e) => ids.has(e.dataset.id)).map((e) => e.getBoundingClientRect());
+      const pics = [...sh.querySelectorAll('img.inline-pic')];
+      const obs0 = [...sh.querySelectorAll('.frame')].filter((e) => ids.has(e.dataset.id)).map((e) => e.getBoundingClientRect());
       for (const p of sh.querySelectorAll('.frame[data-story] p.para')) {
+        const obs = [...obs0, ...pics.filter((i) => !p.contains(i)).map((i) => i.getBoundingClientRect())];
         const r = document.createRange(); r.selectNodeContents(p);
         for (const line of r.getClientRects()) if (line.width > 2 && obs.some((o) => hit(line, o))) out.push(sh.dataset.page + ': ' + p.textContent.slice(0, 40));
       }

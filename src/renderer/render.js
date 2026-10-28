@@ -118,6 +118,9 @@ function extraLeading(para) {
   return (m - 1) * lineRatio(mark.font || 'Palatino Linotype') * Math.max(...sizes);
 }
 
+// the week whose pictures are being drawn (renderPage sets it; an in-line picture needs it to find its file)
+let pictureBase = '';
+
 export function paragraphEl(para, frameId) {
   const p = el('p', 'para');
   const s = p.style;
@@ -140,6 +143,24 @@ export function paragraphEl(para, frameId) {
   // paragraph settings (everything but the text) ride along so the editor can read them back
   const { runs: _runs, ...props } = para;
   p.dataset.para = JSON.stringify(props);
+
+  // an in-line picture (hymn / psalm music on finished worship pages): it travels with the text, as
+  // Publisher's in-line pictures do. A block of its own, exactly w × h, with the gap above / below it
+  // as padding (padding never collapses, so the layout's spacing is kept to the point)
+  const pic = para.picture;
+  if (pic) {
+    p.classList.add('pic-para');
+    if (pic.before) s.paddingTop = pt(pic.before);
+    if (pic.after) s.paddingBottom = pt(pic.after);
+    const al = para.align || 'center';
+    const img = el('img', 'inline-pic', { display: 'block', width: pt(pic.w), height: pt(pic.h),
+      marginLeft: al === 'left' ? '0' : 'auto', marginRight: al === 'right' ? '0' : 'auto' });
+    img.src = pictureBase ? new URL(pic.asset, pictureBase).href : pic.asset;
+    img.draggable = false;
+    img.contentEditable = 'false';
+    img.dataset.asset = pic.asset;
+    p.appendChild(img);
+  }
 
   let seg = null; // text after a tab lives in a .seg so right/centre tabs can measure it
   const target = () => seg || p;
@@ -166,7 +187,7 @@ export function paragraphEl(para, frameId) {
   }
   // an empty line needs real width: a zero-width character would let blank lines tuck in beside
   // a full-width wrapped picture, where Publisher pushes them below it
-  if (!p.textContent) p.appendChild(document.createTextNode(' '));
+  if (!p.textContent && !pic) p.appendChild(document.createTextNode(' '));
   // manual breaks (Ctrl+Enter / Ctrl+Shift+Enter): an invisible marker, shown with ¶ or while typing
   const brk = para.runs.some((r) => r.text.includes('\u000c')) ? 'frame' : para.columnBreak ? 'column' : null;
   if (brk) {
@@ -341,6 +362,7 @@ function applyWrap(textFrame, area, obstacles) {
 }
 
 export function renderPage(week, n) {
+  pictureBase = week.baseUrl;
   const { width, height } = week.manifest.page;
   const { half, page } = pageContent(week, n);
   const pg = el('div', 'page', { width: pt(width), height: pt(height) });

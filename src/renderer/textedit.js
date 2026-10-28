@@ -102,6 +102,8 @@ function readParagraph(p, base) {
     else runs.push({ text: '\u000c', ...(lastProps || { font: (base.mark || {}).font || 'Palatino Linotype', size: (base.mark || {}).size || 11 }) });
   }
   const para = { ...base, runs };
+  // an in-line picture is kept while its picture is there (deleting it like a letter removes it)
+  if (para.picture && !p.querySelector('img.inline-pic')) delete para.picture;
   delete para.columnBreak;
   delete para.boxEnd;
   if (brk === 'frame' && boxEnd) para.boxEnd = boxEnd;

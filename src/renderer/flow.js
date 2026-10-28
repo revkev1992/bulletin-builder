@@ -530,6 +530,7 @@ export async function finishLayout(week, half) {
     if (!pg) continue;
     const gen = pg.frames.filter((f) => f.generated);
     const texts = n === pages[0] ? [] : gen.filter((f) => f.kind === 'text' && !f.note).sort((a, b) => a.y - b.y);
+    if (texts.length) inlinePictures(pg, gen, texts);
     for (const t of texts) {
       t.text.chain = { story, index: index++ };
       for (const p of t.text.paragraphs) { if (p.splitHead) p.continues = true; delete p.splitHead; }
@@ -561,6 +562,45 @@ export async function finishLayout(week, half) {
   delete half.layout;
   half.mode = 'finished';
   return { story, boxes: index };
+}
+
+// Finish Layout: each picture between a page's text boxes (hymn / psalm music) becomes an in-line
+// picture in the story, so it travels with its heading when typing pushes text on (Kevin 2026-10-28).
+// It joins the box above it (that box grows down over it), or — above the page's first box — the box
+// below (which grows up). The gaps are kept as the picture's padding, so nothing moves at finishing:
+// a box's text starts where the box does, and the layout put each picture right after its box's text.
+function inlinePictures(pg, gen, texts) {
+  const pics = gen.filter((f) => f.kind === 'image' && f.image && f.image.asset).sort((a, b) => a.y - b.y);
+  const contentBottom = new Map(texts.map((t) => [t, t.y + t.h - 1.5]));   // layout frames are text + 1.5pt
+  const picPara = (f, before) => {
+    const pic = { asset: f.image.asset, w: f.w, h: f.h };
+    if (before > 0.01) pic.before = Math.round(before * 100) / 100;
+    return { runs: [], picture: pic, align: 'center', block: f.block };
+  };
+  const gone = new Set();
+  let waiting = [];                                      // pictures above the first box
+  for (const f of [...texts, ...pics].sort((a, b) => a.y - b.y || (a.kind === 'text' ? 1 : -1))) {
+    if (f.kind === 'image') {
+      const above = texts.filter((t) => t.y < f.y).pop();
+      if (!above) { waiting.push(f); continue; }
+      const bottom = contentBottom.get(above);
+      above.text.paragraphs.push(picPara(f, f.y - bottom));
+      above.h = Math.round((f.y + f.h + 1.5 - above.y) * 100) / 100;
+      contentBottom.set(above, f.y + f.h);
+      gone.add(f);
+    } else if (waiting.length) {
+      const top = waiting[0].y;
+      let y = top;
+      const head = waiting.map((w) => { const p = picPara(w, w.y - y); y = w.y + w.h; gone.add(w); return p; });
+      if (f.y - y > 0.01) head[head.length - 1].picture.after = Math.round((f.y - y) * 100) / 100;
+      f.text.paragraphs.unshift(...head);
+      f.h = Math.round((f.y + f.h - top) * 100) / 100;
+      f.y = top;
+      waiting = [];
+    }
+  }
+  pg.frames = pg.frames.filter((f) => !gone.has(f));
+  gen.splice(0, gen.length, ...gen.filter((f) => !gone.has(f)));
 }
 
 // Bulletin ▸ Back to Draft: the order of worship lays the pages out again from the kept draft
