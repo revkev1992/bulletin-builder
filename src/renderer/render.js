@@ -118,7 +118,7 @@ function extraLeading(para) {
   return (m - 1) * lineRatio(mark.font || 'Palatino Linotype') * Math.max(...sizes);
 }
 
-export function paragraphEl(para) {
+export function paragraphEl(para, frameId) {
   const p = el('p', 'para');
   const s = p.style;
   s.textAlign = para.align || 'left';
@@ -174,6 +174,11 @@ export function paragraphEl(para) {
     const m = el('span', 'brk brk-' + brk);
     m.contentEditable = 'false';
     m.dataset.label = brk === 'frame' ? 'Text Box Break' : 'Column Break';
+    // a page-end break pushed out of its own box is kept (editing keeps it) but not shown there
+    if (brk === 'frame' && para.boxEnd) {
+      m.dataset.box = para.boxEnd;
+      if (frameId && frameId !== para.boxEnd) m.classList.add('brk-inert');
+    }
     p.appendChild(m);
   }
   return p;
@@ -196,7 +201,7 @@ function textFrame(f, box) {
   }
   if (t.chain) box.dataset.story = t.chain.story + '#' + t.chain.index;
   const flow = el('div', 'flow');
-  for (const para of t.paragraphs) flow.appendChild(paragraphEl(para));
+  for (const para of t.paragraphs) flow.appendChild(paragraphEl(para, f.id));
   area.appendChild(flow);
   box.appendChild(area);
 }

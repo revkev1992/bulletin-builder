@@ -414,11 +414,16 @@ body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { v
 
 /* manual breaks: invisible in print; shown with Home ▸ ¶ or while typing in that box */
 .brk { display: none; }
+/* the label takes no room, so showing it (¶, or typing in the box) never re-wraps a line */
 .screen.show-marks .brk, .frame.editing .brk {
-  display: inline-block; vertical-align: baseline; margin-left: 4px; padding: 0 3px; height: 1em; line-height: 1em;
-  font: 7pt 'Segoe UI', sans-serif; color: #2b7de9; border-top: 1px dashed #2b7de9; user-select: none;
+  display: inline-block; vertical-align: baseline; width: 0; height: 1em; line-height: 1em; overflow: visible;
+  position: relative; white-space: nowrap; font: 7pt 'Segoe UI', sans-serif; color: #2b7de9; user-select: none;
 }
-.screen.show-marks .brk::after, .frame.editing .brk::after { content: attr(data-label); }
+/* just under the end of the line, reaching left, so a full-width line can't push it out of the box */
+.screen.show-marks .brk::after, .frame.editing .brk::after {
+  content: attr(data-label); position: absolute; top: 1.15em; right: 0; padding: 0 3px; border-top: 1px dashed #2b7de9;
+}
+.brk.brk-inert, .measuring .brk { display: none !important; }
 
 /* Home ▸ Editing ▸ Find / Replace: Publisher's task pane on the right */
 #findpane { width: 250px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; }

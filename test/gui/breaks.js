@@ -41,7 +41,7 @@ exports.run = async (h) => {
   await h.key('Escape');
   await h.clickSel('.rb-tab[data-tab="home"]');
   await h.clickSel('#rb-marks');
-  h.ok('¶ shows the "Text Box Break" marker on page 10', await h.js(`(() => { const m = document.querySelector('.page-shell[data-page="10"] .brk-frame'); return !!m && m.getBoundingClientRect().width > 0; })()`));
+  h.ok('¶ shows the "Text Box Break" marker on page 10', await h.js(`(() => { const m = document.querySelector('.page-shell[data-page="10"] .brk-frame'); return !!m && m.getBoundingClientRect().height > 0; })()`));
   await h.js(`document.querySelector('.page-shell[data-page="10"]').scrollIntoView({ block: 'start' })`);
   await h.wait(300);
   await h.shot('marks-on');
@@ -62,6 +62,16 @@ exports.run = async (h) => {
   await h.key('Backspace', [], 300);
   await h.key('Escape', [], 900);
   h.ok('Backspace after the marker removes the break; text flows back', !(await hasFF(10, A)) && (await paras(10, A)).some((t) => t.trim().startsWith(first)));
+
+  // Delete at the end of the line (End, then Delete) removes it too (batch-3 run 2026-10-27: it did nothing)
+  await h.clickSel('#undo'); await h.wait(700);
+  const mk2 = await h.rect('.page-shell[data-page="10"] .frame[data-id="f502"] .brk-frame');
+  await h.click(mk2.x - 2, mk2.cy);
+  await h.key('End');
+  await h.key('Delete', [], 1000);
+  h.ok('End, Delete removes the break; text flows back', !(await hasFF(10, A)) && (await paras(10, A)).some((t) => t.trim().startsWith(first)));
+  h.ok('…and you are still typing in the page-10 box', await ed(`ed.textEdit && ed.textEdit.id === '${A}'`));
+  await h.key('Escape', [], 600);
 
   // put it back, then remove it from the other side: Backspace at the very start of the page-11 box
   await h.clickSel('#undo'); await h.wait(700);

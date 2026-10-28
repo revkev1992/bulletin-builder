@@ -993,6 +993,29 @@ export class Editor {
     if (this.beginTextEdit(prev.n, prev.frame.id)) restoreOffsets(this.editingFlow(), { start: prevLen, end: prevLen });
   }
 
+  // Delete at the end of a paragraph that ends in a break (caret before or after the marker — End puts
+  // it after) deletes the break, as in Publisher
+  breakAtCaret() {
+    const sel = getSelection();
+    const flow = this.editingFlow();
+    if (!flow || !sel.rangeCount || !sel.isCollapsed) return null;
+    let p = sel.anchorNode;
+    while (p && !(p.tagName === 'P' && p.parentElement === flow)) p = p.parentNode;
+    const m = p && p.querySelector('.brk');
+    if (!m) return null;
+    const r = document.createRange();
+    r.setStart(sel.anchorNode, sel.anchorOffset);
+    r.setEnd(p, p.childNodes.length);
+    return r.toString().replace(/[​\s]/g, '').length ? null : m;
+  }
+  async removeBreakAtCaret(m) {
+    const t = this.textEdit;
+    const where = selectionOffsets(this.editingFlow());
+    m.remove();
+    await this.endTextEdit();          // the story pours again without the break
+    if (this.beginTextEdit(t.n, t.id)) restoreOffsets(this.editingFlow(), where);
+  }
+
   // a box-level change while typing (Columns…): commit the typing, run fn, then carry on typing
   // with the same text selected — Publisher never throws you out of the text box for these
   async pauseTextEdit(fn) {
@@ -1053,6 +1076,7 @@ export class Editor {
       if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); this.format('retab'); return; }
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.insertBreak(e.shiftKey ? 'column' : 'frame'); return; }
       if (e.key === 'Backspace' && !e.ctrlKey && this.atStoryBoxStart()) { e.preventDefault(); this.removeBreakBefore(); return; }
+      if (e.key === 'Delete' && !e.ctrlKey) { const m = this.breakAtCaret(); if (m) { e.preventDefault(); this.removeBreakAtCaret(m); return; } }
     }
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;

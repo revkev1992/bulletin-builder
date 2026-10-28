@@ -65,12 +65,13 @@ function readParagraph(p, base) {
   };
   const nodes = [];
   let brk = null;                    // a manual break marker at the end of the paragraph
+  let boxEnd = null;                 // …a page-end break from Finish Layout: the box it belongs to
   const walk = (n) => {
     for (const c of n.childNodes) {
       if (c.nodeType === 3) nodes.push(c);
       else if (c.nodeType === 1) {
         if (c.classList.contains('tab')) nodes.push({ tab: c });
-        else if (c.classList.contains('brk')) brk = c.classList.contains('brk-frame') ? 'frame' : 'column';
+        else if (c.classList.contains('brk')) { brk = c.classList.contains('brk-frame') ? 'frame' : 'column'; boxEnd = c.dataset.box || null; }
         else if (c.tagName === 'BR') { if (!c.classList.contains('tab-break')) nodes.push({ br: c }); }
         else walk(c);
       }
@@ -102,6 +103,8 @@ function readParagraph(p, base) {
   }
   const para = { ...base, runs };
   delete para.columnBreak;
+  delete para.boxEnd;
+  if (brk === 'frame' && boxEnd) para.boxEnd = boxEnd;
   if (brk === 'column') para.columnBreak = true;
   if (p.style.textAlign) para.align = p.style.textAlign;
   const last = runs[runs.length - 1];
@@ -124,6 +127,8 @@ export function serializeFlow(flow) {
   }
   // "continues" only means something on the last paragraph of a frame
   out.forEach((p, i) => { if (i < out.length - 1) delete p.continues; });
+  // …and so does stretching the last line (Enter inside a cut paragraph must not stretch the new line)
+  out.forEach((p) => { if (!p.continues) delete p.justifyLast; });
   return out;
 }
 
@@ -498,7 +503,7 @@ function rebuildParas(flow, ps, fn) {
   const els = ps.map((p, i) => {
     let props = {};
     try { props = JSON.parse(p.dataset.para || '{}'); } catch (_) { /* keep defaults */ }
-    const el = paragraphEl(fn(readParagraph(p, props), i, ps.length));
+    const el = paragraphEl(fn(readParagraph(p, props), i, ps.length), (flow.closest('.frame') || { dataset: {} }).dataset.id);
     p.replaceWith(el);
     return el;
   });
@@ -584,9 +589,11 @@ export function joinStory(frames) {
 }
 
 const hasBreak = (p) => p.runs.some((r) => r.text.includes('\u000c'));
+// a break typed by hand always ends the box; a page-end break from Finish Layout (boxEnd) only its own box
+const breaksHere = (p, boxId) => hasBreak(p) && (!p.boxEnd || p.boxEnd === boxId);
 
 // Pour `paras` into one frame's text area. Returns { taken, rest }.
-function fitInto(area, paras, defaultTab) {
+function fitInto(area, paras, defaultTab, boxId) {
   const flow = area.querySelector('.flow');
   for (const c of [...flow.children]) if (!c.classList.contains('wrap-float')) c.remove();
   const root = area.closest('.frame') || area;
@@ -606,7 +613,7 @@ function fitInto(area, paras, defaultTab) {
     flow.appendChild(el);
     if (fits()) {
       taken.push(paras[i]);
-      if (hasBreak(paras[i])) { i++; break; }
+      if (breaksHere(paras[i], boxId)) { i++; break; }
       continue;
     }
     // doesn't fit whole: find the longest head that does, cut at a space
@@ -644,7 +651,7 @@ export function reflowStory(frames, areaOf, defaultTab = 36) {
     if (k === frames.length - 1) { x.frame.text.paragraphs = rest; rest = []; return; }
     const area = areaOf(x);
     if (!area) { x.frame.text.paragraphs = []; return; }
-    const r = fitInto(area, rest, defaultTab);
+    const r = fitInto(area, rest, defaultTab, x.frame.id);
     x.frame.text.paragraphs = r.taken;
     rest = r.rest;
   });

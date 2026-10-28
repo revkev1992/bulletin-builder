@@ -540,6 +540,9 @@ export async function finishLayout(week, half) {
       if (lp && !lp.continues) {
         if (lp.runs.length) lp.runs[lp.runs.length - 1].text += '\u000c';
         else lp.runs.push({ text: '\u000c', font: (lp.mark || {}).font || 'Palatino Linotype', size: (lp.mark || {}).size || 11 });
+        // a page-end break holds the page together only in ITS box: when typing pushes this paragraph
+        // on to the next page the break stays quiet there, so one extra line moves one line, not a page
+        lp.boxEnd = last.id;
       }
       const below = gen.some((f) => f !== last && !f.note && f.kind !== 'shape' && f.y >= last.y + last.h - 1);
       if (!below) last.h = Math.round((bottom - last.y) * 100) / 100;

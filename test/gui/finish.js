@@ -72,6 +72,39 @@ exports.run = async (h) => {
   h.ok('…and no other page moved: the page breaks hold', moved.length === 0, { moved });
   await h.shot('typed-roomy-page');
 
+  // with ¶ on, typing on one page must not move the next (the break label used to take room and
+  // re-wrap a full page's last line)
+  await h.clickSel('.rb-tab[data-tab="home"]');
+  await h.clickSel('#rb-marks');
+  const m0 = await pagesNow();
+  await clickInto(2);
+  await h.type('Z');
+  await h.key('Backspace');
+  await h.key('Escape', [], 1500);
+  const m1 = await pagesNow();
+  h.ok('with ¶ showing, an edit leaves every page as it was', JSON.stringify(m0) === JSON.stringify(m1),
+    { diff: Object.keys(m0).filter((n) => JSON.stringify(m0[n]) !== JSON.stringify(m1[n])) });
+  await h.shot('marks-on');
+  await h.clickSel('#rb-marks');
+
+
+  // a NEW paragraph on full page 5 (it ends with a whole paragraph + its page-end break): the page-end break must not travel
+  // with the pushed text — one line pushed on must not empty a later page (batch-3 run 2026-10-27:
+  // page 6 went nearly blank and page 7 overflowed)
+  const perPage = () => h.js(`(() => { const out = {}; for (const sh of document.querySelectorAll('.page-shell')) {
+      out[sh.dataset.page] = [...sh.querySelectorAll('.frame[data-story] p.para')].map((p) => p.textContent).join('').length; } return out; })()`);
+  const overNow = () => h.js(`document.querySelectorAll('#stage .frame[data-story].overflow').length`);
+  const c0 = await perPage();
+  await clickInto(5);
+  await h.type('EXTRA LINE THREE.');
+  await h.key('Enter');
+  await h.key('Escape', [], 2000);
+  const c1 = await perPage();
+  const emptied = Object.keys(c0).filter((n) => Number(n) > 5 && c0[n] > 300 && c1[n] < c0[n] * 0.6);
+  h.ok('a new line on a full page pushes text on a line at a time — no later page empties', emptied.length === 0, { emptied, c0, c1 });
+  h.ok('…and the story still fits', (await overNow()) === 0, { over: await overNow() });
+  await h.shot('new-line-on-full-page');
+
   // a full page (3): extra text flows on into the next pages, as in Publisher — and nothing is lost
   const t0 = await storyText();
   await clickInto(3);
