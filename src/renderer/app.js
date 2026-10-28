@@ -1,4 +1,4 @@
-import { renderPage, renderPasteboard, layoutTabs, layoutWraps, findOverflow, fontsUsed, missingFonts } from './render.js';
+import { renderPage, layoutTabs, layoutWraps, findOverflow, fontsUsed, missingFonts } from './render.js';
 import { Editor } from './editor.js';
 import { isFlow, layoutFlow, flowHash, isFinished } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
@@ -10,6 +10,7 @@ import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
 import { FindPane } from './findreplace.js';
 import { PAPER, buildSheets, describe as describePaper } from './impose.js';
+import { Scratch } from './scratch.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -20,7 +21,7 @@ let week = null;
 window.__bbWeek = () => week;   // debug aid (--eval)
 let weekFile = null;
 let zoom = 1;
-let showingPasteboard = false;
+let scratch = null;            // the Shelf + View ▸ Scratch Area (scratch.js)
 const shells = new Map(); // page number -> .page-shell element
 let editor = null;
 
@@ -106,8 +107,6 @@ async function showSpreads() {
   const stage = $('stage');
   stage.innerHTML = '';
   shells.clear();
-  showingPasteboard = false;
-  $('pasteboard-btn').checked = false;
   const { width, height } = week.manifest.page;
   const numbers = week.manifest.pages.map((p) => p.number);
   const wrap = document.createElement('div');
@@ -167,6 +166,7 @@ async function showSpreads() {
   baseStatus = bits.join(' · ');
   refreshStatusCounts();
   if (editor) editor.drawSelection();
+  if (scratch) scratch.render(true);
 }
 
 // ---------------------------------------------------------------- Pages pane (thumbnails + right-click)
@@ -331,67 +331,25 @@ async function pageContextMenu(e) {
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); });
 
-async function showPasteboard() {
-  const stage = $('stage');
-  const half = editor && editor.half;
-  const target = half && editor.targetPage();
-  stage.innerHTML = '<h3 class="pasteboard-title">Pasteboard — parked items (never printed)' +
-    (half ? ' · <b>Place</b> puts an item in the middle of page ' + (target ?? '—') + ' (the page you last clicked)' : ' · choose Edit to place items') + '</h3>';
-  shells.clear();
-  const wrap = document.createElement('div');
-  wrap.className = 'spreads pb-cards';
-  let count = 0;
-  for (const [h, body] of Object.entries(week.halves)) {
-    for (const f of body.pasteboard || []) {
-      count++;
-      const card = document.createElement('div');
-      card.className = 'pb-card';
-      const mini = renderPasteboard({ ...week, halves: { [h]: { pages: {}, pasteboard: [f] } } });
-      const scale = Math.min(1, 180 / Math.max(f.w, f.h, 1));
-      mini.style.transform = 'scale(' + scale + ')';
-      mini.style.transformOrigin = 'top left';
-      const box = document.createElement('div');
-      box.className = 'pb-thumb';
-      box.style.width = (f.w + 72) * scale + 'pt';
-      box.style.height = (f.h + 72) * scale + 'pt';
-      box.appendChild(mini);
-      card.appendChild(box);
-      const label = document.createElement('div');
-      label.className = 'pb-label';
-      label.textContent = (f.source && f.source.name) || f.kind;
-      card.appendChild(label);
-      if (half === h) {
-        const b = document.createElement('button');
-        b.textContent = 'Place on page ' + (target ?? '—');
-        b.disabled = target == null;
-        b.onclick = async () => { await showSpreads(); await editor.placeFromPasteboard(f.id, target); };
-        card.appendChild(b);
-      }
-      wrap.appendChild(card);
-    }
-  }
-  if (!count) wrap.textContent = 'The pasteboard is empty.';
-  stage.appendChild(wrap);
-  await settle(wrap);
-  showingPasteboard = true;
-  $('pasteboard-btn').checked = true;
-}
 
 // Publisher keeps the spot you are looking at in the middle of the window when you zoom
 function applyZoom() {
   const w = document.querySelector('.spreads');
   const stage = $('stage');
   const old = w ? Number(w.style.getPropertyValue('--zoom')) || zoom : zoom;
-  const pad = 32;
-  const cx = stage.scrollLeft + stage.clientWidth / 2 - pad, cy = stage.scrollTop + stage.clientHeight / 2 - pad;
+  // the stage's padding (wider on the left while the Shelf is shown) is not zoomed
+  const cs = getComputedStyle(stage);
+  const padL = parseFloat(cs.paddingLeft) || 0, padT = parseFloat(cs.paddingTop) || 0;
+  const cx = stage.scrollLeft + stage.clientWidth / 2 - padL, cy = stage.scrollTop + stage.clientHeight / 2 - padT;
   if (w) w.style.setProperty('--zoom', zoom);
   if (w && old && old !== zoom) {
     const r = zoom / old;
-    stage.scrollLeft = cx * r + pad - stage.clientWidth / 2;
-    stage.scrollTop = cy * r + pad - stage.clientHeight / 2;
+    stage.scrollLeft = cx * r + padL - stage.clientWidth / 2;
+    stage.scrollTop = cy * r + padT - stage.clientHeight / 2;
   }
   $('zoom-label').textContent = Math.round(zoom * 100) + '%';
   if (window.__bbRulers) window.__bbRulers.update();
+  if (scratch) scratch.render();
 }
 
 function zoomBy(factor) {
@@ -451,6 +409,7 @@ async function ensureLayout() {
 // ---------------------------------------------------------------- toolbar state
 const IN = 72;
 function updateToolbar() {
+  if (scratch) scratch.render();
   const half = editor && editor.half;
   $('mode').value = half || '';
   $('badge').textContent = half ? 'Editing ' + half : (week ? 'View only' : 'No week open');
@@ -790,6 +749,11 @@ if (PRINT) {
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && painter) { stopPaint(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
+  scratch = new Scratch({ week: () => week, editor: () => editor, zoom: () => zoom, settle: (root) => (week ? settle(root) : null), setStatus, onLayout: () => { if (week) applyZoom(); } });
+  $('pasteboard-btn').checked = scratch.showFree;
+  $('shelf-btn').checked = scratch.showShelf;
+  editor.app.scratch = scratch;
+  window.__bbScratch = scratch;
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();
   const find = new FindPane(editor, { $ });
   window.__bbFind = find;
@@ -913,7 +877,8 @@ if (PRINT) {
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
-  $('pasteboard-btn').onchange = () => { if (!week) { $('pasteboard-btn').checked = false; return; } if (showingPasteboard) showSpreads(); else showPasteboard(); };
+  $('pasteboard-btn').onchange = (e) => scratch.set('free', e.target.checked);
+  $('shelf-btn').onchange = (e) => scratch.set('shelf', e.target.checked);
   $('mode').onchange = async (e) => {
     const v = e.target.value;
     const ok = v ? await editor.claim(v) : (await editor.release(), true);

@@ -539,22 +539,68 @@ export class Editor {
     return this.addFrame(n, c);
   }
 
-  toPasteboard() {
+  // Bulletin ▸ Park (the shelf), or a drag off the page (scratch.js destFor: { shelf: true } or { fx, fy })
+  toPasteboard(dest = { shelf: true }) {
     const f = this.frame();
     if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return;
     const n = this.sel.page;
     this.sel = null;
+    this.multi = [];
+    const pb = (this.week().halves[this.half].pasteboard ||= []);
+    const c = structuredClone(f);
+    Editor.each(c, (g) => { if (g.text) delete g.text.chain; });
+    delete c.shelf; delete c.fx; delete c.fy;
+    Object.assign(c, dest);
     return this.commit([n], () => {
       const pg = this.pageEntry(n);
       pg.frames = pg.frames.filter((x) => x.id !== f.id);
-      const c = structuredClone(f);
-      Editor.each(c, (g) => { if (g.text) delete g.text.chain; });
-      (this.week().halves[this.half].pasteboard ||= []).push(c);
-    }).then(() => this.app.setStatus('Moved to the pasteboard (Pasteboard button to see it).'));
+      pb.push(c);
+    }).then(() => this.app.setStatus(dest.shelf ? 'Put on the shelf (never printed). Drag it onto any page to use it.' : 'Parked in the scratch area (never printed).'));
   }
 
-  // place a pasteboard item on a page, centred, keeping its size
-  placeFromPasteboard(id, n) {
+  // the page under a point on screen (its .page rectangle), or null over the grey
+  pageAt(x, y) {
+    for (const n of this.app.pageNumbers()) {
+      const pg = this.app.shellOf(n) && this.app.shellOf(n).querySelector('.page');
+      if (!pg) continue;
+      const r = pg.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return { n, r };
+    }
+    return null;
+  }
+
+  moveInScratch(id, dest) {
+    const f = (this.week().halves[this.half].pasteboard || []).find((g) => g.id === id);
+    if (!f) return Promise.resolve();
+    return this.commit([], () => { delete f.shelf; delete f.fx; delete f.fy; Object.assign(f, dest); });
+  }
+
+  deleteFromScratch(id) {
+    const pb = this.week().halves[this.half].pasteboard || [];
+    const i = pb.findIndex((g) => g.id === id);
+    if (i < 0) return Promise.resolve();
+    return this.commit([], () => { pb.splice(i, 1); }).then(() => this.app.setStatus('Parked item deleted.'));
+  }
+
+  // a page object dragged to the facing page: it moves there (Publisher's two-page spread)
+  moveToPage(n, m, f, x, y) {
+    const placed = Editor.moved(f, x - f.x, y - f.y);
+    const top = this.maxZ(m) + 1;
+    const zs = []; Editor.each(placed, (g) => zs.push(g.z || 0));
+    const base = Math.min(...zs);
+    Editor.each(placed, (g) => { g.z = top + (g.z || 0) - base; });
+    return this.commit([n, m], () => {
+      const pg = this.pageEntry(n);
+      pg.frames = pg.frames.filter((g) => g.id !== f.id);
+      this.pageEntry(m).frames.push(placed);
+    }).then(async () => {
+      if (placed.text && placed.text.chain) await this.app.rerender(this.reflow(placed.text.chain.story));
+      this.select(m, placed.id);
+    });
+  }
+
+  // place a scratch-area item on a page: at `at` (page points, its top-left), else centred
+  placeFromPasteboard(id, n, at) {
     n = n ?? this.targetPage();
     if (n == null || !this.editable(n) || this.pageEntry(n).locked) return Promise.resolve(null);
     const pb = this.week().halves[this.half].pasteboard || [];
@@ -562,8 +608,11 @@ export class Editor {
     if (i < 0) return Promise.resolve(null);
     const { width: W, height: H } = this.pageSize();
     const f = pb[i];
-    const dx = W / 2 - (f.x + f.w / 2), dy = H / 2 - (f.y + f.h / 2);
+    const dx = at ? at.x - f.x : W / 2 - (f.x + f.w / 2), dy = at ? at.y - f.y : H / 2 - (f.y + f.h / 2);
     const placed = Editor.moved(f, dx, dy);
+    delete placed.shelf;
+    delete placed.fx;
+    delete placed.fy;
     const top = this.maxZ(n) + 1;
     const zs = []; Editor.each(placed, (g) => zs.push(g.z || 0));
     const base = Math.min(...zs);
@@ -834,6 +883,25 @@ export class Editor {
     if (this.ending) { await this.ending; this.ending = null; }
     if (!d || !d.started || !d.preview) return;
     if (d.mode === 'move' && d.others && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
+    // dragged off its page (its middle outside the page): onto the facing page, or into the scratch area
+    if (d.mode === 'move' && this.app.scratch) {
+      const p = d.preview, { width: W, height: H } = this.pageSize();
+      const mx = p.x + p.w / 2, my = p.y + p.h / 2;
+      if (mx < 0 || mx > W || my < 0 || my > H) {
+        const pr = this.app.shellOf(d.n).querySelector('.page').getBoundingClientRect();
+        const scale = pr.width / W;
+        const under = this.pageAt(pr.left + mx * scale, pr.top + my * scale);
+        if (under && under.n !== d.n) {
+          if (this.editable(under.n) && !this.pageEntry(under.n).locked) {
+            await this.moveToPage(d.n, under.n, d.orig, (pr.left + p.x * scale - under.r.left) / scale, (pr.top + p.y * scale - under.r.top) / scale);
+            return;
+          }
+        } else if (!under) {
+          await this.toPasteboard(this.app.scratch.destFor(pr.left + p.x * scale, pr.top + p.y * scale, pr.left + mx * scale, pr.top + my * scale));
+          return;
+        }
+      }
+    }
     await this.apply(d.n, d.preview);
   }
 

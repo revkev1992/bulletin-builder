@@ -256,7 +256,6 @@ p.para {
   margin: 0 auto;
   outline: 1px dashed #999;
 }
-.pasteboard-title { text-align: center; margin: 0 0 8px; color: #4a4741; }
 
 /* ------------------------------------------------ print mode */
 .print body, body.print { background: #fff; display: block; }
@@ -302,11 +301,6 @@ body.print .page { break-after: page; }
 .sel-box.cropping { outline: 1.5px dashed #111; }
 .sel-box.cropping .handle { background: #111; border-color: #fff; width: 10px; height: 4px; margin: -2px 0 0 -5px; border-radius: 0; }
 .sel-box.cropping .h-e, .sel-box.cropping .h-w { width: 4px; height: 10px; margin: -5px 0 0 -2px; }
-.pb-cards { display: flex; flex-wrap: wrap; gap: 14px; zoom: 1 !important; }
-.pb-card { background: #fff; border: 1px solid var(--chrome-line); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.pb-thumb { position: relative; overflow: hidden; }
-.pb-thumb .pasteboard { outline: none; background: transparent; margin: 0; }
-.pb-label { font-size: 11px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
 /* ------------------------------------------------ Phase 3: Order of Worship panel */
@@ -391,13 +385,15 @@ body.print .page { break-after: page; }
 .thumb-page { position: absolute; overflow: hidden; background: #fff; color: #000; }
 
 /* View ▸ Rulers (Publisher): corner tab-kind button, horizontal + vertical rulers round the stage */
-#stage-wrap { flex: 1; min-width: 0; display: grid; grid-template-columns: 20px 1fr; grid-template-rows: 20px 1fr; }
-#stage-wrap > #stage { grid-column: 2; grid-row: 2; min-height: 0; }
-#ruler-kind { grid-column: 1; grid-row: 1; width: 20px; height: 20px; padding: 0; border: 0; border-right: 1px solid #c8c6c4; border-bottom: 1px solid #c8c6c4; background: #f3f2f1; display: flex; align-items: center; justify-content: center; border-radius: 0; }
-#ruler-h { grid-column: 2; grid-row: 1; position: relative; overflow: hidden; border-bottom: 1px solid #c8c6c4; cursor: default; }
-#ruler-v { grid-column: 1; grid-row: 2; position: relative; overflow: hidden; border-right: 1px solid #c8c6c4; }
+/* columns: the Shelf (scratch.js), the vertical ruler, the pages */
+#stage-wrap { --shelf-w: 150px; flex: 1; min-width: 0; display: grid; grid-template-columns: var(--shelf-w) 20px 1fr; grid-template-rows: 20px 1fr; }
+body.no-shelf #stage-wrap { --shelf-w: 0px; }
+#stage-wrap > #stage { grid-column: 3; grid-row: 2; min-height: 0; }
+#ruler-kind { grid-column: 2; grid-row: 1; width: 20px; height: 20px; padding: 0; border: 0; border-right: 1px solid #c8c6c4; border-bottom: 1px solid #c8c6c4; background: #f3f2f1; display: flex; align-items: center; justify-content: center; border-radius: 0; }
+#ruler-h { grid-column: 3; grid-row: 1; position: relative; overflow: hidden; border-bottom: 1px solid #c8c6c4; cursor: default; }
+#ruler-v { grid-column: 2; grid-row: 2; position: relative; overflow: hidden; border-right: 1px solid #c8c6c4; }
 #ruler-h canvas, #ruler-v canvas { position: absolute; left: 0; top: 0; }
-body.no-rulers #stage-wrap { grid-template-columns: 0 1fr; grid-template-rows: 0 1fr; }
+body.no-rulers #stage-wrap { grid-template-columns: var(--shelf-w) 0 1fr; grid-template-rows: 0 1fr; }
 body.no-rulers #ruler-h, body.no-rulers #ruler-v, body.no-rulers #ruler-kind { visibility: hidden; }
 .ruler-marks { position: absolute; inset: 0; }
 .rmark { position: absolute; transform: translateX(-50%); cursor: ew-resize; }
@@ -473,3 +469,28 @@ body.linking .page .frame-text:hover { outline: 2px solid #2b7de9; }
 .rot-angle.straight { color: #fff; background: #2b7de9; border-color: #2b7de9; }
 .page-shell .overlay > .rot-guide.h { left: -40pt; right: -40pt; height: 0; border-top: 1px dashed #2b7de9; }
 .page-shell .overlay > .rot-guide.v { top: -40pt; bottom: -40pt; width: 0; border-left: 1px dashed #2b7de9; }
+
+/* Parked objects (scratch.js): the Shelf down the left of the window, and the free-form Scratch Area
+   beside the pages (inside .spreads, so it scrolls and zooms with them) */
+#shelf { grid-column: 1; grid-row: 1 / span 2; width: var(--shelf-w); min-height: 0; overflow-y: auto; overflow-x: hidden;
+  background: #dcd9d3; border-right: 1px solid #c8c6c4; padding: 6px 0 24px; box-sizing: border-box; }
+.shelf-title { font: 600 11px 'Segoe UI', sans-serif; color: #605e5c; padding: 0 10px 6px; text-transform: uppercase; letter-spacing: .04em; }
+.shelf-empty { font: 12px 'Segoe UI', sans-serif; color: #7a7774; padding: 8px 12px; }
+#shelf:not(.empty) .shelf-empty { display: none; }
+.shelf-items { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#shelf .scratch-item { position: relative; width: 120px; display: flex; justify-content: center; }
+body.no-shelf #shelf { display: none; }
+.spreads { position: relative; }
+.free-area { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.free-area .scratch-item { position: absolute; }
+body.no-scratch .free-area { display: none; }
+.scratch-item { pointer-events: none; }
+.scratch-board { background: transparent; outline: none; margin: 0; }
+.scratch-item .frame { pointer-events: auto; cursor: move; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.scratch-item:not(.mine) .frame { cursor: default; opacity: .7; }
+.scratch-item.mine { z-index: 1; }
+.scratch-item.selected { z-index: 2; }
+.scratch-item.selected .frame { outline: 2px solid #2b7de9; outline-offset: 1px; }
+.scratch-item.dragging { opacity: .35; }
+.scratch-ghost { position: fixed; z-index: 100000; pointer-events: none; opacity: .85; }
+.scratch-ghost .scratch-board { background: transparent; outline: none; }

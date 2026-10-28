@@ -195,8 +195,8 @@ export const TABS = [
     { label: 'Layout', cols: [[big('Single Page', 'single', todo)], [big('Two-Page Spread', 'spread', { id: 'rb-spread', active: true })]] },
     { label: 'Show', cols: [
       [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', todo)],
-      [chk('Rulers', { id: 'show-rulers', checked: true }), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show the pasteboard: parked items, never printed' })],
-      [chk('Graphics Manager', todo), chk('Baselines', todo)],
+      [chk('Rulers', { id: 'show-rulers', checked: true }), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show or hide the free-form scratch area beside the pages, as in Publisher (never printed)' })],
+      [chk('Graphics Manager', todo), chk('Baselines', todo), chk('Shelf', { id: 'shelf-btn', checked: true, tip: 'Show or hide the shelf: parked objects down the left, staying put while the pages scroll (never printed)' })],
     ] },
     { label: 'Zoom', cols: [[big('100%', 'z100', { id: 'zoom-100' })], [big('Whole Page', 'wholepage', { id: 'zoom-fit', tip: 'Whole spread (Ctrl 0)' })],
       [{ html: '<div class="rb-row"><button id="zoom-out" class="rb-ico" title="Zoom Out (Ctrl -)">' + icon('zoomout', 16) + '</button><span id="zoom-label">100%</span><button id="zoom-in" class="rb-ico" title="Zoom In (Ctrl +)">' + icon('zoomin', 16) + '</button></div>' },
@@ -213,7 +213,7 @@ export const TABS = [
       [big('Ledger 11 × 17 in', 'print', { id: 'pr-ledger', tip: 'Folded booklet, enlarged to fill the sheet (large print)' })],
       [big('Letter 8.5 × 11 in', 'print', { id: 'pr-letter', tip: 'One page per sheet, actual size' })]] },
     { label: 'Protect', cols: [[big('Lock', 'lock', { id: 'lock-frame', tip: 'Lock frame (Ctrl+L)' })], [big('Lock Page', 'lockpage', { id: 'lock-page' })]] },
-    { label: 'Pasteboard', cols: [[big('Park', 'park', { id: 'to-pasteboard', tip: 'Park on the pasteboard (never printed)' })]] },
+    { label: 'Scratch Area', cols: [[big('Park', 'park', { id: 'to-pasteboard', tip: 'Park the selected object in the scratch area (never printed)' })]] },
     { label: 'Show', cols: [[chk('Who owns each page', { id: 'show-halves', checked: true })]] },
   ] },
   // contextual (shown only while something is selected)
