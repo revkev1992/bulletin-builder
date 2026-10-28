@@ -54,8 +54,9 @@ exports.run = async (h) => {
   h.ok('Ctrl + wheel down zooms back out, still at the pointer', Math.abs(z2 - z0) <= 1 && near(w0, w2), { z0, z2, w2 });
   // a pinch: many small ctrl+wheel steps, fast
   for (let k = 0; k < 40; k++) await h.wheel(w0.x, w0.y, 4, ['control'], 5);
-  await h.wait(300);
-  const z3 = await pct();
+  // wait for the last steps to land (the zoom stops changing)
+  let z3 = await pct();
+  for (let k = 0; k < 20; k++) { await h.wait(250); const z = await pct(); if (z === z3) break; z3 = z; }
   const w3 = await spot(w0.i);
   h.ok('a touchpad pinch (many small steps) zooms smoothly at the pointer', z3 > z0 * 1.2 && near(w0, w3), { z0, z3, w3 });
   await h.shot('pinched');
