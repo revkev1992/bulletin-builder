@@ -99,17 +99,23 @@ export class Scratch {
     const keep = this.shelf.scrollTop;      // a redraw must not lose your place on the shelf
     list.innerHTML = '';
     if (wrap) wrap.querySelectorAll(':scope > .free-area').forEach((x) => x.remove());
-    if (!week) { this.shelf.classList.add('empty'); return; }
+    if (!week) { this.shelf.classList.add('empty'); this.ids = null; return; }
     const free = document.createElement('div');
     free.className = 'free-area';
     const places = this.freePlaces(week);
     let onShelf = 0;
+    // every parked id shown last time, on the shelf or in the scratch area (another week = start over)
+    const seen = this.idsWeek === week ? this.ids : null;
+    this.idsWeek = week;
+    this.ids = new Set();
+    let fresh = null;
     for (const [h, body] of Object.entries(week.halves)) {
       const mine = !!(ed && ed.half === h);
       for (const f of body.pasteboard || []) {
         const b = this.board(week, h, f);
         if (!b) continue;
         const item = this.itemEl(h, f, mine);
+        this.ids.add(f.id);
         // with the scratch area hidden, everything is on the shelf — nothing parked is ever out of reach
         if (f.shelf || !this.showFree) {
           onShelf++;
@@ -119,6 +125,7 @@ export class Scratch {
           item.style.height = (f.h + 2 * PAD) * PX * s + 'px';
           item.appendChild(b);
           list.appendChild(item);
+          if (seen && !seen.has(f.id)) fresh = item;
         } else {
           const at = f.fx != null ? { x: f.fx, y: f.fy } : places.get(f.id);
           item.style.left = (at.x - PAD) + 'pt';
@@ -130,6 +137,9 @@ export class Scratch {
     }
     this.shelf.classList.toggle('empty', !onShelf);
     this.shelf.scrollTop = keep;
+    // something just put on the shelf (Park, a drag off a page, Undo of a delete) is scrolled into
+    // view and flashed: the shelf can be long, and new things go at the end
+    if (fresh) { fresh.scrollIntoView({ block: 'nearest' }); fresh.classList.add('fresh'); setTimeout(() => fresh.classList.remove('fresh'), 1500); }
     if (wrap) wrap.appendChild(free);
     this.app.settle(this.shelf);
     if (wrap) this.app.settle(free);

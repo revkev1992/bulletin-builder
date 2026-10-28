@@ -48,7 +48,9 @@ exports.run = async (h) => {
   await h.clickSel('#to-pasteboard');
   await h.wait(600);
   h.ok('Park: off the page, onto the shelf', !(await onPage(P, id)) && (await pbf()).some((f) => f.id === id && f.shelf));
-  await h.js(`document.querySelector('#shelf .scratch-item[data-id="${id}"]').scrollIntoView({ block: 'nearest' })`);
+  // the shelf is long (Publisher's 29 old items): a newly parked thing is scrolled into view, not left at the far end
+  h.ok('…and the shelf scrolls to show it (it goes at the end)', await h.js(`(() => { const s = document.getElementById('shelf').getBoundingClientRect();
+    const r = document.querySelector('#shelf .scratch-item[data-id="${id}"]').getBoundingClientRect(); return r.top >= s.top - 1 && r.bottom <= s.bottom + 1; })()`));
   const r0 = await h.rect(shelfItem(id));
   h.ok('…shown on the shelf, small enough to fit', !!r0 && r0.x >= sh.x && r0.x + r0.w <= sh.x + sh.w, { r0, sh });
 

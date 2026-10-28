@@ -492,5 +492,7 @@ body.no-scratch .free-area { display: none; }
 .scratch-item.selected { z-index: 2; }
 .scratch-item.selected .frame { outline: 2px solid #2b7de9; outline-offset: 1px; }
 .scratch-item.dragging { opacity: .35; }
+#shelf .scratch-item.fresh .frame { animation: shelf-fresh 1.5s ease-out; }
+@keyframes shelf-fresh { from { outline: 3px solid #f0a020; outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 2px; } }
 .scratch-ghost { position: fixed; z-index: 100000; pointer-events: none; opacity: .85; }
 .scratch-ghost .scratch-board { background: transparent; outline: none; }
