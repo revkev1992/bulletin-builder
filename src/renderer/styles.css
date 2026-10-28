@@ -42,7 +42,11 @@ button:disabled { opacity: .45; cursor: default; }
 #badge.editing-worship { background: #e4ecf7; color: var(--worship); border-color: var(--worship); }
 #badge.editing-announcements { background: #f7ece2; color: var(--announcements); border-color: var(--announcements); }
 #save.dirty { background: #fde8e6; }
-.rb-tabs { display: flex; gap: 2px; padding: 2px 4px 4px; }
+.rb-tabs { display: flex; gap: 2px; padding: 2px 4px 4px; align-items: center; }
+/* Show Formatting: the top right of the ribbon, on every tab */
+#marks-toggle { margin-left: auto; display: flex; align-items: center; gap: 4px; border: 1px solid transparent; background: transparent; border-radius: 4px; padding: 2px 8px; font: 12px "Segoe UI", system-ui, sans-serif; color: #333; }
+#marks-toggle:hover { background: var(--rb-hover); }
+#marks-toggle.active { background: #dce8f6; border-color: #9fbfe3; color: var(--rb-accent); }
 #toolbar .rb-tab { border: 0; background: transparent; border-radius: 4px; padding: 4px 9px 7px; font: 13px "Segoe UI", system-ui, sans-serif; color: #333; position: relative; }
 #toolbar .rb-tab:hover { background: var(--rb-hover); }
 #toolbar .rb-tab.active { color: var(--rb-accent); font-weight: 600; background: transparent; border-color: transparent; }
@@ -134,7 +138,15 @@ button:disabled { opacity: .45; cursor: default; }
 .sel-box.multi { outline: 1.5px dashed #2b7de9; }
 /* Home ▸ Paragraph ▸ Show Special Characters (screen only; absolutely placed so lines never move) */
 .screen.show-marks .page p.para::after { content: '\00B6'; position: absolute; color: #4a86c5; font: 9pt "Segoe UI", sans-serif; }
-.screen.show-marks .page .tab { background: linear-gradient(#4a86c5, #4a86c5) center / 100% 1px no-repeat; }
+/* a tab: an arrow in the middle of its gap (the .tab is 1px high on the baseline; position only anchors the arrow) */
+.screen.show-marks .page .tab { position: relative; }
+.screen.show-marks .page .tab::after { content: '→'; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); color: #4a86c5; font: 8pt "Segoe UI", sans-serif; line-height: 1; font-weight: normal; font-style: normal; text-decoration: none; }
+/* space dots and line-break arrows: a see-through layer over each page (marks.js) */
+.marks-layer { position: absolute; inset: 0; pointer-events: none; z-index: 9000; }
+body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
+.marks-layer i { position: absolute; font-style: normal; color: #4a86c5; }
+.marks-layer .mk-dot { width: 1.6pt; height: 1.6pt; margin: -0.8pt 0 0 -0.8pt; border-radius: 50%; background: #4a86c5; }
+.marks-layer .mk-br { font: 8pt "Segoe UI", sans-serif; line-height: 1; transform: translate(1pt, -55%); }
 .rb-swatches { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; padding: 4px; }
 .swatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
 .rb-more-color { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px; }

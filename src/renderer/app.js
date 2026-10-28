@@ -11,6 +11,7 @@ import { Rulers } from './ruler.js';
 import { FindPane } from './findreplace.js';
 import { PAPER, buildSheets, describe as describePaper } from './impose.js';
 import { Scratch } from './scratch.js';
+import { Marks } from './marks.js';
 
 const params = new URLSearchParams(location.search);
 const PRINT = params.get('mode') === 'print';
@@ -978,7 +979,11 @@ if (PRINT) {
     const al = p ? getComputedStyle(p).textAlign : 'left';
     for (const b of document.querySelectorAll('.rb-text [data-align]')) b.classList.toggle('active', b.dataset.align === (al === 'start' ? 'left' : al));
   });
-  $('rb-marks').onclick =() => { const on = document.body.classList.toggle('show-marks'); $('rb-marks').classList.toggle('active', on); };
+  const marks = new Marks($('stage'));
+  for (const b of document.querySelectorAll('.marks-btn')) b.onclick = () => marks.toggle();
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'y') { e.preventDefault(); marks.toggle(); }
+  });
   // ---- Arrange
   for (const b of document.querySelectorAll('[id^="col-"]')) b.onclick = () => editor.setColumns(Number(b.id.slice(4)));
   for (const b of document.querySelectorAll('[id^="wrap-"]')) b.onclick = () => editor.setWrap(b.id.slice(5));

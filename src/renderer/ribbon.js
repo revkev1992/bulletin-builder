@@ -156,7 +156,7 @@ export const TABS = [
     { label: 'Paragraph', cls: 'rb-text', cols: [
       [{ row: [ico('bullets', 'Bullets', { id: 't-bullets' }), ico('numbering', 'Numbering', { id: 't-numbering' }), ico('outdent', 'Decrease Indent', { id: 't-outdent' }),
           ico('indent', 'Increase Indent', { id: 't-indent' }), ico('columns', 'Columns (text box)', { id: 'rb-columns', menu: 'columns', cls: 'rb-always' }),
-          ico('pilcrow', 'Show Special Characters', { id: 'rb-marks', cls: 'rb-always' })] },
+          ico('pilcrow', 'Show Formatting: dots for spaces, ¶, tab arrows, line breaks (Ctrl+Shift+Y). Never printed.', { id: 'rb-marks', cls: 'rb-always marks-btn' })] },
         { row: [ico('align-left', 'Align Left', { align: 'left' }), ico('align-center', 'Center', { align: 'center' }), ico('align-right', 'Align Right', { align: 'right' }),
           ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', { id: 't-linespacing', menu: 'linespacing' }), ico('dropcap', 'Drop Cap', todo)] }],
     ] },
@@ -267,7 +267,7 @@ function button(it, size) {
   if (it.align) b.dataset.align = it.align;
   if (it.menu) b.dataset.menu = it.menu;
   if (it.active) b.classList.add('active');
-  if (it.cls) b.classList.add(it.cls);
+  if (it.cls) b.classList.add(...it.cls.split(' '));
   b.title = it.todo ? (it.tip || it.label || '') + ' — ' + TODO : (it.tip || it.label || '');
   if (it.todo) { b.disabled = true; b.classList.add('todo'); }
   b.innerHTML = (it.icon ? icon(it.icon, size) : '') + (it.label ? '<span class="rb-label">' + it.label + (it.menu ? ' ▾' : '') + '</span>' : '');
@@ -300,7 +300,10 @@ export function buildRibbon(root, { title = '' } = {}) {
       '<button id="redo" class="rb-ico" title="Redo (Ctrl+Y)" disabled>' + icon('redo', 16) + '</button></div>' +
       '<div class="rb-doc"><span id="title">' + title + '</span><span class="rb-app"> - Bulletin Builder</span></div>' +
       '<span id="badge">No week open</span></div>' +
-    '<nav class="rb-tabs"><button type="button" class="rb-tab rb-file" data-tab="file">File</button>' + tabs + '</nav>' +
+    '<nav class="rb-tabs"><button type="button" class="rb-tab rb-file" data-tab="file">File</button>' + tabs +
+      // Show Formatting, on every tab (Kevin 2026-10-27: "the top right corner of the ribbons")
+      '<button type="button" id="marks-toggle" class="marks-btn" aria-pressed="false" title="Show Formatting: dots for spaces, ¶, tab arrows, line breaks (Ctrl+Shift+Y). Click again to hide them. Never printed.">' +
+      icon('pilcrow', 16) + '<span>Show Formatting</span></button></nav>' +
     '<div class="rb-panels"></div>';
   const panels = root.querySelector('.rb-panels');
   for (const t of TABS) {
