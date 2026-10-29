@@ -193,6 +193,96 @@ function importAsset(weekFile, src) {
 }
 ipcMain.handle('asset:import-path', (_e, weekFile, src) => importAsset(weekFile, src));
 
+// ---------------------------------------------------------------- service music library
+// Kevin 2026-10-29: the psalter responses and doxologies come round again season by season, so they
+// live in one labelled library — a "Service Music" folder beside the week folders (shared by everyone
+// who shares the weeks), library.json + the pictures. A week gets its own copy when music is used.
+// Each kind is indexed its own way (Kevin): psalters by psalm + response, doxologies by hymn tune,
+// communion settings by setting + part, Taizé chants / benediction responses / other by title.
+const MUSIC_CATS = ['psalter', 'doxology', 'communion', 'taize', 'benediction', 'other'];
+const MUSIC_FIELDS = ['label', 'title', 'psalm', 'response', 'tune', 'setting', 'part', 'order', 'note'];
+function musicFields(it, change) {
+  for (const k of MUSIC_FIELDS) {
+    if (change[k] === undefined) continue;
+    const v = String(change[k] ?? '').trim();
+    if (!v) delete it[k];
+    else it[k] = ['psalm', 'response', 'order'].includes(k) && /^\d+$/.test(v) ? Number(v) : v;
+  }
+  if (MUSIC_CATS.includes(change.category)) it.category = change.category;
+}
+const musicDir = (weekFile) => path.join(path.dirname(path.dirname(path.resolve(weekFile))), 'Service Music');
+function readMusic(weekFile) {
+  const dir = musicDir(weekFile);
+  try {
+    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'library.json'), 'utf8'));
+    return { dir, items: Array.isArray(lib.items) ? lib.items : [] };
+  } catch (_) { return { dir, items: [] }; }
+}
+function writeMusic(weekFile, items) {
+  const dir = musicDir(weekFile);
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = path.join(dir, 'library.json.tmp');
+  fs.writeFileSync(tmp, JSON.stringify({ format: 'bulletin-builder-music', version: 1, items }, null, 1));
+  fs.renameSync(tmp, path.join(dir, 'library.json'));
+}
+const musicView = (lib) => ({ dir: lib.dir, items: lib.items.map((it) => ({ ...it, url: require('url').pathToFileURL(path.join(lib.dir, it.file)).href })) });
+ipcMain.handle('music:list', (_e, weekFile) => musicView(readMusic(weekFile)));
+// add a picture: `src` = a file on disk, or 'assets/…' of this week; none = ask with a file dialog
+ipcMain.handle('music:add', async (e, weekFile, { category, src, ...fields } = {}) => {
+  if (!MUSIC_CATS.includes(category)) category = 'other';
+  let from = src && /^assets\//.test(src) ? path.join(path.dirname(path.resolve(weekFile)), src) : src;
+  if (!from) {
+    const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+      title: 'Add service music',
+      filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }],
+      properties: ['openFile'],
+    });
+    if (r.canceled) return null;
+    from = r.filePaths[0];
+  }
+  const lib = readMusic(weekFile);
+  fs.mkdirSync(lib.dir, { recursive: true });
+  const ext = path.extname(from).toLowerCase();
+  const stem = path.basename(from, path.extname(from));
+  const id = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const file = id + ext;
+  fs.copyFileSync(from, path.join(lib.dir, file));
+  const item = { id, category, file, added: new Date().toISOString() };
+  musicFields(item, { title: stem, ...fields });
+  lib.items.push(item);
+  writeMusic(weekFile, lib.items);
+  return { item, ...musicView(lib) };
+});
+ipcMain.handle('music:update', (_e, weekFile, id, change) => {
+  const lib = readMusic(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (!it) return musicView(lib);
+  musicFields(it, change);
+  writeMusic(weekFile, lib.items);
+  return musicView(lib);
+});
+// remove from the library: its picture goes to the Recycle Bin (weeks that used it keep their own copy)
+ipcMain.handle('music:remove', async (_e, weekFile, id) => {
+  const lib = readMusic(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (!it) return musicView(lib);
+  lib.items = lib.items.filter((x) => x.id !== id);
+  writeMusic(weekFile, lib.items);
+  const p = path.join(lib.dir, it.file);
+  if (fs.existsSync(p)) {
+    if (argAfter('--gui')) fs.rmSync(p);                 // click tests: not into the Recycle Bin
+    else await shell.trashItem(p).catch(() => {});
+  }
+  return musicView(lib);
+});
+// use it in this week: copied into the week's assets (same bytes = same file)
+ipcMain.handle('music:use', (_e, weekFile, id) => {
+  const lib = readMusic(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (!it) throw new Error('That music is no longer in the library.');
+  return importAsset(weekFile, path.join(lib.dir, it.file));
+});
+
 // ---------------------------------------------------------------- new week from an existing one
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -244,7 +334,16 @@ function newWeekFrom(file, destDir, { roll = true, start = 'as-is' } = {}) {
       if (cover && cover.date) {
         const old = cover.date, next = nextWeekDate(old);
         cover.date = next;
-        if (w.mode === 'flow') { if (w.layout) w.layout.flowHash = null; }   // lay out again on open (the date changed)
+        if (w.mode === 'flow') {
+          if (w.layout) w.layout.flowHash = null;   // lay out again on open (the date changed)
+          // volunteers & attendance: attendance is for the Sunday before, so its date moves on a week,
+          // and last week's numbers are cleared (a missing line is noticed; a stale one is printed)
+          for (const b of w.flow.blocks || []) {
+            if (b.kind !== 'roster' || !b.attendance) continue;
+            if (b.attendance.date) b.attendance.date = nextWeekDate(b.attendance.date);
+            for (const s of b.attendance.services || []) { delete s.inPerson; delete s.streaming; }
+          }
+        }
         else if (next !== old) {
           // finished pages: the date is ordinary text now — change it wherever it is printed
           for (const pg of Object.values(w.pages || {})) for (const f of pg.frames || []) {
@@ -338,6 +437,7 @@ function createViewer(file) {
     width: 1400,
     height: 950,
     title: 'Bulletin Builder',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),   // the exe carries icon.ico; this covers a dev run
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   // Publisher has no menu bar — the ribbon carries every command. The (hidden) application

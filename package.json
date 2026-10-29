@@ -24,7 +24,8 @@
     "productName": "Bulletin Builder",
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "directories": {
       "output": "dist"
@@ -33,7 +34,8 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "Bulletin-Builder-Setup-${version}.${ext}"
+      "artifactName": "Bulletin-Builder-Setup-${version}.${ext}",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -41,14 +43,17 @@
       "allowToChangeInstallationDirectory": true,
       "createStartMenuShortcut": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Bulletin Builder"
+      "shortcutName": "Bulletin Builder",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     },
     "fileAssociations": [
       {
         "ext": "bulletin",
         "name": "Bulletin",
         "description": "Bulletin Builder week",
-        "role": "Editor"
+        "role": "Editor",
+        "icon": "build/icon.ico"
       }
     ],
     "publish": [

@@ -8,12 +8,13 @@
 
 import { paragraphEl, layoutTabs, cssFont } from './render.js';
 import { splitParagraph } from './textedit.js';
+import { rosterRows, ROSTER_TABS, grandTotal } from './roster.js';
 
 export const LAYOUT_VERSION = 3;   // bump when pagination rules change: saved layouts are redone
-export const KINDS = ['item', 'section', 'dialog', 'prayer', 'scripture', 'hymn', 'image', 'rubric', 'text', 'space'];
+export const KINDS = ['item', 'section', 'dialog', 'prayer', 'scripture', 'hymn', 'image', 'rubric', 'text', 'roster', 'space'];
 export const KIND_LABEL = {
   item: 'Item', section: 'Section', dialog: 'Leader / People', prayer: 'Prayer', scripture: 'Scripture',
-  hymn: 'Hymn (music)', image: 'Picture', rubric: 'Instruction', text: 'Text', space: 'Space',
+  hymn: 'Hymn (music)', image: 'Picture', rubric: 'Instruction', text: 'Text', roster: 'Volunteers & attendance', space: 'Space',
 };
 export const ROLES = ['item', 'section', 'rubric', 'leader', 'people', 'prayer', 'scripture', 'body', 'credit', 'note'];
 export const ROLE_LABEL = {
@@ -146,6 +147,8 @@ export function compileBlock(flow, b, natural) {
         items.push({ type: 'image', asset, w, h: w * nat.h / nat.w, block: b.id, spaceBefore: 0 });
       });
       break;
+    // volunteers down the left, attendance at the 198 pt stop (roster.js lays the lines out)
+    case 'roster': for (const line of rosterRows(b)) P('body', line, { keepTogether: true, props: { tabs: ROSTER_TABS.map((t) => ({ ...t })) } }); break;
     case 'space': items.push({ type: 'space', h: Number(b.height) || 11, block: b.id }); break;
     default: break;
   }
@@ -153,7 +156,7 @@ export function compileBlock(flow, b, natural) {
   // short liturgical units stay on one page: every line but the last keeps with the next
   // (a block taller than a page still breaks — the backoff never empties a page)
   const paras = items.filter((it) => it.type === 'para');
-  const together = b.keepTogether ?? (['dialog', 'prayer', 'section', 'rubric', 'item'].includes(b.kind) ||
+  const together = b.keepTogether ?? (['dialog', 'prayer', 'section', 'rubric', 'item', 'roster'].includes(b.kind) ||
     (b.kind === 'text' && paras.length <= 8 && paras.every((it) => textLen(it.para) < 400)));
   if (together) {
     items.forEach((it, i) => { if (i < items.length - 1) it.keepWithNext = true; if (it.type === 'para') it.keepTogether = true; });
@@ -489,6 +492,7 @@ export function blockSummary(b) {
     case 'rubric': return (b.text || '').split('\n')[0];
     case 'text': return head || ((b.paragraphs || [])[0] ? b.paragraphs[0].runs.map((r) => r.text).join('').slice(0, 60) : '');
     case 'space': return (b.height || 11) + ' pt';
+    case 'roster': return ((b.volunteers || []).map((v) => v.role).filter(Boolean).join(', ') || 'Volunteers') + ((b.attendance || {}).date ? ' · attendance ' + b.attendance.date + (grandTotal(b) ? ' (' + grandTotal(b) + ')' : '') : '');
     case 'image': return (b.images || []).map((a) => a.split('/').pop()).join(', ');
     default: return head || (b.lines && b.lines[0] ? (typeof b.lines[0] === 'string' ? b.lines[0] : b.lines[0].text) : '') || (b.paragraphs && b.paragraphs[0]) || '';
   }
@@ -505,6 +509,7 @@ export function newBlock(kind, id) {
   if (kind === 'hymn' || kind === 'image') b.images = [];
   if (kind === 'text') b.paragraphs = [{ style: 'body', align: 'left', runs: [{ text: 'Text', font: FONT, size: 11 }], mark: { font: FONT, size: 11 } }];
   if (kind === 'space') b.height = 11;
+  if (kind === 'roster') { b.volunteers = [{ role: 'LECTOR', names: '' }, { role: 'AUDIO', names: '' }, { role: 'STREAMING', names: '' }]; b.attendance = { date: '', services: [{ label: '9 AM' }, { label: '11 AM' }] }; b.spaceBefore = 11; }
   return b;
 }
 

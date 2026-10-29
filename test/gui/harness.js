@@ -113,7 +113,10 @@ function makeHarness(win, outDir) {
 async function runGui(suiteFile, weekFile, outDir, { BrowserWindow, RENDERER, preload, session }) {
   const os = require('os');
   const src = path.dirname(path.resolve(weekFile));
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-gui-'));
+  // the copy sits one level down, so things kept beside the weeks (Service Music, New Week's weeks)
+  // land in this run's own folder, not in %TEMP%
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-gui-'));
+  const tmp = path.join(root, path.basename(src));
   const skip = new Set([path.join(src, 'history'), path.join(src, 'locks')]);
   fs.cpSync(src, tmp, { recursive: true, filter: (p) => !skip.has(p) });
   const copy = path.join(tmp, path.basename(weekFile));
@@ -142,7 +145,8 @@ async function runGui(suiteFile, weekFile, outDir, { BrowserWindow, RENDERER, pr
   console.log(error ? 'ERROR (' + failed.length + ' failed before it)' : failed.length ? 'FAILED ' + failed.length + ' of ' + h.checks.length : 'PASS ' + h.checks.length + ' checks');
   console.log('screenshots:', outDir);
   session.releaseAll();
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // a file the window still holds can refuse (EPERM): leftovers in %TEMP% must not fail the suite
+  try { fs.rmSync(root, { recursive: true, force: true }); } catch (_) { /* left for Windows to clean */ }
   return !error && failed.length === 0;
 }
 

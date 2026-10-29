@@ -43,6 +43,11 @@ exports.run = async (h) => {
   await h.clickSel('#t-sub');
   await h.clickSel('#t-underline');
   h.ok('Underline', /underline/.test(await h.js(`(() => { let e = getSelection().anchorNode.parentElement; while (e && !/underline/.test(getComputedStyle(e).textDecorationLine)) e = e.parentElement; return e ? 'underline' : ''; })()`)));
+  const struck = () => h.js(`(() => { let e = getSelection().anchorNode.parentElement; while (e && !e.classList.contains('flow')) { if (/line-through/.test(getComputedStyle(e).textDecorationLine)) return true; e = e.parentElement; } return false; })()`);
+  await h.clickSel('#t-strike');
+  h.ok('Strikethrough, and the button shows it is on', (await struck()) && (await h.js(`document.getElementById('t-strike').classList.contains('active')`)));
+  await h.clickSel('#t-strike');
+  h.ok('…click again: off', !(await struck()));
   await h.clickSel('#t-spacing');
   await h.clickSel('#trk-125');
   h.ok('Character Spacing ▸ Very Loose', parseFloat(await cs('letterSpacing')) > 0);

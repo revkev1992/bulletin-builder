@@ -4,6 +4,21 @@
 
 import { KINDS, KIND_LABEL, ROLES, ROLE_LABEL, blockSummary, newBlock, styleOf, isFlow } from './flow.js';
 import { paragraphEl } from './render.js';
+import { parseRoster, sundayBefore } from './roster.js';
+import { KINDS as MUSIC_KINDS, musicName } from './musiclib.js';
+
+// which Service Music kind a block wants, from its heading (a psalter on its psalm, a doxology on its tune)
+export function musicKind(b) {
+  const hd = b.heading || {};
+  const words = [hd.label, hd.middle, hd.right].filter(Boolean).join(' ');
+  const psalm = /psalm\s+(\d+)/i.exec(words);
+  if (/psalter|psalm/i.test(words)) return { cat: 'psalter', find: psalm ? 'psalm ' + psalm[1] + ' ·' : '' };
+  if (/doxolog/i.test(words)) return { cat: 'doxology', find: (hd.right || '').trim() };
+  if (/benediction/i.test(words)) return { cat: 'benediction', find: '' };
+  if (/taiz/i.test(words)) return { cat: 'taize', find: '' };
+  if (/thanksgiving|communion|sanctus|holy, holy|acclamation|amen/i.test(words)) return { cat: 'communion', find: '' };
+  return { cat: null, find: '' };
+}
 import { serializeFlow, canon, pastePlain } from './textedit.js';
 
 const FONTS = ['Palatino Linotype', 'Book Antiqua', 'Candara', 'Candara Light', 'Archer Book', 'Archer Bold',
@@ -181,7 +196,7 @@ export class FlowPanel {
     };
     f.append(h('div', { class: 'fp-title' }, KIND_LABEL[b.kind] + ' block'));
 
-    if (!['section', 'rubric', 'space'].includes(b.kind)) {
+    if (!['section', 'rubric', 'space', 'roster'].includes(b.kind)) {
       const hd = b.heading || {};
       const standing = h('input', { type: 'checkbox', checked: !!hd.standing, dataset: { field: 'heading.standing' } });
       standing.onchange = () => this.set(b.id, 'heading.standing', standing.checked);
@@ -214,7 +229,13 @@ export class FlowPanel {
             parse: (v) => v.replace(/\r/g, '').split(/\n\s*\n/).map((p) => p.replace(/\n/g, ' ').trim()).filter(Boolean) })));
         break;
       case 'hymn': case 'image': f.append(this.imageEditor(b)); break;
+      case 'roster': f.append(this.rosterEditor(b)); break;
       case 'text':
+        // the volunteers & attendance lines from a Word bulletin: one click turns them into the form
+        if (parseRoster(b.paragraphs)) f.append(h('div', { class: 'fp-bar' }, h('button', { dataset: { test: 'to-roster' }, title: 'Type the names and numbers; the lines are laid out for you',
+          onclick: () => this.edit((fl) => { const x = fl.blocks.find((y) => y.id === b.id); const r = parseRoster(x.paragraphs);
+            x.kind = 'roster'; x.volunteers = r.volunteers; x.attendance = r.attendance; x.oldParagraphs = x.paragraphs; delete x.paragraphs; })
+            .then(() => this.select(b.id, { scrollPage: false })) }, 'Turn into a Volunteers & attendance form')));
         f.append(h('div', { class: 'fp-sub' }, 'Text — edit in place (Ctrl+B / I / U work); changes apply when you click away'),
           this.richEditor(b.paragraphs || [], (paras) => this.edit((fl) => { fl.blocks.find((y) => y.id === b.id).paragraphs = paras; })
             .then(() => this.select(b.id, { scrollPage: false })), 'rich-text'));
@@ -238,7 +259,7 @@ export class FlowPanel {
       row('Space before (pt)', text('spaceBefore', b.spaceBefore, { parse: (v) => Number(v) || '' })),
       row('Page break', h('span', {}, brk, ' start on a new page')),
       row('Keep together', keep)));
-    if (!['section', 'space'].includes(b.kind)) {
+    if (!['section', 'space', 'roster'].includes(b.kind)) {
       f.append(h('fieldset', {}, h('legend', {}, 'Margin note (optional, beside the block)'),
         this.richEditor((b.note || []).map((p) => (typeof p === 'string' ? this.plainPara(p, 'note') : p)), (paras) => this.edit((fl) => {
           const x = fl.blocks.find((y) => y.id === b.id);
@@ -252,6 +273,50 @@ export class FlowPanel {
   plainPara(text, role) {
     const st = styleOf(this.flow(), role);
     return { style: role, align: st.align || 'left', runs: text ? [{ text, font: st.font, size: st.size }] : [], mark: { font: st.font, size: st.size } };
+  }
+
+  // Volunteers & attendance: names and numbers in, the lines laid out for you (roster.js)
+  rosterEditor(b) {
+    const vols = structuredClone(b.volunteers || []);
+    const att = structuredClone(b.attendance || { date: '', services: [] });
+    att.services = att.services || [];
+    const commit = () => this.edit((fl) => {
+      const x = fl.blocks.find((y) => y.id === b.id);
+      // blank rows stay in the form (they print nothing), so + Volunteer / + Service leave a row to fill
+      x.volunteers = vols;
+      x.attendance = { date: (att.date || '').trim(), services: att.services };
+    }).then(() => this.select(b.id, { scrollPage: false }));
+    const field = (obj, key, attrs, numeric) => {
+      const inp = h('input', { value: obj[key] ?? '', ...attrs });
+      inp.onchange = () => {
+        const v = inp.value.trim();
+        if (numeric) { if (v === '') delete obj[key]; else obj[key] = Number(v); } else obj[key] = numeric === false ? v.toUpperCase() : v;
+        commit();
+      };
+      return inp;
+    };
+    const vw = h('fieldset', { class: 'fp-roster' }, h('legend', {}, 'Worship volunteers (left column)'));
+    vols.forEach((v, i) => vw.append(h('div', { class: 'fp-rrow' },
+      field(v, 'role', { placeholder: 'LECTOR', class: 'fp-role', dataset: { test: 'role-' + i } }, false),
+      field(v, 'names', { placeholder: 'Names (use & between two)', class: 'fp-names', dataset: { test: 'names-' + i } }),
+      h('button', { title: 'Remove', onclick: () => { vols.splice(i, 1); commit(); } }, '×'))));
+    vw.append(h('div', { class: 'fp-bar' }, h('button', { dataset: { test: 'add-vol' }, onclick: () => { vols.push({ role: '', names: '' }); commit(); } }, '+ Volunteer')));
+    const total = (s) => (Number(s.inPerson) || 0) + (Number(s.streaming) || 0);
+    const before = sundayBefore((this.flow().cover || {}).date || '');
+    const aw = h('fieldset', { class: 'fp-roster' }, h('legend', {}, 'Attendance (right column)'),
+      h('label', { class: 'fp-field' }, h('span', {}, 'For'), field(att, 'date', { placeholder: before || 'October 11, 2026', dataset: { test: 'att-date' } }),
+        before && att.date !== before ? h('button', { title: 'The Sunday before this bulletin\'s date', dataset: { test: 'last-sunday' }, onclick: () => { att.date = before; commit(); } }, 'Last Sunday') : ''),
+      h('div', { class: 'fp-rrow fp-rhead' }, h('span', {}, 'Service'), h('span', {}, 'In person'), h('span', {}, 'Streaming'), h('span', {}, 'Total'), h('span', {})));
+    att.services.forEach((s, i) => aw.append(h('div', { class: 'fp-rrow' },
+      field(s, 'label', { placeholder: '9 AM', class: 'fp-svc', dataset: { test: 'svc-' + i } }),
+      field(s, 'inPerson', { type: 'number', min: '0', class: 'fp-num', dataset: { test: 'inp-' + i } }, true),
+      field(s, 'streaming', { type: 'number', min: '0', class: 'fp-num', dataset: { test: 'str-' + i } }, true),
+      h('span', { class: 'fp-tot' }, String(total(s))),
+      h('button', { title: 'Remove', onclick: () => { att.services.splice(i, 1); commit(); } }, '×'))));
+    aw.append(h('div', { class: 'fp-bar' },
+      h('button', { onclick: () => { att.services.push({ label: '' }); commit(); } }, '+ Service'),
+      h('span', { class: 'fp-sub', dataset: { test: 'grand' } }, att.services.length > 1 ? 'Total: ' + att.services.reduce((t, s) => t + total(s), 0) : '')));
+    return h('div', {}, vw, aw);
   }
 
   dialogEditor(b) {
@@ -300,8 +365,44 @@ export class FlowPanel {
     wrap.append(h('button', { onclick: async () => {
       const rel = await window.bb.importPicture(this.app.file());
       if (rel) await this.addImage(b.id, rel);
-    } }, 'Add picture…'));
+    } }, 'Add picture…'),
+    h('button', { title: 'Open the Service Music library (psalters, doxologies, communion, Taizé, benediction responses)', onclick: () => {
+      const k = musicKind(b);
+      this.selId = b.id;
+      this.app.music().show(k.cat, k.find);
+    } }, 'Service music…'));
+    wrap.append(this.musicPicker(b));
     return wrap;
+  }
+
+  // planning without leaving the panel (Kevin 2026-10-29): the library in a drop-down, this block's
+  // kind first (a PSALTER block: its psalm's responses first). Choosing one sets the block's music.
+  musicPicker(b) {
+    const sel = h('select', { class: 'fp-music', dataset: { test: 'music-pick' }, title: 'Service Music library: choose the music for this block' },
+      h('option', { value: '' }, 'Service music: choose…'));
+    const file = this.app.file();
+    if (file) window.bb.music.list(file).then((lib) => {
+      const k = musicKind(b);
+      const cats = Object.keys(MUSIC_KINDS).sort((x, y) => (y === k.cat) - (x === k.cat));
+      const find = (k.find || '').toLowerCase();
+      for (const cat of cats) {
+        const items = lib.items.filter((it) => it.category === cat);
+        if (!items.length) continue;
+        const sort = MUSIC_KINDS[cat].sort || ((x, y) => musicName(x).localeCompare(musicName(y), undefined, { numeric: true }));
+        items.sort((x, y) => (find && musicName(y).toLowerCase().includes(find)) - (find && musicName(x).toLowerCase().includes(find)) || sort(x, y));
+        sel.append(h('optgroup', { label: MUSIC_KINDS[cat].tab }, ...items.map((it) => h('option', { value: it.id },
+          (MUSIC_KINDS[cat].group ? MUSIC_KINDS[cat].group(it) + ': ' : '') + musicName(it) + (it.note ? ' (' + it.note + ')' : '')))));
+      }
+      if (!lib.items.length) sel.options[0].textContent = 'Service music: none yet (Insert ▸ Service Music)';
+    });
+    sel.onchange = async () => {
+      const id = sel.value;
+      if (!id) return;
+      const rel = await window.bb.music.use(file, id);
+      await this.edit((fl) => { const x = fl.blocks.find((y) => y.id === b.id); x.images = [rel]; delete x.imageWidths; });
+      this.select(b.id, { scrollPage: false });
+    };
+    return h('label', { class: 'fp-field' }, h('span', {}, 'From the library'), sel);
   }
 
   addImage(id, rel) {

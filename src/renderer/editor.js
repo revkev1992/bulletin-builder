@@ -18,6 +18,15 @@ const UNDO_LIMIT = 100;
 const AUTOSAVE_MS = 2 * 60 * 1000;
 const MIN_SIZE = 4;           // points
 const r2 = (v) => Math.round(v * 100) / 100;
+// a week finished before music travelled with its text (test builds before 0.4.0-test.6): its hymn /
+// psalm music is still a picture pinned between the text boxes of a body page
+const pinnedMusic = (week) => {
+  const half = week && week.halves.worship;
+  if (!isFinished(half)) return false;
+  const frames = worshipPages(week).slice(1).flatMap((n) => (half.pages[String(n)] || { frames: [] }).frames);
+  return frames.some((f) => f.fromDraft && f.kind === 'image' && f.image && f.image.asset) &&
+    !frames.some((f) => f.kind === 'text' && f.text.paragraphs.some((p) => p.picture));
+};
 
 export class Editor {
   constructor(app) {
@@ -251,7 +260,8 @@ export class Editor {
     this.sel = null;
     this.setDirty(false);
     this.app.setStatus('Editing the ' + half + ' pages' + (r.tookOverStale ? ' (an abandoned lock was taken over)' : '') + '.' +
-      (this.flowHalf() ? ' Build the order of worship in the panel on the right.' : ''));
+      (this.flowHalf() ? ' Build the order of worship in the panel on the right.' : '') +
+      (half === 'worship' && pinnedMusic(this.week()) ? ' <span class="warn">This week was finished by an earlier test build, so its music stays put when text moves: Bulletin ▸ Back to Draft, then Finish Layout, makes it travel with its text.</span>' : ''));
     this.drawSelection();
     if (this.panel) this.panel.refresh();
     return true;
@@ -297,6 +307,8 @@ export class Editor {
       case 'fill': return this.fitPicture('fill');
       case 'front': return this.restack(1);
       case 'back': return this.restack(-1);
+      case 'forward': return this.restackStep(1);
+      case 'backward': return this.restackStep(-1);
       case 'copy': return this.copy();
       case 'paste': return this.paste();
       case 'duplicate': this.copy(); return this.paste();
@@ -444,10 +456,62 @@ export class Editor {
     });
   }
 
-  async insertPicture(src) {
+  // Service music goes IN the text, as Word does (Kevin 2026-10-29: "moves with the text, as opposed to
+  // Publisher's default of leaving it on the page"): an in-line picture paragraph after the paragraph
+  // the caret is in (or at the end of the selected text box), as wide as the box. Linked text flows on.
+  // Returns false when there is no text to put it in (the caller then places a picture on the page).
+  async insertInlinePicture(rel) {
+    let n, id, at = null;
+    if (this.textEdit) {
+      const flow = this.editingFlow();
+      const s = window.getSelection();
+      const p = s && s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement).closest('p.para');
+      const all = flow ? [...flow.querySelectorAll('p.para')] : [];
+      ({ n, id } = this.textEdit);
+      if (p && all.includes(p)) at = all.indexOf(p);
+      await this.endTextEdit();
+    } else {
+      const f = this.frame();
+      if (!f || f.kind !== 'text' || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return false;
+      n = this.sel.page; id = f.id;
+    }
+    if (!this.editable(n) || this.pageEntry(n).locked) return false;
+    const f0 = this.anyFrame(n, id);
+    if (!f0 || !f0.text) return false;
+    const size = await new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+      im.onerror = () => res({ w: 4, h: 3 });
+      im.src = new URL(rel, this.week().baseUrl).href;
+    });
+    const [, ir, , il] = f0.text.inset || [0, 0, 0, 0];
+    const w = r2(f0.w - il - ir - 1), h = r2(w * size.h / size.w);
+    await this.commit([n], () => {
+      const f = this.anyFrame(n, id);
+      const paras = f.text.paragraphs;
+      const i = at == null ? paras.length - 1 : Math.min(at, paras.length - 1);
+      const pic = { runs: [], picture: { asset: rel, w, h, before: 3, after: 3 }, align: 'center' };
+      const host = paras[i];
+      // a page-end break stays at the end: it moves on to the picture, so the picture keeps its page
+      const last = host && host.runs[host.runs.length - 1];
+      if (last && last.text.endsWith('\u000c')) {
+        last.text = last.text.slice(0, -1);
+        pic.runs.push({ text: '\u000c', font: last.font, size: last.size });
+        if (host.boxEnd) { pic.boxEnd = host.boxEnd; delete host.boxEnd; }
+      }
+      paras.splice(i + 1, 0, pic);
+    });
+    const f = this.anyFrame(n, id);
+    if (f.text.chain) await this.app.rerender(this.reflow(f.text.chain.story));
+    this.select(n, id);
+    return true;
+  }
+
+  // opts.rel: a picture already in the week's assets (service music); opts.fullWidth: as wide as the text
+  async insertPicture(src, opts = {}) {
     const n = this.targetPage();
-    if (n == null) { this.app.setStatus('Click a page you are editing first.'); return; }
-    const rel = src ? await window.bb.importPicturePath(this.app.file(), src) : await window.bb.importPicture(this.app.file());
+    if (n == null) { this.app.setStatus('Click a page you are editing first.'); return false; }
+    const rel = opts.rel || (src ? await window.bb.importPicturePath(this.app.file(), src) : await window.bb.importPicture(this.app.file()));
     if (!rel) return;
     const size = await new Promise((res) => {
       const im = new Image();
@@ -456,7 +520,9 @@ export class Editor {
       im.src = new URL(rel, this.week().baseUrl).href;
     });
     const { width: W, height: H } = this.pageSize();
-    const w = 216, h = r2(216 * size.h / size.w);
+    const m = this.week().manifest.margins || {};
+    const text = W - (m.inside ?? m.left ?? 36) - (m.outside ?? m.right ?? 36);
+    const w = opts.fullWidth ? r2(text) : 216, h = r2(w * size.h / size.w);
     return this.addFrame(n, { id: this.newId(), kind: 'image', x: r2(W / 2 - w / 2), y: r2(Math.max(36, H / 2 - h / 2)), w, h,
       z: this.maxZ(n) + 1, image: { asset: rel, crop: [0, 0, 0, 0], fit: 'crop' } });
   }
@@ -506,6 +572,31 @@ export class Editor {
     const c = structuredClone(f);
     Editor.each(c, (g) => { g.z = (g.z || 0) + delta; });
     return this.apply(n, c);
+  }
+
+  // Bring Forward / Send Backward: one place up or down the page's stacking order (Publisher)
+  restackStep(dir) {
+    const f = this.frame();
+    if (!f || !this.editable(this.sel.page) || this.locked(this.sel.page, f)) return;
+    const n = this.sel.page;
+    const zOf = (g) => { const z = []; Editor.each(g, (x) => z.push(x.z || 0)); return z; };
+    const order = this.pageEntry(n).frames.map((g, i) => ({ id: g.id, lo: Math.min(...zOf(g)), i })).sort((a, b) => a.lo - b.lo || a.i - b.i);
+    const k = order.findIndex((o) => o.id === f.id);
+    const j = k + dir;
+    if (k < 0 || j < 0 || j >= order.length) return;
+    [order[k], order[j]] = [order[j], order[k]];
+    // number the page's objects again in the new order, a group keeping its inside order
+    return this.commit([n], () => {
+      const byId = new Map(this.pageEntry(n).frames.map((g) => [g.id, g]));
+      let z = 1;
+      for (const o of order) {
+        const g = byId.get(o.id);
+        const lo = Math.min(...zOf(g));
+        let hi = z;
+        Editor.each(g, (x) => { x.z = z + (x.z || 0) - lo; hi = Math.max(hi, x.z); });
+        z = hi + 1;
+      }
+    }).then(() => this.select(n, f.id));
   }
 
   copy() {
@@ -596,11 +687,14 @@ export class Editor {
     });
   }
 
-  // place a scratch-area item on a page: at `at` (page points, its top-left), else centred
-  placeFromPasteboard(id, n, at) {
+  // place a scratch-area item on a page: at `at` (page points, its top-left), else centred.
+  // An item parked by the OTHER half's pages is copied (its own half keeps it: only that half's
+  // editor may change its file) — so everything on the shelf can be used from either half.
+  placeFromPasteboard(id, n, at, from = this.half) {
     n = n ?? this.targetPage();
     if (n == null || !this.editable(n) || this.pageEntry(n).locked) return Promise.resolve(null);
-    const pb = this.week().halves[this.half].pasteboard || [];
+    const copy = from !== this.half;
+    const pb = this.week().halves[from].pasteboard || [];
     const i = pb.findIndex((f) => f.id === id);
     if (i < 0) return Promise.resolve(null);
     const { width: W, height: H } = this.pageSize();
@@ -610,12 +704,13 @@ export class Editor {
     delete placed.shelf;
     delete placed.fx;
     delete placed.fy;
+    if (copy) Editor.each(placed, (g) => { g.id = this.newId(); if (g.text) { delete g.text.chain; g.text.paragraphs.forEach((p) => delete p.continues); } });
     const top = this.maxZ(n) + 1;
     const zs = []; Editor.each(placed, (g) => zs.push(g.z || 0));
     const base = Math.min(...zs);
     Editor.each(placed, (g) => { g.z = top + (g.z || 0) - base; });
     return this.commit([n], () => {
-      pb.splice(i, 1);
+      if (!copy) pb.splice(i, 1);
       this.pageEntry(n).frames.push(placed);
     }).then(() => { this.select(n, placed.id); return placed; });
   }

@@ -38,9 +38,14 @@ button:disabled { opacity: .45; cursor: default; }
 .rb-doc { flex: 1; text-align: center; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #title { font-weight: 400; }
 .rb-app { color: #555; }
-#badge { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #fff3cd; color: #7a5b00; border: 1px solid #ecd58a; }
-#badge.editing-worship { background: #e4ecf7; color: var(--worship); border-color: var(--worship); }
-#badge.editing-announcements { background: #f7ece2; color: var(--announcements); border-color: var(--announcements); }
+/* the badge is a button (click = change what you are changing): #toolbar raises it over #toolbar button */
+#toolbar #badge { font: 11px "Segoe UI", system-ui, sans-serif; padding: 1px 8px; border-radius: 10px; background: #fff3cd; color: #7a5b00; border: 1px solid #ecd58a; cursor: pointer; }
+#toolbar #badge.editing-worship { background: #e4ecf7; color: var(--worship); border-color: var(--worship); }
+#toolbar #badge.editing-announcements { background: #f7ece2; color: var(--announcements); border-color: var(--announcements); }
+#toolbar #badge:hover:not(:disabled) { filter: brightness(.94); }
+#toolbar #badge:disabled { color: #7a5b00; cursor: default; }
+#badge.flash { animation: badge-flash 1.2s ease-out; }
+@keyframes badge-flash { from { box-shadow: 0 0 0 4px #f0a020; } to { box-shadow: 0 0 0 4px transparent; } }
 #save.dirty { background: #fde8e6; }
 .rb-tabs { display: flex; gap: 2px; padding: 2px 4px 4px; align-items: center; }
 /* Show Formatting: the top right of the ribbon, on every tab */
@@ -502,7 +507,8 @@ body.no-scratch .free-area { display: none; }
 .scratch-item { pointer-events: none; }
 .scratch-board { background: transparent; outline: none; margin: 0; }
 .scratch-item .frame { pointer-events: auto; cursor: move; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
-.scratch-item:not(.mine) .frame { cursor: default; opacity: .7; }
+.scratch-item:not(.mine) .frame { cursor: copy; opacity: .8; }
+body:not(.editing) .scratch-item .frame { cursor: default; }
 .scratch-item.mine { z-index: 1; }
 .scratch-item.selected { z-index: 2; }
 .scratch-item.selected .frame { outline: 2px solid #2b7de9; outline-offset: 1px; }
@@ -511,3 +517,37 @@ body.no-scratch .free-area { display: none; }
 @keyframes shelf-fresh { from { outline: 3px solid #f0a020; outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 2px; } }
 .scratch-ghost { position: fixed; z-index: 100000; pointer-events: none; opacity: .85; }
 .scratch-ghost .scratch-board { background: transparent; outline: none; }
+/* Service Music library pane (musiclib.js) */
+#musicpane { width: 270px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; min-height: 0; }
+#musicpane[hidden] { display: none; }
+#musicpane .fp-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 15px; color: var(--rb-accent, #077568); }
+#musicpane .mu-close { border: 0; background: none; font-size: 13px; padding: 2px 6px; }
+.mu-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 0 10px 6px; }
+.mu-cats button { padding: 4px 2px; font: 12px "Segoe UI", sans-serif; }
+.mu-group { font-weight: 600; color: #055e58; margin: 6px 0 0; }
+.mu-sub { font-size: 11px; color: #605e5c; }
+dialog .mu-f[hidden] { display: none; }
+.mu-cats button.active { background: #dcefeb; border-color: #077568; color: #055e58; }
+.mu-find { margin: 0 10px 6px; font: 12px "Segoe UI", sans-serif; padding: 3px 6px; }
+.mu-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.mu-item { background: #fff; border: 1px solid #e1dfdd; border-radius: 4px; padding: 6px; cursor: pointer; }
+.mu-item:hover { border-color: #9cc9c2; }
+.mu-item.selected { border-color: #077568; box-shadow: 0 0 0 1px #077568; }
+.mu-item img { display: block; width: 100%; max-height: 90px; object-fit: contain; background: #fff; }
+.mu-label { margin-top: 4px; font-size: 12px; color: #333; }
+.mu-empty { color: #7a7774; padding: 8px 2px; line-height: 1.4; }
+.mu-sel { border-top: 1px solid #e1dfdd; padding: 8px 10px; }
+.mu-sel[hidden] { display: none; }
+.mu-sel-label { font-weight: 600; margin-bottom: 6px; }
+.mu-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+.mu-buttons button, .mu-buttons select, .mu-foot button { font: 12px "Segoe UI", sans-serif; padding: 3px 8px; }
+#musicpane .mu-insert, #musicpane .mu-insert:hover { background: #077568; color: #fff; border-color: #077568; }
+#musicpane .mu-insert:hover { background: #055e58; }
+.mu-foot { padding: 8px 10px; border-top: 1px solid #e1dfdd; }
+/* Volunteers & attendance form (flowpanel rosterEditor) */
+.fp-roster .fp-rrow { display: grid; grid-template-columns: 92px minmax(0, 1fr) 24px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.fp-roster .fp-rrow:has(.fp-svc), .fp-roster .fp-rhead { grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr) 40px 24px; }
+.fp-roster .fp-rrow input { width: 100%; min-width: 0; box-sizing: border-box; }
+.fp-roster .fp-rhead span { font-size: 11px; color: #605e5c; }
+.fp-roster .fp-tot { text-align: right; font-variant-numeric: tabular-nums; }
+.fp-music { width: 100%; }

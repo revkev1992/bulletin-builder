@@ -80,9 +80,20 @@ exports.run = async (h) => {
 
   // Bring to Front / Send to Back
   const zMax = async () => ed(`Math.max(...ed.pageEntry(${P}).frames.map((f) => f.z || 0))`);
-  await h.clickSel('#back');
+  const zs = async () => ed(`ed.pageEntry(${P}).frames.slice().sort((a, b) => (a.z || 0) - (b.z || 0)).map((f) => f.id)`);
+  await menu('#rb-forward', '#front');
+  const top0 = await zs();
+  h.ok('Bring Forward ▸ Bring to Front', top0[top0.length - 1] === ids[0], { top0 });
+  await menu('#rb-backward', '#back-step');
+  const st1 = await zs();
+  h.ok('Send Backward ▸ Send Backward: one step back (just under the one it was over)', st1[st1.length - 2] === ids[0] && st1[st1.length - 1] === top0[top0.length - 2], { st1 });
+  await menu('#rb-forward', '#fwd-step');
+  h.ok('Bring Forward ▸ Bring Forward: one step up again', JSON.stringify(await zs()) === JSON.stringify(top0));
+  await h.clickSel('#undo'); await h.wait(500);
+  h.ok('…Undo puts the step back', JSON.stringify(await zs()) === JSON.stringify(st1));
+  await menu('#rb-backward', '#back');
   h.ok('Send Backward puts it behind everything', (await F(ids[0])).z <= (await ed(`Math.min(...ed.pageEntry(${P}).frames.map((f) => f.z || 0))`)));
-  await h.clickSel('#front');
+  await menu('#rb-forward', '#front');
   h.ok('Bring Forward puts it in front', (await F(ids[0])).z === await zMax());
 
   // Size boxes on the Shape Format tab

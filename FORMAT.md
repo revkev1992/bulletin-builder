@@ -25,6 +25,14 @@ A lock is refreshed every minute; one not refreshed for 5 minutes (or left by th
 crashed app on the same PC) may be taken over. `history/` is append-only; the app never deletes it.
 Saves write `<file>.saving` then rename it over the real file.
 
+**Service Music library** (2026-10-29) — a `Service Music/` folder **beside** the week folders (so
+everyone who shares the weeks shares it): `library.json` = `{ format: "bulletin-builder-music", version: 1,
+items: [ { id, category, file, added, …fields } ] }` + one picture per item (`<id>.<ext>`). `category` is
+`psalter` (fields `psalm`, `response`), `doxology` (`tune`, `title`), `communion` (`setting`, `part`,
+`order`), `taize` / `benediction` / `other` (`title`); any may carry a `note`. Using an item copies its
+picture into the week's `assets/` (same bytes = same file), so a week never depends on the library.
+Removing an item sends its picture to the Recycle Bin; weeks that used it keep their copy.
+
 ## 2. Manifest (`<name>.bulletin`)
 
 ```json
@@ -208,3 +216,6 @@ the worship pages. Absent `mode` = fixed layout (sections 3–4 only).
   `image.fit` = `fit`/`fill`, `history/` and `locks/` written by the app.
 - **v1, Phase 3 (2026-10-15)** — still v1 (additive): half `mode`/`flow`/`layout`, frame `generated`/`block`/`note`,
   paragraph `block`/`justifyLast`. Written by `import_docx.py` and the app.
+- **v1 (2026-10-29)** — still v1 (additive): the `Service Music/` library beside the weeks (§1). Paragraph
+  `picture` (in-line picture: `{ asset, w, h, before?, after? }`) is now also written by Insert ▸ Service Music
+  into any text box, not only by Finish Layout.

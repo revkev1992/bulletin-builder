@@ -81,7 +81,7 @@ export class Scratch {
     item.className = 'scratch-item' + (mine ? ' mine' : '') + (this.sel === f.id ? ' selected' : '');
     item.dataset.id = f.id;
     item.dataset.half = h;
-    item.title = mine ? 'Parked (never printed). Drag it onto a page to use it; Delete removes it.' : 'Parked by the ' + h + ' pages (never printed).';
+    item.title = mine ? 'Parked (never printed). Drag it onto a page to use it; Delete removes it.' : 'Parked by the ' + h + ' pages (never printed). Drag it onto one of your pages to use a copy.';
     return item;
   }
 
@@ -176,11 +176,14 @@ export class Scratch {
     e.preventDefault();
     e.stopPropagation();
     const ed = this.app.editor();
-    if (!item.classList.contains('mine')) {
-      this.app.setStatus(ed && ed.half ? 'That parked item belongs to the ' + item.dataset.half + ' pages — you are changing the ' + ed.half + ' pages.'
-        : 'View only. Choose Bulletin ▸ I am changing to move parked items.');
+    if (!ed || !ed.half) {
+      this.app.setStatus('View only. Click "View only" at the top right (or Bulletin ▸ I am changing) to use parked items.');
+      if (this.app.flashMode) this.app.flashMode();
       return;
     }
+    // the other half's items can be used too: dragged onto your page they are copied (Kevin batch 3:
+    // "I wasn't able to drag and drop from the shelf. Or even click on them")
+    if (!item.classList.contains('mine')) this.app.setStatus('Parked by the ' + item.dataset.half + ' pages: drag it onto one of your pages to use a copy (theirs stays on the shelf).');
     if (ed.textEdit) ed.endTextEdit();
     ed.select(null, null);
     this.deselect();
@@ -242,14 +245,17 @@ export class Scratch {
       if (ed.editable(n) && !ed.pageEntry(n).locked) {
         const scale = under.r.width / ed.pageSize().width;
         this.sel = null;
-        await ed.placeFromPasteboard(id, n, { x: (left - under.r.left) / scale, y: (top - under.r.top) / scale });
-        this.app.setStatus('Put on page ' + n + '.');
+        const from = d.item.dataset.half;
+        await ed.placeFromPasteboard(id, n, { x: (left - under.r.left) / scale, y: (top - under.r.top) / scale }, from);
+        this.app.setStatus(from === ed.half ? 'Put on page ' + n + '.' : 'A copy is on page ' + n + ' (the ' + from + ' pages keep theirs on the shelf).');
         return;
       }
       this.app.setStatus(ed.pageEntry(n).locked ? 'Page ' + n + ' is locked.' : 'Page ' + n + ' belongs to the ' + ed.halfOf(n) + ' pages.');
       this.render(true);
       return;
     }
+    // only its own half moves it about the shelf / scratch area
+    if (d.item.dataset.half !== ed.half) { this.render(true); return; }
     if (this.overShelf(e.clientX, e.clientY)) {
       if (!d.onShelf) await ed.moveInScratch(id, { shelf: true });
       return;
@@ -267,8 +273,11 @@ export class Scratch {
       e.preventDefault();
       e.stopImmediatePropagation();
       const id = this.sel;
+      const ed = this.app.editor();
+      const it = document.querySelector('.scratch-item[data-id="' + id + '"]');
+      if (it && ed && it.dataset.half !== ed.half) { this.app.setStatus('Only the ' + it.dataset.half + ' pages can delete that parked item.'); return; }
       this.sel = null;
-      this.app.editor().deleteFromScratch(id);
+      ed.deleteFromScratch(id);
     }
   }
 }

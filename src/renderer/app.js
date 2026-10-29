@@ -4,6 +4,7 @@ import { isFlow, layoutFlow, flowHash, isFinished } from './flow.js';
 import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
+import { MusicPane } from './musiclib.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, modal } from './pagedialogs.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
@@ -304,9 +305,12 @@ async function pageContextMenu(e) {
       null,
       { label: 'Bring to Front', cmd: 'front', on: !locked, run: cmd('front') },
       { label: 'Send to Back', cmd: 'back', on: !locked, run: cmd('back') },
+      { label: 'Bring Forward', cmd: 'forward', on: !locked, run: cmd('forward') },
+      { label: 'Send Backward', cmd: 'backward', on: !locked, run: cmd('backward') },
       { label: several ? 'Group' : 'Ungroup', cmd: several ? 'group' : 'ungroup', on: several || f.kind === 'group', run: cmd(several ? 'group' : 'ungroup') },
       { label: f.locked ? 'Unlock' : 'Lock', cmd: 'lock-frame', on: true, run: cmd('lock-frame') },
-      ...(pic ? [null, { label: 'Crop', cmd: 'crop', on: !locked, run: cmd('crop') }, { label: 'Fit', cmd: 'fit', on: !locked, run: cmd('fit') },
+      ...(pic ? [null, { label: 'Add to Service Music…', cmd: 'to-music', on: true, run: () => editor.app.music.add(f.image.asset) },
+        { label: 'Crop', cmd: 'crop', on: !locked, run: cmd('crop') }, { label: 'Fit', cmd: 'fit', on: !locked, run: cmd('fit') },
         { label: 'Fill', cmd: 'fill', on: !locked, run: cmd('fill') }] : []),
       null,
       { label: pic ? 'Format Picture…' : f.kind === 'text' ? 'Format Text Box…' : 'Format Shape…', cmd: 'format', on: true, run: () => selectTab('format') },
@@ -409,6 +413,7 @@ async function open(file) {
   await showSpreads();
   zoomBy(0);
   updateToolbar();
+  if (window.__bbMusic && window.__bbMusic.shown) window.__bbMusic.load();   // another week may sit beside another library
 }
 
 async function reload() {
@@ -429,14 +434,30 @@ async function ensureLayout() {
   await layoutFlow(week, half);
 }
 
+// View only / Worship pages / Announcements pages (Bulletin ▸ I am changing, or the badge top right)
+async function setMode(v) {
+  if (v === (editor.half || '')) { updateToolbar(); return; }
+  const ok = v ? await editor.claim(v) : (await editor.release(), true);
+  if (!ok) $('mode').value = editor.half || '';
+  updateToolbar();
+}
+window.__bbSetMode = setMode;
+// a nudge towards the badge (something was tried in View only)
+function flashMode() {
+  const b = $('badge');
+  b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+}
+
 // ---------------------------------------------------------------- toolbar state
 const IN = 72;
 function updateToolbar() {
   if (scratch) scratch.render();
   const half = editor && editor.half;
   $('mode').value = half || '';
-  $('badge').textContent = half ? 'Editing ' + half : (week ? 'View only' : 'No week open');
+  $('badge').textContent = (half ? 'Editing ' + half : (week ? 'View only' : 'No week open')) + (week ? ' ▾' : '');
   $('badge').className = half ? 'editing-' + half : '';
+  $('badge').disabled = !week;
+  document.body.classList.toggle('editing', !!half);
   $('save').disabled = !half;
   $('save').classList.toggle('dirty', !!(editor && editor.dirty));
   // while typing, Undo/Redo step through the typing (as in Publisher), so they stay live
@@ -450,6 +471,7 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
+  $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
   const wh = week && week.halves.worship;
   $('rb-finish').disabled = !(half === 'worship' && isFlow(wh));
   $('rb-draft').disabled = !(half === 'worship' && isFinished(wh));
@@ -464,7 +486,7 @@ function onSelection(info) {
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).disabled = !has || info.locked || !(editor && editor.half);
   $('lock-frame').disabled = !(has && editor.half);
   $('delete').disabled = !(has && editor.half && !info.locked);
-  for (const id of ['front', 'back', 'to-pasteboard']) $(id).disabled = !(has && editor.half && !info.locked);
+  for (const id of ['front', 'back', 'fwd-step', 'back-step', 'rb-forward', 'rb-backward', 'to-pasteboard']) $(id).disabled = !(has && editor.half && !info.locked);
   const pic = has && editor.half && !info.locked && info.frame.kind === 'image';
   for (const id of ['crop', 'fit', 'fill']) $(id).disabled = !pic;
   $('crop').classList.toggle('active', !!(pic && editor.crop));
@@ -772,7 +794,7 @@ if (PRINT) {
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && painter) { stopPaint(); e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   const rulers = new Rulers(editor, { $ });
   window.__bbRulers = rulers;
-  scratch = new Scratch({ week: () => week, editor: () => editor, zoom: () => zoom, settle: (root) => (week ? settle(root) : null), setStatus, onLayout: () => { if (week) applyZoom(); } });
+  scratch = new Scratch({ week: () => week, editor: () => editor, zoom: () => zoom, settle: (root) => (week ? settle(root) : null), setStatus, flashMode, onLayout: () => { if (week) applyZoom(); } });
   $('pasteboard-btn').checked = scratch.showFree;
   $('shelf-btn').checked = scratch.showShelf;
   editor.app.scratch = scratch;
@@ -780,6 +802,11 @@ if (PRINT) {
   $('t-tabsdlg').onclick = () => rulers.tabsDialog();
   const find = new FindPane(editor, { $ });
   window.__bbFind = find;
+  // Insert ▸ Service Music: the labelled library of psalters / doxologies / other (musiclib.js)
+  const music = new MusicPane({ file: () => weekFile, editor: () => editor, setStatus, flashMode });
+  editor.app.music = music;
+  window.__bbMusic = music;
+  $('ins-music').onclick = () => music.toggle();
   for (const b of [$('rb-find'), $('rb-replace')]) b.addEventListener('mousedown', (e) => e.preventDefault());   // keep the selected text for "Find what"
   $('rb-find').onclick = () => find.show('find');
   $('rb-replace').onclick = () => find.show('replace');
@@ -864,7 +891,7 @@ if (PRINT) {
   $('brk-column').onclick = () => editor.insertBreak('column');
   // at start nothing is being typed in: Font/Paragraph greyed, as in Publisher
   queueMicrotask(() => editor.app.onTextMode(false));
-  editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile });
+  editor.panel = new FlowPanel(editor, { week: () => week, file: () => weekFile, music: () => window.__bbMusic });
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
     save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
@@ -903,11 +930,15 @@ if (PRINT) {
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
   $('pasteboard-btn').onchange = (e) => scratch.set('free', e.target.checked);
   $('shelf-btn').onchange = (e) => scratch.set('shelf', e.target.checked);
-  $('mode').onchange = async (e) => {
-    const v = e.target.value;
-    const ok = v ? await editor.claim(v) : (await editor.release(), true);
-    if (!ok) e.target.value = editor.half || '';
-    updateToolbar();
+  $('mode').onchange = (e) => setMode(e.target.value);
+  // the badge at the top right is the same switch, from any tab
+  $('badge').onclick = () => {
+    if (!week) return;
+    const r = $('badge').getBoundingClientRect();
+    const cur = editor.half || '';
+    const m = showMenu(r.right, r.bottom + 2, [['', 'View only'], ['worship', 'Worship pages'], ['announcements', 'Announcements pages']]
+      .map(([v, label]) => ({ label: (v === cur ? '✓ ' : ' ') + label, cmd: 'mode-' + (v || 'view'), on: true, run: () => setMode(v) })), 'mode-menu');
+    m.style.left = Math.max(0, r.right - m.getBoundingClientRect().width) + 'px';
   };
   $('save').onclick = () => editor.command('save');
   $('undo').onclick = () => editor.command('undo');
@@ -915,7 +946,7 @@ if (PRINT) {
   $('lock-frame').onclick = () => editor.command('lock-frame');
   $('lock-page').onclick = () => editor.command('lock-page');
   $('delete').onclick = () => editor.command('delete');
-  const cmdButtons = { front: 'front', back: 'back', 'to-pasteboard': 'to-pasteboard', crop: 'crop', fit: 'fit', fill: 'fill',
+  const cmdButtons = { front: 'front', back: 'back', 'fwd-step': 'forward', 'back-step': 'backward', 'to-pasteboard': 'to-pasteboard', crop: 'crop', fit: 'fit', fill: 'fill',
     'ins-text': 'insert-text', 'ins-picture': 'insert-picture', 'ins-line': 'insert-line', 'ins-rect': 'insert-rect' };
   for (const [id, cmd] of Object.entries(cmdButtons)) $(id).onclick = () => editor.command(cmd);
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
@@ -925,6 +956,7 @@ if (PRINT) {
   $('t-italic').onclick = () => editor.format('italic');
   $('t-underline').onclick = () => editor.format('underline');
   $('t-smallcaps').onclick = () => editor.format('smallcaps');
+  $('t-strike').onclick = () => editor.format('strikeThrough');
   for (const b of document.querySelectorAll('.rb-text [data-align]')) b.onclick = () => editor.format('align', b.dataset.align);
   // font and size take focus away from the frame; put the selection back before applying
   let saved = null;
@@ -975,6 +1007,7 @@ if (PRINT) {
     $('t-italic').classList.toggle('active', cs.fontStyle === 'italic');
     $('t-underline').classList.toggle('active', deco('underline'));
     $('t-smallcaps').classList.toggle('active', cs.fontVariantCaps === 'small-caps');
+    $('t-strike').classList.toggle('active', deco('line-through'));
     const p = el.closest('p');
     const al = p ? getComputedStyle(p).textAlign : 'left';
     for (const b of document.querySelectorAll('.rb-text [data-align]')) b.classList.toggle('active', b.dataset.align === (al === 'start' ? 'left' : al));

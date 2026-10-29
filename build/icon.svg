@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- Bulletin Builder (Kevin 2026-10-29, concept A): an open, folded bulletin behind a B tile, in Publisher's teal -->
+  <path d="M30 20 L60 14 L60 82 L30 88 Z" fill="#2AA69A"/>
+  <path d="M60 14 L88 20 L88 86 L60 82 Z" fill="#5CC6B9"/>
+  <path d="M60 14 L60 82" stroke="#077568" stroke-width="1.5"/>
+  <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity=".85"><path d="M66 30h15M66 40h15M66 50h15M66 60h10"/></g>
+  <rect x="8" y="30" width="44" height="44" rx="6" fill="#055E58"/>
+  <path fill="#ffffff" d="M20.5 41h10.2c5.3 0 8.4 2.4 8.4 6.3 0 2.6-1.5 4.4-3.9 5.1v.1c3 .5 4.9 2.6 4.9 5.6 0 4.4-3.5 6.9-9.2 6.9H20.5Zm5.4 4.3v5.6h3.6c2.2 0 3.4-1 3.4-2.8 0-1.8-1.2-2.8-3.4-2.8Zm0 9.7v6h4c2.4 0 3.8-1.1 3.8-3 0-1.9-1.4-3-3.8-3Z"/>
+</svg>

@@ -138,7 +138,7 @@ export function serializeFlow(flow) {
 export function formatSelection(cmd, value, flow) {
   document.execCommand('styleWithCSS', false, true);
   switch (cmd) {
-    case 'bold': case 'italic': case 'underline':
+    case 'bold': case 'italic': case 'underline': case 'strikeThrough':
       document.execCommand(cmd);
       break;
     case 'font':

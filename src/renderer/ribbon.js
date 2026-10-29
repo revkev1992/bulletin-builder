@@ -19,6 +19,7 @@ const ICONS = {
   copy: `${sheet(4, 3, 16, 20)}${sheet(12, 9, 16, 20)}`,
   painter: `<rect x="5" y="4" width="20" height="8" rx="2" fill="${Y}" stroke="${G}" stroke-width="1.2"/><path d="M15 12v6M15 18v10" stroke="${G}" stroke-width="3"/>`,
   textbox: `<rect x="4" y="5" width="24" height="22" fill="#fff" stroke="${B}" stroke-width="1.8"/><path d="M11 21 16 9l5 12M13 17h6" fill="none" stroke="${B}" stroke-width="2"/>`,
+  music: `<rect x="4" y="5" width="24" height="22" rx="1.5" fill="#fff" stroke="${G}" stroke-width="1.6"/><path d="M7 11h18M7 15h18M7 19h18" stroke="#9aa" stroke-width="1"/><path d="M15 9v11" stroke="#077568" stroke-width="1.8"/><path d="M15 9l6 2v3l-6-2z" fill="#077568"/><ellipse cx="12.5" cy="20.5" rx="3" ry="2.2" fill="#077568"/>`,
   picture: `<rect x="3" y="6" width="26" height="20" rx="1" fill="#fff" stroke="${G}" stroke-width="1.6"/><path d="M5 24l7-9 5 6 4-4 6 7z" fill="#6aa84f"/><circle cx="22" cy="11" r="2.5" fill="${Y}"/>`,
   table: `<rect x="4" y="5" width="24" height="22" fill="#fff" stroke="${G}" stroke-width="1.6"/><path d="M4 11h24M4 16.5h24M4 22h24M12 5v22M20 5v22" stroke="${G}" stroke-width="1.2"/>`,
   shapes: `<rect x="4" y="12" width="14" height="14" fill="#cfdcf0" stroke="${B}" stroke-width="1.6"/><circle cx="21" cy="11" r="8" fill="#fff" stroke="${B}" stroke-width="1.6" fill-opacity=".85"/>`,
@@ -87,6 +88,7 @@ const ICONS = {
   newweek: `${sheet(4, 3, 18, 26)}<path d="M8 11h10M8 15h10" stroke="${G}"/><circle cx="23" cy="23" r="6" fill="${T}"/><path d="M23 19v8M19 23h8" stroke="#fff" stroke-width="2"/>`,
   bold: `<text x="16" y="25" font-size="26" font-weight="700" text-anchor="middle" fill="${G}" font-family="Segoe UI">B</text>`,
   italic: `<text x="16" y="25" font-size="26" font-style="italic" text-anchor="middle" fill="${G}" font-family="Georgia">I</text>`,
+  strike: `<text x="16" y="24" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">ab</text><path d="M4 16h24" stroke="${G}" stroke-width="2"/>`,
   smallcaps: `<text x="3" y="24" font-size="22" fill="${G}" font-family="Georgia">S</text><text x="16" y="24" font-size="14" fill="${G}" font-family="Georgia">C</text>`,
   underline: `<text x="16" y="21" font-size="24" text-anchor="middle" fill="${G}" font-family="Segoe UI">U</text><path d="M8 29h16" stroke="${G}" stroke-width="2"/>`,
   sub: `<text x="11" y="21" font-size="22" text-anchor="middle" fill="${G}" font-family="Segoe UI">x</text><text x="22" y="27" font-size="13" fill="${B}" font-family="Segoe UI">2</text>`,
@@ -149,7 +151,7 @@ export const TABS = [
       [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
         '</select><input id="t-size" type="number" min="4" max="144" step="0.5" value="11" title="Font Size (pt)" disabled>' },
         ico('grow', 'Increase Font Size (Ctrl+>)', { id: 't-grow' }), ico('shrink', 'Decrease Font Size (Ctrl+<)', { id: 't-shrink' }), ico('clearfmt', 'Clear All Formatting', { id: 't-clear' })] },
-      { row: [ico('bold', 'Bold (Ctrl+B)', { id: 't-bold' }), ico('italic', 'Italic (Ctrl+I)', { id: 't-italic' }), ico('underline', 'Underline (Ctrl+U)', { id: 't-underline' }), ico('smallcaps', 'Small Caps (Ctrl+Shift+K) — click again for regular letters', { id: 't-smallcaps' }),
+      { row: [ico('bold', 'Bold (Ctrl+B)', { id: 't-bold' }), ico('italic', 'Italic (Ctrl+I)', { id: 't-italic' }), ico('underline', 'Underline (Ctrl+U)', { id: 't-underline' }), ico('smallcaps', 'Small Caps (Ctrl+Shift+K) — click again for regular letters', { id: 't-smallcaps' }), ico('strike', 'Strikethrough', { id: 't-strike' }),
         ico('sub', 'Subscript', { id: 't-sub' }), ico('sup', 'Superscript', { id: 't-sup' }), ico('case', 'Change Case', { id: 't-case', menu: 'case' }),
         ico('spacing', 'Character Spacing', { id: 't-spacing', menu: 'tracking' }), ico('color', 'Font Color', { id: 't-color', menu: 'color' })] }],
     ] },
@@ -165,7 +167,7 @@ export const TABS = [
       [big('Table', 'table', todo)], [big('Shapes', 'shapes', { id: 'rb-shapes-home', menu: 'shapes' })]] },
     { label: 'Arrange', cols: [
       [big('Wrap Text', 'wrap', { id: 'rb-wrap', menu: 'wrap' })],
-      [sm('Bring Forward', 'forward', { id: 'front', tip: 'Bring to Front' }), sm('Send Backward', 'backward', { id: 'back', tip: 'Send to Back' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
+      [sm('Bring Forward', 'forward', { id: 'rb-forward', menu: 'forward' }), sm('Send Backward', 'backward', { id: 'rb-backward', menu: 'backward' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
       [sm('Group', 'group', { id: 'rb-group', tip: 'Group (select several with Shift+click)' }), sm('Ungroup', 'group', { id: 'rb-ungroup' }), sm('Rotate', 'rotate', { id: 'rb-rotate', menu: 'rotate' })],
     ] },
     { label: 'Editing', cols: [[sm('Find', 'find', { id: 'rb-find', tip: 'Find (Ctrl+F)' }), sm('Replace', 'replace', { id: 'rb-replace', tip: 'Replace (Ctrl+H)' }), sm('Select', 'select', { id: 'rb-select', menu: 'select' })], [sm('Delete', 'del', { id: 'delete', tip: 'Delete (Del)' })]] },
@@ -173,7 +175,7 @@ export const TABS = [
   { id: 'insert', label: 'Insert', groups: [
     { label: 'Pages', cols: [[big('Page', 'pageadd', { id: 'rb-page', menu: 'page', tip: 'Insert a page' })]] },
     { label: 'Tables', cols: [[big('Table', 'table', todo)]] },
-    { label: 'Illustrations', cols: [[big('Pictures', 'picture', { id: 'ins-picture', tip: 'Insert a picture from a file' })], [big('Shapes', 'shapes', { id: 'rb-shapes', menu: 'shapes' })],
+    { label: 'Illustrations', cols: [[big('Pictures', 'picture', { id: 'ins-picture', tip: 'Insert a picture from a file' })], [big('Service Music', 'music', { id: 'ins-music', tip: 'Psalters, doxologies, communion settings, Taizé chants, benediction responses: kept once, used again (Service Music library)' })], [big('Shapes', 'shapes', { id: 'rb-shapes', menu: 'shapes' })],
       [big('Picture Placeholder', 'placeholder', todo)]] },
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', todo)], [big('Calendars', 'calendar', todo)], [big('Borders & Accents', 'borders', todo)], [big('Advertisements', 'ads', todo)]] },
     { label: 'Break', cls: 'rb-text', cols: [[big('Break', 'pagenum', { id: 'ins-break', menu: 'breaks', tip: 'Insert a break where you are typing' })]] },
@@ -213,6 +215,7 @@ export const TABS = [
       [big('Ledger 11 × 17 in', 'print', { id: 'pr-ledger', tip: 'Folded booklet, enlarged to fill the sheet (large print)' })],
       [big('Letter 8.5 × 11 in', 'print', { id: 'pr-letter', tip: 'One page per sheet, actual size' })]] },
     { label: 'Protect', cols: [[big('Lock', 'lock', { id: 'lock-frame', tip: 'Lock frame (Ctrl+L)' })], [big('Lock Page', 'lockpage', { id: 'lock-page' })]] },
+    { label: 'Service Music', cols: [[big('Service Music', 'music', { mirror: 'ins-music', tip: 'Psalters, doxologies and other service music, labelled once and used again' })]] },
     { label: 'Scratch Area', cols: [[big('Park', 'park', { id: 'to-pasteboard', tip: 'Park the selected object in the scratch area (never printed)' })]] },
     { label: 'Show', cols: [[chk('Who owns each page', { id: 'show-halves', checked: true })]] },
   ] },
@@ -222,7 +225,7 @@ export const TABS = [
     { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
       [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
     { label: 'Arrange', cols: [[big('Wrap Text', 'wrap', { mirror: 'rb-wrap', menu: 'wrap' })],
-      [sm('Bring Forward', 'forward', { mirror: 'front' }), sm('Send Backward', 'backward', { mirror: 'back' }), sm('Align', 'align', { mirror: 'rb-align', menu: 'align' })],
+      [sm('Bring Forward', 'forward', { mirror: 'rb-forward', menu: 'forward' }), sm('Send Backward', 'backward', { mirror: 'rb-backward', menu: 'backward' }), sm('Align', 'align', { mirror: 'rb-align', menu: 'align' })],
       [sm('Group', 'group', { mirror: 'rb-group' }), sm('Ungroup', 'group', { mirror: 'rb-ungroup' }), sm('Rotate', 'rotate', { mirror: 'rb-rotate', menu: 'rotate' })]] },
     { label: 'Picture', id: 'rb-picture-group', cols: [[big('Crop', 'crop', { id: 'crop', tip: 'Crop (double-click the picture)' })], [sm('Fit', 'fit', { id: 'fit', tip: 'Show the whole picture inside the frame' }), sm('Fill', 'fill', { id: 'fill', tip: 'Fill the frame, cropping the picture evenly' })]] },
     { label: 'Size', cols: [[{ html: '<label class="rb-num">Height <input id="fh" type="number" step="0.01" min="0" disabled>"</label>' +
@@ -243,6 +246,9 @@ const MENUS = {
     sm('2.5', null, { id: 'ls-2.5' }), sm('3.0', null, { id: 'ls-3' }), sm('Paragraph…', 'linespacing', { id: 't-paradlg', tip: 'Indents and spacing' }), sm('Tabs…', 'align-left', { id: 't-tabsdlg', tip: 'Tab stops (or double-click the ruler)' })],
   columns: [sm('One Column', 'single', { id: 'col-1' }), sm('Two Columns', 'columns', { id: 'col-2' }), sm('Three Columns', 'columns', { id: 'col-3' })],
   wrap: [sm('None', 'rect', { id: 'wrap-none' }), sm('Square', 'wrap', { id: 'wrap-square' }), sm('Tight', 'wrap', { id: 'wrap-tight' }), sm('Top and Bottom', 'wrap', { id: 'wrap-topBottom' })],
+  // Publisher's split buttons: one step, or all the way
+  forward: [sm('Bring Forward', 'forward', { id: 'fwd-step', tip: 'One step forward' }), sm('Bring to Front', 'forward', { id: 'front', tip: 'In front of everything' })],
+  backward: [sm('Send Backward', 'backward', { id: 'back-step', tip: 'One step back' }), sm('Send to Back', 'backward', { id: 'back', tip: 'Behind everything' })],
   align: [sm('Align Left', 'align', { id: 'al-left' }), sm('Align Center', 'align-center', { id: 'al-center' }), sm('Align Right', 'align-right', { id: 'al-right' }),
     sm('Align Top', 'align', { id: 'al-top' }), sm('Align Middle', 'align-center', { id: 'al-middle' }), sm('Align Bottom', 'align', { id: 'al-bottom' }),
     sm('Distribute Horizontally', 'columns', { id: 'dist-h' }), sm('Distribute Vertically', 'linespacing', { id: 'dist-v' }),
@@ -299,7 +305,8 @@ export function buildRibbon(root, { title = '' } = {}) {
       '<button id="undo" class="rb-ico" title="Undo (Ctrl+Z)" disabled>' + icon('undo', 16) + '</button>' +
       '<button id="redo" class="rb-ico" title="Redo (Ctrl+Y)" disabled>' + icon('redo', 16) + '</button></div>' +
       '<div class="rb-doc"><span id="title">' + title + '</span><span class="rb-app"> - Bulletin Builder</span></div>' +
-      '<span id="badge">No week open</span></div>' +
+      // what you are changing; click it to change (Kevin batch 3: "so I don't have to click on the bulletin tab")
+      '<button type="button" id="badge" title="What you are changing. Click to change it." disabled>No week open</button></div>' +
     '<nav class="rb-tabs"><button type="button" class="rb-tab rb-file" data-tab="file">File</button>' + tabs +
       // Show Formatting, on every tab (Kevin 2026-10-27: "the top right corner of the ribbons")
       '<button type="button" id="marks-toggle" class="marks-btn" aria-pressed="false" title="Show Formatting: dots for spaces, ¶, tab arrows, line breaks (Ctrl+Shift+Y). Click again to hide them. Never printed.">' +

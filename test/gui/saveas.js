@@ -41,6 +41,7 @@ exports.run = async (h) => {
   } finally {
     delete global.__bbTestSaveAs;
     await h.js('window.bb.release()').catch(() => {});
-    fs.rmSync(dest, { recursive: true, force: true });
+    // the window still has the copy open: the harness removes this run's folder (copy included) at the end
+    try { fs.rmSync(dest, { recursive: true, force: true }); } catch (_) { /* removed with the run's folder */ }
   }
 };

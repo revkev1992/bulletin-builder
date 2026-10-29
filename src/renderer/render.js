@@ -410,6 +410,17 @@ export function layoutTabs(root, defaultStop = 36) {
     if (!pxPerPt) continue;
     const cs = getComputedStyle(p);
     const right = (p.getBoundingClientRect().right - areaRect.left - parseFloat(cs.paddingRight)) / pxPerPt;
+    const floats = [...area.querySelectorAll('.wrap-float')].map((f) => f.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+    // the right end of the line a tab sits on: short of a wrapped object (margin note, picture) beside it
+    const lineRight = (tab) => {
+      const t = tab.getBoundingClientRect();
+      let edge = right;
+      for (const r of floats) {
+        if (r.bottom <= t.top + 0.5 || r.top >= t.bottom - 0.5 || r.left < t.left) continue;
+        edge = Math.min(edge, (r.left - areaRect.left) / pxPerPt);
+      }
+      return edge;
+    };
     tabs.forEach((tab) => {
       let x = (tab.getBoundingClientRect().left - areaRect.left) / pxPerPt;
       const nextStop = (from) => stops.find((s) => s.pos > from + 0.01);
@@ -425,6 +436,12 @@ export function layoutTabs(root, defaultStop = 36) {
         const last = stops.length ? stops[stops.length - 1].pos : 0;
         const from = Math.max(x, last);
         stop = { pos: (Math.floor(from / defaultStop) + 1) * defaultStop, align: 'left' };
+      }
+      // a right / centre stop hidden under a wrapped object beside this line ("SERMON ⇥ Rev. …" next to
+      // a margin note): aligned on the object's edge instead, so the line stays beside it, not below
+      if (stop.align !== 'left' && floats.length) {
+        const edge = lineRight(tab);
+        if (stop.pos > edge + 0.5 && edge > x) stop = { ...stop, pos: edge };
       }
       const seg = tab.nextElementSibling;
       let segW = 0;

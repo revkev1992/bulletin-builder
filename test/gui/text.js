@@ -80,7 +80,7 @@ exports.run = async (h) => {
   await h.shot('textbox-format-tab');
   const fmtOff = [];
   for (const s of ['.rb-panel[data-tab="format"] [data-mirror="rb-columns"]', '.rb-panel[data-tab="format"] [data-mirror="rb-wrap"]',
-    '.rb-panel[data-tab="format"] [data-mirror="rb-align"]', '.rb-panel[data-tab="format"] [data-mirror="front"]', '#fx', '#fy', '#fw', '#fh']) if (await h.disabled(s)) fmtOff.push(s);
+    '.rb-panel[data-tab="format"] [data-mirror="rb-align"]', '.rb-panel[data-tab="format"] [data-mirror="rb-forward"]', '#fx', '#fy', '#fw', '#fh']) if (await h.disabled(s)) fmtOff.push(s);
   h.ok('Text Box Format: Columns, Wrap, Align, Arrange, Size all enabled', fmtOff.length === 0, { fmtOff });
   await h.clickSel('.rb-panel[data-tab="format"] [data-mirror="rb-columns"]');
   await h.clickSel('#col-2');
