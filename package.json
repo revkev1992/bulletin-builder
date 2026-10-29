@@ -1,7 +1,7 @@
 {
   "name": "bulletin-builder",
   "productName": "Bulletin Builder",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Weekly worship bulletin layout tool for Highland UMC (Publisher replacement).",
   "main": "src/main.js",
   "author": "Highland UMC",
