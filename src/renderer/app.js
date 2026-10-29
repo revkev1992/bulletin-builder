@@ -646,13 +646,30 @@ async function printOn(paper) {
   if (!week) return;
   const nums = week.manifest.pages.map((p) => p.number);
   const text = describePaper(paper, week.manifest.page, nums.length);
+  // a booklet: the work printer's own "Bulletin" preset arranges the pages itself, so it must get them
+  // in order, one per page — sent already arranged, it shrank each sheet onto a page (Kevin 2026-10-29)
+  const booklet = PAPER[paper].booklet;
+  let maker = 'printer';
+  try { maker = localStorage.getItem('bb.print.maker') || 'printer'; } catch (_) { /* default */ }
   const v = await modal('Print — ' + PAPER[paper].label + ' ' + PAPER[paper].inches,
-    '<p>' + text + '</p><fieldset><legend>Do</legend><label><input type="radio" name="how" value="print" checked> Print (choose the printer next)</label>' +
+    (booklet ? '<fieldset><legend>Who arranges the booklet</legend>' +
+      '<label><input type="radio" name="maker" value="printer"' + (maker !== 'app' ? ' checked' : '') + '> The printer — in the next window choose its booklet preset (such as <b>Bulletin</b>). ' +
+        'The ' + nums.length + ' pages are sent in order, one per page.</label>' +
+      '<label><input type="radio" name="maker" value="app"' + (maker === 'app' ? ' checked' : '') + '> Bulletin Builder — ' + text +
+        ' In the next window choose ' + PAPER[paper].label + ' paper, landscape, print on both sides (flip on the short edge), and turn the printer’s own booklet setting off.</label></fieldset>'
+      : '<p>' + text + '</p>') +
+    '<fieldset><legend>Do</legend><label><input type="radio" name="how" value="print" checked> Print (choose the printer next)</label>' +
     '<label><input type="radio" name="how" value="pdf"> Save as a PDF</label></fieldset><p class="pd-note">Your changes are saved first.</p>', 'Continue');
   if (!v || !(await savedFirst())) return;
+  const inOrder = booklet && v.maker !== 'app';
+  if (booklet) { try { localStorage.setItem('bb.print.maker', v.maker === 'app' ? 'app' : 'printer'); } catch (_) { /* per-PC convenience only */ } }
   try {
-    if (v.how === 'pdf') { setStatus('Creating ' + PAPER[paper].label + ' PDF…'); const out = await window.bb.exportPdf(weekFile, paper); setStatus(out ? 'PDF saved: ' + out : ''); }
-    else { setStatus('Preparing to print…'); const r = await window.bb.print(weekFile, paper); setStatus(r === 'printed' ? 'Sent to the printer (' + PAPER[paper].label + ').' : ''); }
+    if (v.how === 'pdf') { setStatus('Creating ' + PAPER[paper].label + ' PDF…'); const out = await window.bb.exportPdf(weekFile, inOrder ? undefined : paper); setStatus(out ? 'PDF saved: ' + out : ''); }
+    else {
+      setStatus('Preparing to print…');
+      const r = await window.bb.print(weekFile, inOrder ? undefined : paper);
+      setStatus(r === 'printed' ? (inOrder ? 'Sent to the printer: ' + nums.length + ' pages in order, for its booklet preset.' : 'Sent to the printer (' + PAPER[paper].label + ').') : '');
+    }
   } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
 }
 window.__bbPrintOn = printOn;

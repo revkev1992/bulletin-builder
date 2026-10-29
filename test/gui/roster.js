@@ -18,13 +18,13 @@ exports.run = async (h) => {
   await h.until('window.__bbEditor.half === "worship"');
   await h.wait(800);
   const id = (await blocks()).find((b) => b.kind === 'text' && JSON.stringify(b.paragraphs || []).includes('Attendance for')).id;
+  const before = await lines(id);
   await h.reveal(`#flowpanel .fp-row[data-id="${id}"]`);
   await h.clickSel(`#flowpanel .fp-row[data-id="${id}"]`);
-  await h.wait(400);
-  const before = await lines(id);
-  h.ok('the Word bulletin\'s volunteers & attendance lines offer the form', await h.js(`!!document.querySelector('#flowpanel [data-test="to-roster"]')`));
-  await h.clickSel('#flowpanel [data-test="to-roster"]');
   await h.wait(1200);
+  // Kevin 2026-10-29 ("what form?"): choosing the lines turns them into the form — no button to find
+  h.ok('choosing the Word bulletin\'s volunteers & attendance lines shows the form straight away', (await h.js(`!!document.querySelector('#flowpanel [data-test="inp-0"]')`)) &&
+    /Volunteers & attendance/.test(await h.js(`document.getElementById('status').textContent`)));
   const b = (await blocks()).find((x) => x.id === id);
   h.ok('…Turn into a form: the names and numbers are read out of the lines', b.kind === 'roster' && b.volunteers.length === 3 && b.volunteers[2].names === 'Alex Cope & Sean Richards' &&
     b.attendance.date === 'October 11, 2026' && b.attendance.services.length === 2 && b.attendance.services[0].inPerson === 84 && b.attendance.services[1].streaming === 46, { b });

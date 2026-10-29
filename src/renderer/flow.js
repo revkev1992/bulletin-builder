@@ -535,7 +535,16 @@ export async function finishLayout(week, half) {
     if (!pg) continue;
     const gen = pg.frames.filter((f) => f.generated);
     const texts = n === pages[0] ? [] : gen.filter((f) => f.kind === 'text' && !f.note).sort((a, b) => a.y - b.y);
-    if (texts.length) inlinePictures(pg, gen, texts);
+    if (texts.length) { inlinePictures(pg, gen, texts); mergeBoxes(pg, gen, texts); }
+    // an empty page after the order of worship gets a linked box, so text pushed past the last
+    // full page flows on to it instead of overflowing (Kevin 2026-10-29)
+    if (n !== pages[0] && !texts.length && !gen.length && !pg.frames.some((f) => f.kind === 'text')) {
+      const box = { id: 'g' + n + '-empty', kind: 'text', generated: true, block: null, blocks: [], x: g.left, y: g.top, w: g.width, h: g.height, z: 1,
+        text: { inset: [0, 0, 0, 0], valign: 'top', paragraphs: [] } };
+      pg.frames.push(box);
+      gen.push(box);
+      texts.push(box);
+    }
     for (const t of texts) {
       t.text.chain = { story, index: index++ };
       for (const p of t.text.paragraphs) { if (p.splitHead) p.continues = true; delete p.splitHead; }
@@ -558,7 +567,9 @@ export async function finishLayout(week, half) {
       // text pushed on to this page goes around the notes and music instead of under them (as a
       // Publisher picture does). Notes wrap square, just inside the gap their own lines already
       // leave; music top-and-bottom. A hair inside each edge, so nothing moves at finishing.
-      if (f.note) f.wrap = { type: 'square', dist: [-0.5, 0, -0.5, NOTE.gap - 0.5] };
+      // Not on the cover: its logo and art wrapping pushed the HIGHLAND masthead out of its box (Kevin 2026-10-29)
+      if (n === pages[0]) continue;
+      if (f.note) f.wrap = { type: 'square', dist: [-0.5, 0, -0.5, NOTE.gap / 2] };   // half the gap: an imported line's trailing space + tab must not wrap (10-18 p.6)
       else if (f.kind === 'image') { f.wrap = { type: 'topBottom', dist: [-0.5, 0, -0.5, 0] }; f.z = Math.max(f.z || 0, 2); }
     }
   }
@@ -606,6 +617,34 @@ function inlinePictures(pg, gen, texts) {
   }
   pg.frames = pg.frames.filter((f) => !gone.has(f));
   gen.splice(0, gen.length, ...gen.filter((f) => !gone.has(f)));
+}
+
+// Finish Layout: a page's text boxes (split by music or a margin note's gap) become ONE box, so a line
+// typed anywhere pushes everything below it down the page and on to the next page, as in Word —
+// separate boxes stayed put and a picture that no longer fit jumped a whole box (Kevin 2026-10-29).
+// Each gap between boxes becomes space before the next box's first paragraph, so nothing moves.
+function mergeBoxes(pg, gen, texts) {
+  if (texts.length < 2) return;
+  texts.sort((a, b) => a.y - b.y);
+  const into = texts[0];
+  const bottom = (t) => t.y + t.h - 1.5;              // layout frames are text + 1.5pt
+  for (let i = 1; i < texts.length; i++) {
+    const t = texts[i];
+    const gap = Math.round((t.y - bottom(texts[i - 1])) * 100) / 100;
+    const first = t.text.paragraphs[0];
+    if (first && gap > 0.01) {
+      if (first.picture) first.picture.before = Math.round(((first.picture.before || 0) + gap) * 100) / 100;
+      else first.spaceBefore = Math.round(((first.spaceBefore || 0) + gap) * 100) / 100;
+    }
+    into.text.paragraphs.push(...t.text.paragraphs);
+    into.blocks = [...new Set([...(into.blocks || []), ...(t.blocks || [])])];
+  }
+  const last = texts[texts.length - 1];
+  into.h = Math.round((last.y + last.h - into.y) * 100) / 100;
+  const gone = new Set(texts.slice(1));
+  pg.frames = pg.frames.filter((f) => !gone.has(f));
+  gen.splice(0, gen.length, ...gen.filter((f) => !gone.has(f)));
+  texts.splice(1);
 }
 
 // Bulletin ▸ Back to Draft: the order of worship lays the pages out again from the kept draft

@@ -39,7 +39,7 @@ mouse/keyboard input (`node test/gui/run-all.js`, 20 suites; see `test/gui/harne
 | Open / Save / Recent | ✅ | |
 | Save As | ✅ | 2026-10-20: copies the week folder; unsaved changes go into the copy (F12) |
 | New (blank sizes, templates) | 🟡 | Only "New Week from This One" |
-| Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. Print preview ⬜ |
+| Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. 2026-10-29: "who arranges the booklet" — the printer's own booklet preset (pages in order, default) or Bulletin Builder. Print preview ⬜ |
 | Export PDF | ✅ | |
 | Export pages as PNG/JPG, Pack and Go | ⬜ | |
 | Info (fonts used, image manager) | 🟡 | Fonts used/missing; image manager ⬜ |

@@ -598,7 +598,7 @@ async function selftestEdit(file) {
   const failed = result.checks.filter((c) => !c.pass);
   console.log(failed.length ? 'FAILED ' + failed.length + ' of ' + result.checks.length : 'PASS ' + result.checks.length + ' checks');
   session.releaseAll();
-  if (!failed.length) fs.rmSync(tmp, { recursive: true, force: true });
+  if (!failed.length) { try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch (_) { /* left in %TEMP% */ } }
   else console.log('kept for inspection:', tmp);
   return failed.length === 0;
 }
@@ -643,13 +643,14 @@ async function selftestFlow(file) {
     try { newWeekFrom(copy, nwDir); } catch (_) { refused = true; }
     checks.push({ name: 'new week: never overwrites an existing week', pass: refused });
   } finally {
-    fs.rmSync(nwDir, { recursive: true, force: true });
+    // a temp folder Windows still holds open must not fail the checks (EPERM, 2026-10-29)
+    try { fs.rmSync(nwDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch (_) { /* left in %TEMP% */ }
   }
   console.log(JSON.stringify(checks, null, 1));
   const failed = checks.filter((c) => !c.pass);
   console.log(failed.length ? 'FAILED ' + failed.length + ' of ' + checks.length : 'PASS ' + checks.length + ' checks');
   session.releaseAll();
-  if (!failed.length) fs.rmSync(tmp, { recursive: true, force: true });
+  if (!failed.length) { try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch (_) { /* left in %TEMP% */ } }
   else console.log('kept for inspection:', tmp);
   return failed.length === 0;
 }

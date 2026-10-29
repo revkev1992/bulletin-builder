@@ -18,8 +18,15 @@ exports.run = async (h) => {
     global.__bbTestExportPdf = out;
     await h.clickSel('#pr-' + paper);
     const ok = await h.until(`!!document.querySelector('dialog.pub-dialog[open]')`, 3000);
-    const text = await h.js(`(document.querySelector('dialog.pub-dialog[open] .pd-body p') || {}).textContent || ''`);
+    const text = await h.js(`document.querySelector('dialog.pub-dialog[open] .pd-body').textContent || ''`);
     h.ok(paper + ': the dialog says what will print', ok && text.includes(paper === 'letter' ? 'one page each' : 'booklet'), { text });
+    if (paper !== 'letter') {
+      // Kevin 2026-10-29: the work printer's "Bulletin" preset makes the booklet itself — that is the default
+      const first = paper === 'legal';
+      h.ok(paper + (first ? ': who arranges the booklet — the printer (its preset) by default' : ': …the last choice is remembered'),
+        await h.js(`!!document.querySelector('dialog.pub-dialog[open] input[name="maker"][value="${first ? 'printer' : 'app'}"]:checked')`));
+      await h.clickSel('dialog.pub-dialog input[name="maker"][value="app"]');
+    }
     if (paper === 'legal') await h.shot('print-dialog-legal');
     await h.clickSel('dialog.pub-dialog input[name="how"][value="pdf"]');
     await h.clickSel('dialog.pub-dialog .pd-ok');
@@ -32,5 +39,19 @@ exports.run = async (h) => {
       h.ok(paper + ': ' + sides + ' printed sides of ' + expect[paper][1] + ' × ' + expect[paper][2] + ' in', n === sides && w === expect[paper][1] && ht === expect[paper][2], { n, w, ht });
     }
   }
+  // the printer's booklet preset gets the pages in order, one per page, at their own size (7 × 8.5 in)
+  const seq = path.join(h.tmp, 'print-legal-inorder.pdf');
+  global.__bbTestExportPdf = seq;
+  await h.clickSel('#pr-legal');
+  await h.until(`!!document.querySelector('dialog.pub-dialog[open]')`, 3000);
+  h.ok('legal: the choice is remembered on this PC (Bulletin Builder this time)', await h.js(`!!document.querySelector('dialog.pub-dialog[open] input[name="maker"][value="app"]:checked')`));
+  await h.clickSel('dialog.pub-dialog input[name="maker"][value="printer"]');
+  await h.clickSel('dialog.pub-dialog input[name="how"][value="pdf"]');
+  await h.clickSel('dialog.pub-dialog .pd-ok');
+  await h.until(`/PDF saved/.test(document.getElementById('status').textContent)`, 30000);
+  if (fs.existsSync(seq)) {
+    const [n, w, ht] = fitz(seq);
+    h.ok('legal, printer makes the booklet: 16 pages in order, 7 × 8.5 in each', n === 16 && w === 7 && ht === 8.5, { n, w, ht });
+  } else h.ok('legal, printer makes the booklet: PDF written', false);
   delete global.__bbTestExportPdf;
 };

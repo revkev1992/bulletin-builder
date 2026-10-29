@@ -409,7 +409,8 @@ export function layoutTabs(root, defaultStop = 36) {
     const pxPerPt = areaRect.width / Number(area.dataset.wpt || 1);
     if (!pxPerPt) continue;
     const cs = getComputedStyle(p);
-    const right = (p.getBoundingClientRect().right - areaRect.left - parseFloat(cs.paddingRight)) / pxPerPt;
+    // the computed padding is in unzoomed CSS px (1pt = 4/3 px); the rectangles are zoomed
+    const right = (p.getBoundingClientRect().right - areaRect.left) / pxPerPt - parseFloat(cs.paddingRight) * 0.75;
     const floats = [...area.querySelectorAll('.wrap-float')].map((f) => f.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
     // the right end of the line a tab sits on: short of a wrapped object (margin note, picture) beside it
     const lineRight = (tab) => {

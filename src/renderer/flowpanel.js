@@ -81,6 +81,14 @@ export class FlowPanel {
   }
 
   select(id, { scrollPage = true } = {}) {
+    // the volunteers & attendance lines from a Word bulletin become the form as soon as they are
+    // chosen — no button to find (Kevin 2026-10-29: "what form?"); the page reads the same, Undo takes it back
+    const b = id && this.block(id);
+    if (b && b.kind === 'text' && this.editor.flowHalf() && parseRoster(b.paragraphs)) {
+      return this.edit((fl) => { const x = fl.blocks.find((y) => y.id === id); const r = parseRoster(x.paragraphs);
+        x.kind = 'roster'; x.volunteers = r.volunteers; x.attendance = r.attendance; x.oldParagraphs = x.paragraphs; delete x.paragraphs; })
+        .then(() => { this.select(id, { scrollPage }); this.editor.app.setStatus('Volunteers & attendance: type the names and numbers in the panel — the lines and totals are laid out for you.'); });
+    }
     this.selId = id;
     this.refresh();
     const row = this.root.querySelector('.fp-row.sel');

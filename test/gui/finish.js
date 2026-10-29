@@ -21,6 +21,14 @@ exports.run = async (h) => {
   await h.wait(800);
   h.ok('Finish Layout enabled for a drafted week; Back to Draft greyed', !(await h.disabled('#rb-finish')) && (await h.disabled('#rb-draft')));
   const before = await pagesNow();
+  // every line's place on its page, to the pixel (one box per page now: the gaps become space before)
+  const linesAt = () => h.js(`(() => { const w = window.__bbWeek(); const out = [];
+    for (const p of w.manifest.pages.filter((p) => p.half === 'worship')) {
+      const sh = document.querySelector('.page-shell[data-page="' + p.number + '"] .page'); const o = sh.getBoundingClientRect();
+      for (const x of sh.querySelectorAll('p.para')) { if (!x.textContent.trim()) continue; const r = x.getClientRects()[0] || x.getBoundingClientRect();
+        out.push(p.number + ':' + Math.round(r.top - o.top) + ':' + x.textContent.trim().slice(0, 24)); } }
+    return out.sort(); })()`);
+  const lines0 = await linesAt();
   // where the music is: picture boxes now, in-line pictures after finishing (page + rectangle, to the pixel)
   const musicAt = () => h.js(`(() => { const w = window.__bbWeek(); const first = w.manifest.pages.filter((p) => p.half === 'worship')[0].number; const out = [];
     for (const p of w.manifest.pages.filter((p) => p.half === 'worship' && p.number !== first)) {
@@ -46,10 +54,17 @@ exports.run = async (h) => {
   const after = await pagesNow();
   h.ok('the pages read exactly the same after finishing', JSON.stringify(after) === JSON.stringify(before),
     { diff: Object.keys(before).filter((n) => JSON.stringify(before[n]) !== JSON.stringify(after[n])) });
+  const lines1 = await linesAt();
+  // within a pixel: the gaps become rounded spacing (0.01 pt), so a line can land a sub-pixel off
+  const near = (x, list, tol) => { const [pg, y, ...t] = x.split(':'); return list.some((z) => { const [pg2, y2, ...t2] = z.split(':'); return pg2 === pg && t2.join(':') === t.join(':') && Math.abs(y2 - y) <= tol; }); };
+  const moved0 = lines0.filter((x) => !near(x, lines1, 1));
+  h.ok('…every line exactly where it was', moved0.length === 0, { moved: moved0.slice(0, 6), now: lines1.filter((x) => !lines0.includes(x)).slice(0, 6) });
+  const boxesPerPage = await h.js(`(() => { const out = {}; for (const pg of Object.entries(window.__bbWeek().halves.worship.pages)) out[pg[0]] = pg[1].frames.filter((f) => f.text && f.text.chain).length; return out; })()`);
+  h.ok('…one linked text box per page (typing pushes the whole page down)', Object.values(boxesPerPage).every((c) => c <= 1), { boxesPerPage });
   const music1 = await musicAt();
   const inl = await h.js(`document.querySelectorAll('#stage img.inline-pic').length`);
-  h.ok('the music is in the text now (in-line pictures), each exactly where it was', inl > 0 && inl === music0.length && JSON.stringify(music1) === JSON.stringify(music0),
-    { inl, n0: music0.length, diff: music0.filter((x, i) => x !== music1[i]).slice(0, 4), now: music1.slice(0, 4) });
+  h.ok('the music is in the text now (in-line pictures), each exactly where it was', inl > 0 && inl === music0.length && music0.every((x, i) => { const p = x.split(','), q = (music1[i] || '').split(','); return p[0] === q[0] && p.slice(1).every((v, k) => Math.abs(v - q[k + 1]) <= 0.6); }),
+    { inl, n0: music0.length, gone: music0.filter((x) => !music1.includes(x)), now: music1.filter((x) => !music0.includes(x)) });
   await h.shot('finished');
 
   // the text of the whole story (to prove nothing is lost when text flows on)
@@ -104,7 +119,8 @@ exports.run = async (h) => {
   // page 6 went nearly blank and page 7 overflowed)
   const perPage = () => h.js(`(() => { const out = {}; for (const sh of document.querySelectorAll('.page-shell')) {
       out[sh.dataset.page] = [...sh.querySelectorAll('.frame[data-story] p.para')].map((p) => p.textContent).join('').length; } return out; })()`);
-  const overNow = () => h.js(`document.querySelectorAll('#stage .frame[data-story].overflow').length`);
+  const overNow = () => h.js(`[...document.querySelectorAll('#stage .frame[data-story].overflow')].filter((f) => window.__bbWeek().manifest.pages.find((p) => p.number === Number(f.closest('[data-page]').dataset.page)).half === 'worship').length`);
+  const overWhere = () => h.js(`[...document.querySelectorAll('#stage .frame.overflow')].map((f) => f.closest('[data-page]').dataset.page + ':' + f.dataset.id + ':' + (f.dataset.story || ''))`);
   const c0 = await perPage();
   await clickInto(5);
   await h.type('EXTRA LINE THREE.');
@@ -113,7 +129,7 @@ exports.run = async (h) => {
   const c1 = await perPage();
   const emptied = Object.keys(c0).filter((n) => Number(n) > 5 && c0[n] > 300 && c1[n] < c0[n] * 0.6);
   h.ok('a new line on a full page pushes text on a line at a time — no later page empties', emptied.length === 0, { emptied, c0, c1 });
-  h.ok('…and the story still fits', (await overNow()) === 0, { over: await overNow() });
+  h.ok('…and the story still fits', (await overNow()) === 0, { over: await overNow(), where: await overWhere() });
   await h.shot('new-line-on-full-page');
 
   // a full page (3): extra text flows on into the next pages, as in Publisher — and nothing is lost
@@ -126,7 +142,7 @@ exports.run = async (h) => {
   const i = t1.indexOf(added);
   h.ok('typing on a full page: the text flows on and none of the story is lost', i >= 0 && t1.slice(0, i) + t1.slice(i + added.length) === t0,
     { t0: t0.length, t1: t1.length, at: i, around: JSON.stringify(t1.slice(t1.indexOf('ADDED') - 10, t1.indexOf('ADDED') + 90)) });
-  const lastOver = await h.js(`document.querySelectorAll('#stage .frame[data-story].overflow').length`);
+  const lastOver = await h.js(`[...document.querySelectorAll('#stage .frame[data-story].overflow')].filter((f) => window.__bbWeek().manifest.pages.find((p) => p.number === Number(f.closest('[data-page]').dataset.page)).half === 'worship').length`);
   h.ok('…and the story still fits (nothing left over at the end)', lastOver === 0, { lastOver });
   // the music went along with its text: every in-line picture is still below the line before it
   // (batch-3 run 2026-10-28: the psalm music stayed put and PSALTER ended up under it)
