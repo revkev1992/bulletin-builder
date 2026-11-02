@@ -8,6 +8,7 @@
 import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, canon, selectionOffsets, restoreOffsets } from './textedit.js';
 import { installArrange } from './arrange.js';
 import { installLinking } from './linking.js';
+import { installStyles } from './stylesedit.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -207,6 +208,8 @@ export class Editor {
       const s = JSON.parse(top);
       return this.app.pageRestore({ type: 'restore', stamp: s.pageop, focus: s.focus }, toStack);
     }
+    // a style change (stylesedit.js): the style list and the half go back together
+    if (top.startsWith('{"styles"')) { fromStack.pop(); return this.restoreStyles(top, toStack); }
     const halves = this.week().halves;
     toStack.push(JSON.stringify(halves[this.half]));
     halves[this.half] = JSON.parse(fromStack.pop());
@@ -1394,3 +1397,4 @@ export class Editor {
 
 installArrange(Editor);
 installLinking(Editor);
+installStyles(Editor);

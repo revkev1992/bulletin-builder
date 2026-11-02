@@ -5,7 +5,7 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, modal } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, modal } from './pagedialogs.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -850,6 +850,49 @@ if (PRINT) {
         if (s) { editor.format('style', normStyle(s)); setStatus('Style applied: ' + s.name + '.'); }
       };
     }
+    // Publisher: right-click a style for Modify… / Update to Match Selection / Delete; the Modify
+    // button under the list does it for the paragraph's own style
+    const fonts = [...$('t-font').options].map((o) => o.value);
+    const keepSel = () => { const sel = window.getSelection(); return sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null; };
+    const backSel = (saved) => { flow.focus(); if (saved) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(saved); } };
+    const done = (n, what) => setStatus(what + (n ? ' — ' + n + ' page' + (n === 1 ? '' : 's') + ' restyled.' : '.') + ' Undo takes it back.');
+    const modify = async (name) => {
+      const raw = styles.find((x) => x.name === name);
+      if (!raw) return;
+      const saved = keepSel();
+      const v = await styleDialog(normStyle(raw), fonts);
+      backSel(saved);
+      if (!v) return;
+      const n = await editor.changeStyle(name, v);
+      if (n !== false) done(n, 'Style "' + name + '" changed');
+    };
+    const update = async (name) => {
+      const para = currentParagraph(flow);
+      if (!para) return;
+      const n = await editor.changeStyle(name, styleFromPara(name, para));
+      if (n !== false) done(n, 'Style "' + name + '" now matches this paragraph');
+    };
+    const remove = async (name) => {
+      const saved = keepSel();
+      const v = await modal('Delete Style', '<p>Delete the style "' + name.replace(/</g, '&lt;') + '"?</p><p class="pd-note">Paragraphs that use it keep their look but no longer have a style. Undo takes it back.</p>', 'Delete');
+      backSel(saved);
+      if (!v) return;
+      const n = await editor.changeStyle(name, null);
+      if (n !== false) done(n, 'Style "' + name + '" deleted');
+    };
+    for (const b of m.querySelectorAll('.sg-item')) {
+      b.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const name = b.dataset.style;
+        m.remove();
+        showMenu(e.clientX, e.clientY, [
+          { label: 'Update ' + name + ' to Match Selection', cmd: 'style-update', on: true, run: () => update(name) },
+          { label: 'Modify…', cmd: 'style-modify', on: true, run: () => modify(name) },
+          { label: 'Delete…', cmd: 'style-delete', on: true, run: () => remove(name) },
+        ], 'ctx-style');
+      });
+    }
+    m.querySelector('#sg-modify').onclick = () => { m.remove(); if (cur) modify(cur); };
     m.querySelector('#sg-new').onclick = async () => {
       m.remove();
       const para = currentParagraph(flow);
@@ -1000,6 +1043,20 @@ if (PRINT) {
     back();
     if (v) fmt('paragraph', v);
   };
+  // ---- Home ▸ Paragraph ▸ Drop Cap (Publisher's gallery + Custom Drop Cap…)
+  $('dc-none').onclick = () => fmt('dropCap', null);
+  $('dc-3').onclick = () => fmt('dropCap', { lines: 3 });
+  $('dc-2').onclick = () => fmt('dropCap', { lines: 2 });
+  $('dc-custom').onclick = async () => {
+    const flow = editor.editingFlow();
+    if (!flow) return;
+    keep();
+    const cur = (paragraphSettings(flow) || {}).dropCap || {};
+    const v = await modal('Custom Drop Cap', '<label class="pd-row">Letter drops into <input name="lines" type="number" min="2" max="10" value="' + (cur.lines || 3) + '"> lines</label>' +
+      '<p class="pd-note">The first letter of the paragraph is made as tall as that many lines, and the text wraps beside it.</p>');
+    back();
+    if (v) fmt('dropCap', { lines: parseInt(v.lines, 10) || 3 });
+  };
   window.addEventListener('keydown', (e) => {
     if (!editor.textEdit || !(e.ctrlKey && e.shiftKey)) return;
     if (e.key === '>' || e.key === '.') { e.preventDefault(); fmt('grow'); }
@@ -1028,6 +1085,7 @@ if (PRINT) {
     const p = el.closest('p');
     const al = p ? getComputedStyle(p).textAlign : 'left';
     for (const b of document.querySelectorAll('.rb-text [data-align]')) b.classList.toggle('active', b.dataset.align === (al === 'start' ? 'left' : al));
+    $('t-dropcap').classList.toggle('active', !!(p && p.classList.contains('dropcap')));
   });
   const marks = new Marks($('stage'));
   for (const b of document.querySelectorAll('.marks-btn')) b.onclick = () => marks.toggle();

@@ -57,6 +57,29 @@ export function styleFromPara(name, p) {
   return { name, run, para };
 }
 
+// a paragraph after its style was CHANGED (Modify Style / Update to Match Selection): only what
+// differs between the old and the new definition is applied, so a word made bold by hand inside a
+// paragraph stays bold when the style's font changes (Publisher keeps such local formatting too)
+export function restyleParagraph(p, oldSt, newSt) {
+  const q = { ...p, style: newSt.name };
+  const o = oldSt || { run: {}, para: {} };
+  for (const k of ['align', 'spaceBefore', 'spaceAfter', 'indentLeft', 'indentRight', 'indentFirst', 'lineSpacing', 'keepWithNext']) {
+    const a = JSON.stringify(o.para[k] ?? null), b = JSON.stringify(newSt.para[k] ?? null);
+    if (a === b) continue;
+    if (newSt.para[k] != null && newSt.para[k] !== 0 && newSt.para[k] !== false) q[k] = newSt.para[k]; else delete q[k];
+  }
+  if (!q.align) q.align = 'left';
+  const changed = {};
+  for (const k of new Set([...Object.keys(o.run), ...Object.keys(newSt.run)])) if (o.run[k] !== newSt.run[k]) changed[k] = newSt.run[k];
+  q.runs = p.runs.map((r) => {
+    const x = { ...r };
+    for (const [k, v] of Object.entries(changed)) { if (v == null || v === false) delete x[k]; else x[k] = v; }
+    return x;
+  });
+  if (changed.font || changed.size) q.mark = { font: changed.font || (p.mark || {}).font, size: changed.size || (p.mark || {}).size };
+  return q;
+}
+
 // the gallery menu's contents (rebuilt each time it opens)
 export function galleryHtml(styles, current) {
   const item = (s) => {
@@ -66,5 +89,6 @@ export function galleryHtml(styles, current) {
     return '<button type="button" class="sg-item' + (s.name === current ? ' current' : '') + '" data-style="' + esc(s.name) + '" style=\'' + css + '\'>' + esc(s.name) + '</button>';
   };
   return '<div class="sg-list">' + styles.map(item).join('') + '</div><div class="ctx-sep"></div>' +
-    '<button type="button" class="sg-cmd" id="sg-new">New Style…</button>';
+    '<button type="button" class="sg-cmd" id="sg-new">New Style…</button>' +
+    '<button type="button" class="sg-cmd" id="sg-modify"' + (current ? '' : ' disabled') + ' title="Change the style this paragraph uses (or right-click any style: Modify, Update to Match Selection, Delete)">Modify ' + (current ? '"' + esc(current) + '"' : 'Style') + '…</button>';
 }

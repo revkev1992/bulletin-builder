@@ -160,7 +160,7 @@ export const TABS = [
           ico('indent', 'Increase Indent', { id: 't-indent' }), ico('columns', 'Columns (text box)', { id: 'rb-columns', menu: 'columns', cls: 'rb-always' }),
           ico('pilcrow', 'Show Formatting: dots for spaces, ¶, tab arrows, line breaks (Ctrl+Shift+Y). Never printed.', { id: 'rb-marks', cls: 'rb-always marks-btn' })] },
         { row: [ico('align-left', 'Align Left', { align: 'left' }), ico('align-center', 'Center', { align: 'center' }), ico('align-right', 'Align Right', { align: 'right' }),
-          ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', { id: 't-linespacing', menu: 'linespacing' }), ico('dropcap', 'Drop Cap', todo)] }],
+          ico('align-justify', 'Justify', { align: 'justify' }), ico('linespacing', 'Line Spacing', { id: 't-linespacing', menu: 'linespacing' }), ico('dropcap', 'Drop Cap: a large first letter dropped into the first lines of the paragraph', { id: 't-dropcap', menu: 'dropcap' })] }],
     ] },
     { label: 'Styles', cls: 'rb-text', cols: [[big('Styles', 'styles', { id: 'rb-styles', tip: 'Apply a style to the paragraph you are in, or make a New Style from it' })]] },
     { label: 'Objects', cols: [[big('Draw Text Box', 'textbox', { mirror: 'ins-text' })], [big('Pictures', 'picture', { mirror: 'ins-picture' })],
@@ -245,6 +245,9 @@ const MENUS = {
   linespacing: [sm('1.0', null, { id: 'ls-1' }), sm('1.15', null, { id: 'ls-1.15' }), sm('1.5', null, { id: 'ls-1.5' }), sm('2.0', null, { id: 'ls-2' }),
     sm('2.5', null, { id: 'ls-2.5' }), sm('3.0', null, { id: 'ls-3' }), sm('Paragraph…', 'linespacing', { id: 't-paradlg', tip: 'Indents and spacing' }), sm('Tabs…', 'align-left', { id: 't-tabsdlg', tip: 'Tab stops (or double-click the ruler)' })],
   columns: [sm('One Column', 'single', { id: 'col-1' }), sm('Two Columns', 'columns', { id: 'col-2' }), sm('Three Columns', 'columns', { id: 'col-3' })],
+  // Publisher's Drop Cap gallery: none, the standard 3-line cap, or Custom Drop Cap… (lines)
+  dropcap: [sm('No Drop Cap', 'clearfmt', { id: 'dc-none' }), sm('Drop Cap (3 lines)', 'dropcap', { id: 'dc-3' }), sm('Drop Cap (2 lines)', 'dropcap', { id: 'dc-2' }),
+    sm('Custom Drop Cap…', 'dropcap', { id: 'dc-custom', tip: 'Choose how many lines the letter drops into' })],
   wrap: [sm('None', 'rect', { id: 'wrap-none' }), sm('Square', 'wrap', { id: 'wrap-square' }), sm('Tight', 'wrap', { id: 'wrap-tight' }), sm('Top and Bottom', 'wrap', { id: 'wrap-topBottom' })],
   // Publisher's split buttons: one step, or all the way
   forward: [sm('Bring Forward', 'forward', { id: 'fwd-step', tip: 'One step forward' }), sm('Bring to Front', 'forward', { id: 'front', tip: 'In front of everything' })],

@@ -4,10 +4,9 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const WEEK = process.argv[2] ||
-  path.join(process.env.USERPROFILE || '', 'OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks/9-20-26 1100/9-20-26 1100.bulletin');
+const WEEK = process.argv[2] || require('../weeks').weekFile('9-20-26 1100');
 const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron.exe');
-const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles', 'context', 'misc', 'zoom', 'print', 'newweek', 'scratch', 'marks', 'tabwrap'];
+const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles', 'context', 'misc', 'zoom', 'print', 'newweek', 'scratch', 'marks', 'tabwrap', 'dropcap'];
 
 // the Order-of-Worship guard runs on an October (flow) week
 const weekNamed = (t) => path.join(path.dirname(path.dirname(WEEK)), t, t + '.bulletin');

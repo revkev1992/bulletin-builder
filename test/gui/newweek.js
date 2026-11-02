@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 exports.run = async (h) => {
-  const real = 'C:/Users/kevqu/OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks';
+  const real = require('../weeks').weeksDir();
   const box = path.join(h.tmp, 'weeks');
   fs.mkdirSync(box, { recursive: true });
   const copyWeek = (from, to) => {

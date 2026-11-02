@@ -244,6 +244,13 @@ export function formatSelection(cmd, value, flow) {
     case 'lineSpacing':
       rebuildParas(flow, selectedParas(flow), (p) => ({ ...p, lineSpacing: { multiple: Number(value) } }));
       break;
+    case 'dropCap':     // Home ▸ Paragraph ▸ Drop Cap: value = { lines } or null for none
+      rebuildParas(flow, selectedParas(flow), (p) => {
+        const q = { ...p };
+        if (value && value.lines > 1) q.dropCap = { lines: Math.min(10, Math.round(value.lines)) }; else delete q.dropCap;
+        return q;
+      });
+      break;
     case 'paragraph':   // Paragraph dialog: { indentLeft, indentFirst, indentRight, spaceBefore, spaceAfter, lineSpacing }
       rebuildParas(flow, selectedParas(flow), (p) => {
         const q = { ...p };

@@ -6,7 +6,8 @@ const path = require('path');
 const { applyPageOp, pageOp } = require('../src/pages');
 const session = require('../src/session');
 
-const W = 'C:/Users/kevqu/OneDrive/Documents/Liturgical Resources/Claude/bulletin-builder/weeks/9-20-26 1100';
+// the 9-20-26 Publisher week: BB_WEEKS=<weeks folder>, or the data folder next to this repo on either PC
+const W = require('./weeks').weekDir('9-20-26 1100');
 const man = JSON.parse(fs.readFileSync(path.join(W, '9-20-26 1100.bulletin'), 'utf8'));
 const halves = { worship: JSON.parse(fs.readFileSync(path.join(W, 'worship.json'), 'utf8')), announcements: JSON.parse(fs.readFileSync(path.join(W, 'announcements.json'), 'utf8')) };
 const text = (h, n) => JSON.stringify(h.pages[String(n)]);

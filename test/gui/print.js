@@ -6,10 +6,11 @@ const path = require('path');
 exports.run = async (h) => {
   const fitz = (pdf) => {   // sheet count + size in inches, read with PyMuPDF
     const { execFileSync } = require('child_process');
-    const py = 'C:/Users/kevqu/AppData/Local/Programs/Python/Python312/python.exe';
+    const py = require('../weeks').python();
     const out = execFileSync(py, ['-c', 'import fitz,sys,json; d=fitz.open(sys.argv[1]); r=d[0].rect; print(json.dumps([len(d), round(r.width/72,2), round(r.height/72,2)]))', pdf], { encoding: 'utf8' });
-    return JSON.parse(out);
+    return JSON.parse(out.trim().split('\n').pop());   // PyMuPDF may print a warning line first
   };
+  await h.js(`localStorage.removeItem('bb.print.maker')`);   // a per-PC memory: start as a fresh PC would
   await h.clickSel('.rb-tab[data-tab="bulletin"]');
   for (const id of ['#pr-legal', '#pr-ledger', '#pr-letter']) h.ok('Bulletin ▸ Print has ' + id.slice(4), !(await h.disabled(id)));
   const expect = { legal: [4, 14, 8.5], ledger: [4, 17, 11], letter: [16, 8.5, 11] };

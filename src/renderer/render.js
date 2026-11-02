@@ -138,6 +138,12 @@ export function paragraphEl(para, frameId) {
   s.fontSize = pt(markSize);
   s.lineHeight = lineHeightFor(para, markFont, markSize);
   if (para.tabs) p.dataset.tabs = JSON.stringify(para.tabs);
+  // Publisher's Drop Cap: the first letter, `lines` lines tall, dropped at the left of the paragraph
+  // (CSS ::first-letter with initial-letter: the browser sizes it to exactly that many lines)
+  if (para.dropCap && para.dropCap.lines > 1) {
+    p.classList.add('dropcap');
+    s.setProperty('--dc-lines', String(para.dropCap.lines));
+  }
   if (para.block) p.dataset.block = para.block;              // flow mode: which block this line belongs to
   if (para.justifyLast) s.textAlignLast = 'justify';         // head of a justified paragraph split across pages
   // paragraph settings (everything but the text) ride along so the editor can read them back
