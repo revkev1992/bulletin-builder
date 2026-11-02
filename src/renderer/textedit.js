@@ -556,6 +556,23 @@ function rebuildParas(flow, ps, fn) {
     const d0 = atomLength(els[0]) - lenBefore[0];
     const dAll = els.reduce((a, el, i) => a + atomLength(el) - lenBefore[i], 0);
     restoreOffsets(flow, { start: Math.max(0, where.start + d0), end: Math.max(0, where.end + dAll) });
+    // the start / end of the rebuilt paragraph are the same offsets as the end / start of its
+    // neighbours: keep the caret in the paragraph it was in (the next command must hit the same one)
+    const s = window.getSelection();
+    const sc = s.rangeCount ? s.getRangeAt(0).startContainer : null;
+    if (sc && !els[0].contains(sc) && ps.length) {
+      const r = s.getRangeAt(0).cloneRange();
+      const precedes = els[0].compareDocumentPosition(sc) & Node.DOCUMENT_POSITION_PRECEDING;
+      if (precedes) {   // landed at the end of the paragraph before: the start of this one
+        const first = document.createTreeWalker(els[0], NodeFilter.SHOW_TEXT).nextNode();
+        if (first) r.setStart(first, 0); else r.setStart(els[0], 0);
+      } else {          // landed at the start of the paragraph after: the end of this one
+        r.setStart(els[0], els[0].childNodes.length);
+      }
+      if (s.getRangeAt(0).collapsed) r.collapse(true);
+      s.removeAllRanges();
+      s.addRange(r);
+    }
     return true;
   }
   if (els.length) {
