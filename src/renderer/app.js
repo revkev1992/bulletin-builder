@@ -548,7 +548,7 @@ function updateToolbar() {
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
-    'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
+    'rb-paste', 'rb-paste-special', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
     'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
@@ -727,6 +727,70 @@ async function exportPdf() {
     const out = await window.bb.exportPdf(weekFile);
     setStatus(out ? 'PDF saved: ' + out : '');
   } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+// File ▸ Export ▸ Pages as Pictures: PNG or JPG, 150 or 300 dpi, into a folder you choose
+async function exportPages() {
+  if (!(await savedFirst())) return;
+  const v = await modal('Pages as Pictures',
+    '<fieldset><legend>Picture type</legend><label><input type="radio" name="format" value="png" checked> PNG (sharp text, bigger files)</label>' +
+    '<label><input type="radio" name="format" value="jpg"> JPG (smaller files, for e-mail and the web)</label></fieldset>' +
+    '<fieldset><legend>Resolution</legend><label><input type="radio" name="dpi" value="150" checked> 150 dpi — screens and the website</label>' +
+    '<label><input type="radio" name="dpi" value="300"> 300 dpi — print quality</label></fieldset>' +
+    '<p class="pd-note">One picture per page, named after the week, in a folder you choose next.</p>', 'Choose Folder…');
+  if (!v) return;
+  setStatus('Making the pictures…');
+  try {
+    const r = await window.bb.exportPages(weekFile, { format: v.format, dpi: Number(v.dpi) });
+    setStatus(r ? r.files.length + ' pictures saved in ' + r.dir + ' (' + r.width + ' × ' + r.height + ' px each). <a href="#" id="st-reveal">Open the folder</a>' : '');
+    const a = $('st-reveal');
+    if (a && r) a.onclick = (e) => { e.preventDefault(); window.bb.reveal(r.dir + '\\' + r.files[0]); };
+  } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+// File ▸ Export ▸ Pack and Go: one zip of the week + fonts list
+async function packAndGo() {
+  if (!(await savedFirst())) return;
+  setStatus('Packing…');
+  try {
+    const fonts = fontsUsed(week);
+    const r = await window.bb.pack(weekFile, { fonts, missing: missingFonts(fonts) });
+    setStatus(r ? 'Packed ' + r.files + ' files (' + Math.round(r.bytes / 1024 / 1024 * 10) / 10 + ' MB): ' + r.file + ' <a href="#" id="st-reveal">Show it</a>' : '');
+    const a = $('st-reveal');
+    if (a && r) a.onclick = (e) => { e.preventDefault(); window.bb.reveal(r.file); };
+  } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); }
+}
+// Insert ▸ Insert File: the text of a .txt or .docx where you are typing
+async function insertFile() {
+  const flow = editor.editingFlow();
+  if (!flow) { setStatus('Click in a text box first: the file\'s text goes in where you are typing.'); return; }
+  let text;
+  try { text = await window.bb.readTextFile(); } catch (err) { setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>'); return; }
+  if (text == null) return;
+  flow.focus();
+  text = text.replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+  text.split('\n').forEach((line, i) => {
+    if (i) document.execCommand('insertParagraph');
+    if (line) document.execCommand('insertText', false, line);
+  });
+  editor.setDirty(true);
+  setStatus('Inserted ' + text.split('\n').length + ' paragraph(s) from the file.');
+}
+// Home ▸ Clipboard ▸ Paste Special: unformatted text (while typing) or a picture from the clipboard
+async function pasteSpecial() {
+  if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+  const typing = !!editor.editingFlow();
+  const hasPic = await window.bb.clipboardHasPicture();
+  const v = await modal('Paste Special',
+    '<fieldset><legend>Paste as</legend>' +
+    '<label' + (typing ? '' : ' class="todo"') + '><input type="radio" name="as" value="text"' + (typing ? ' checked' : ' disabled') + '> Unformatted text — where you are typing</label>' +
+    '<label' + (hasPic ? '' : ' class="todo"') + '><input type="radio" name="as" value="picture"' + (hasPic ? (typing ? '' : ' checked') : ' disabled') + '> Picture — the picture on the clipboard (a screenshot, a copied image), placed on the page</label></fieldset>' +
+    (!typing && !hasPic ? '<p class="pd-note">There is no picture on the clipboard. To paste text, click in a text box first.</p>' : ''), 'Paste');
+  if (!v || !v.as) return;
+  if (v.as === 'text') { window.bb.edit('paste'); return; }       // the box's own paste handler keeps it plain
+  if (editor.textEdit) await editor.endTextEdit();
+  const rel = await window.bb.clipboardPicture(weekFile);
+  if (!rel) { setStatus('There is no picture on the clipboard.'); return; }
+  await editor.insertPicture(null, { rel });
+  setStatus('Picture pasted from the clipboard (saved with the week\'s pictures).');
 }
 // Bulletin ▸ Print ▸ Legal / Ledger / Letter: says what will come out, then prints or saves a PDF
 async function printOn(paper) {
@@ -1083,7 +1147,7 @@ if (PRINT) {
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
     save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
-    newWeek, saveAs, exportPdf, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
+    newWeek, saveAs, exportPdf, exportPages, pack: packAndGo, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
   });
   window.bb.version().then((v) => { backstage.api.version = v; });
   onFileTab(() => backstage.show(week ? 'info' : 'home'));
@@ -1097,6 +1161,18 @@ if (PRINT) {
   $('show-boundaries').onchange = (e) => document.body.classList.toggle('show-boundaries', e.target.checked);
   $('show-nav').onchange = (e) => { $('nav').hidden = !e.target.checked; };
   $('rb-paste').onclick = () => editor.command('paste');
+  $('rb-paste-special').onclick = () => pasteSpecial();
+  $('ins-file').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ins-file').onclick = () => insertFile();
+  // Ctrl+V with nothing copied inside the app, not typing: a picture on the clipboard goes on the page
+  window.addEventListener('keydown', async (e) => {
+    if (!((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') || editor.textEdit || !editor.half || editor.clipboard) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (!(await window.bb.clipboardHasPicture())) return;
+    const rel = await window.bb.clipboardPicture(weekFile);
+    if (rel) { await editor.insertPicture(null, { rel }); setStatus('Picture pasted from the clipboard.'); }
+  });
   $('rb-copy').onclick = () => editor.command('copy');
   $('rb-cut').onclick = async () => { await editor.command('copy'); await editor.command('delete'); };
   $('rb-newweek').onclick = () => newWeek();

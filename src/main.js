@@ -79,6 +79,100 @@ ipcMain.handle('week:export-pdf', async (e, file, paperName) => {
   await exportPdf(file, r.filePath, { report: false, paper: paperName });
   return r.filePath;
 });
+// File ▸ Export ▸ Pages as Pictures: every page as a PNG or JPG at a chosen resolution (website,
+// Facebook, a slide). Rendered the way the PDF is, then each page captured at exactly its size.
+ipcMain.handle('week:export-pages', async (e, file, { format = 'png', dpi = 150 } = {}) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  let dir = global.__bbTestExportDir;     // GUI tests: no native dialog
+  if (!dir) {
+    const r = await dialog.showOpenDialog(win, { title: 'Pages as pictures — choose the folder to put them in', defaultPath: path.dirname(path.resolve(file)), properties: ['openDirectory', 'createDirectory'] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    dir = r.filePaths[0];
+  }
+  return exportPages(file, dir, { format, dpi, title: manifest.title });
+});
+async function exportPages(file, dir, { format = 'png', dpi = 150, title = 'page' } = {}) {
+  const week = loadWeek(file);
+  const { width, height } = week.manifest.page;
+  const zoomFactor = dpi / 96;                      // CSS px are 96 to the inch
+  const pw = Math.round(width / 72 * dpi), ph = Math.round(height / 72 * dpi);
+  const win = new BrowserWindow({ show: false, width: pw, height: ph, useContentSize: true, paintWhenInitiallyHidden: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), offscreen: true, zoomFactor } });
+  const out = [];
+  try {
+    await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
+    await win.webContents.executeJavaScript('window.__bbReady');
+    win.webContents.setZoomFactor(zoomFactor);
+    win.setContentSize(pw, ph);
+    await new Promise((r) => setTimeout(r, 500));
+    fs.mkdirSync(dir, { recursive: true });
+    for (const p of week.manifest.pages) {
+      await win.webContents.executeJavaScript('(() => { const el = document.querySelector(\'.page[data-page="' + p.number + '"]\'); el.scrollIntoView({ block: "start" }); return 0; })()');
+      await new Promise((r) => setTimeout(r, 350));
+      const img = await win.webContents.capturePage();
+      const name = title + ' - page-' + String(p.number).padStart(2, '0') + '.' + (format === 'jpg' ? 'jpg' : 'png');
+      fs.writeFileSync(path.join(dir, name), format === 'jpg' ? img.toJPEG(92) : img.toPNG());
+      out.push(name);
+    }
+  } finally {
+    win.destroy();
+  }
+  return { dir, files: out, width: pw, height: ph };
+}
+// File ▸ Export ▸ Pack and Go: one zip with the week folder, a fonts list and a note (for another PC, or to keep)
+ipcMain.handle('week:pack', async (e, file, info) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const dir = path.dirname(path.resolve(file));
+  let dest = global.__bbTestExportZip;     // GUI tests: no native dialog
+  if (!dest) {
+    const r = await dialog.showSaveDialog(win, { title: 'Pack and Go', defaultPath: path.join(path.dirname(dir), path.basename(dir) + ' - Pack and Go.zip'), filters: [{ name: 'Zip', extensions: ['zip'] }] });
+    if (r.canceled || !r.filePath) return null;
+    dest = r.filePath;
+  }
+  const { zip, files } = require('./pack').packWeek(file, info || {});
+  fs.writeFileSync(dest, zip);
+  return { file: dest, files, bytes: zip.length };
+});
+// Insert ▸ Insert File: the text of a .txt or .docx, to go in where you are typing
+ipcMain.handle('file:read-text', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  let src = global.__bbTestInsertFile;      // GUI tests: no native dialog
+  if (!src) {
+    const r = await dialog.showOpenDialog(win, { title: 'Insert File', filters: [{ name: 'Text or Word', extensions: ['txt', 'docx'] }], properties: ['openFile'] });
+    if (r.canceled) return null;
+    src = r.filePaths[0];
+  }
+  if (/\.docx$/i.test(src)) return require('./pack').docxText(src);
+  return fs.readFileSync(src, 'utf8').replace(/^﻿/, '');
+});
+// Home ▸ Paste Special ▸ Picture: whatever picture is on the clipboard (a screenshot, a copied image),
+// saved as a PNG in the week's assets
+// (Electron 44's clipboard is the web-style one: items with MIME types, read as Blobs)
+async function clipboardPng() {
+  const { clipboard } = require('electron');
+  try {
+    if (!(await clipboard.has('image/png'))) return null;
+    const it = (await clipboard.read()).find((x) => x.types.includes('image/png'));
+    if (!it) return null;
+    return Buffer.from(await (await it.getType('image/png')).arrayBuffer());
+  } catch (_) { return null; }
+}
+ipcMain.handle('clipboard:picture', async (_e, weekFile) => {
+  const png = await clipboardPng();
+  if (!png || !png.length) return null;
+  const tmp = path.join(os.tmpdir(), 'bb-clip-' + Date.now() + '.png');
+  fs.writeFileSync(tmp, png);
+  const crypto = require('crypto');
+  const stem = 'Pasted picture ' + crypto.createHash('sha1').update(fs.readFileSync(tmp)).digest('hex').slice(0, 6);
+  const named = path.join(os.tmpdir(), stem + '.png');
+  fs.renameSync(tmp, named);
+  const rel = importAsset(weekFile, named);
+  try { fs.rmSync(named); } catch (_) { /* temp */ }
+  return rel;
+});
+ipcMain.handle('clipboard:has-picture', async () => { try { return await require('electron').clipboard.has('image/png'); } catch (_) { return false; } });
+
 ipcMain.handle('week:print', async (_e, file, paperName) => {
   const week = loadWeek(file);
   const paper = PAPER[paperName] ? paperName : null;

@@ -89,9 +89,15 @@ export class Backstage {
         page.querySelector('#bs-print').onclick = () => run(this.api.print);
         break;
       case 'export':
-        page.innerHTML = '<h1>Export</h1><div class="bs-actions"><button type="button" class="bs-action" id="bs-pdf"' + (file ? '' : ' disabled') + '>' + icon('pdf', 40) +
-          '<span>Create PDF</span></button></div><p class="bs-note">Every page at its real size, ready to print or email. Your changes are saved first.</p>';
+        page.innerHTML = '<h1>Export</h1><div class="bs-actions">' +
+          '<button type="button" class="bs-action" id="bs-pdf"' + (file ? '' : ' disabled') + '>' + icon('pdf', 40) + '<span>Create PDF</span></button>' +
+          '<button type="button" class="bs-action" id="bs-pages"' + (file ? '' : ' disabled') + '>' + icon('picture', 40) + '<span>Pages as Pictures</span></button>' +
+          '<button type="button" class="bs-action" id="bs-pack"' + (file ? '' : ' disabled') + '>' + icon('export', 40) + '<span>Pack and Go</span></button></div>' +
+          '<p class="bs-note"><b>Create PDF</b> — every page at its real size, ready to print or email. <b>Pages as Pictures</b> — each page as a PNG or JPG (for the website, Facebook, a slide). ' +
+          '<b>Pack and Go</b> — one zip with the whole week, its pictures and a list of the fonts it needs, to open on another PC. Your changes are saved first.</p>';
         page.querySelector('#bs-pdf').onclick = () => run(this.api.exportPdf);
+        page.querySelector('#bs-pages').onclick = () => run(this.api.exportPages);
+        page.querySelector('#bs-pack').onclick = () => run(this.api.pack);
         break;
       case 'close':
         return run(this.api.closeWindow);

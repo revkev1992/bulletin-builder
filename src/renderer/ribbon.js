@@ -151,7 +151,8 @@ export const TABS = [
   { id: 'home', label: 'Home', groups: [
     { label: 'Clipboard', cols: [
       [big('Paste', 'paste', { id: 'rb-paste', tip: 'Paste (Ctrl+V)' })],
-      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', { id: 'rb-painter', tip: 'Format Painter: copy the formatting where you are typing, then select text to paint it (double-click to paint several times; Esc to stop)' })],
+      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', { id: 'rb-painter', tip: 'Format Painter: copy the formatting where you are typing, then select text to paint it (double-click to paint several times; Esc to stop)' }),
+        sm('Paste Special', 'paste', { id: 'rb-paste-special', tip: 'Paste as unformatted text, or a picture from the clipboard (a screenshot)' })],
     ] },
     { label: 'Font', cls: 'rb-text', cols: [
       [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
@@ -185,7 +186,7 @@ export const TABS = [
       [big('Picture Placeholder', 'placeholder', todo)]] },
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', todo)], [big('Calendars', 'calendar', todo)], [big('Borders & Accents', 'borders', todo)], [big('Advertisements', 'ads', todo)]] },
     { label: 'Break', cls: 'rb-text', cols: [[big('Break', 'pagenum', { id: 'ins-break', menu: 'breaks', tip: 'Insert a break where you are typing' })]] },
-    { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', todo)],
+    { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', { id: 'ins-file', cls: 'rb-typing', tip: 'The text of a .txt or Word .docx file, where you are typing' })],
       [big('Symbol', 'symbol', { id: 'ins-symbol', menu: 'symbols', cls: 'rb-typing', tip: 'Insert a symbol where you are typing' })], [big('Date & Time', 'datetime', { id: 'ins-date', menu: 'dates', cls: 'rb-typing', tip: 'Insert the date or time where you are typing' })]] },
     { label: 'Links', cols: [[big('Link', 'link', { id: 'ins-link', cls: 'rb-typing', tip: 'Hyperlink on the selected text (Ctrl+K): kept in the PDF and on the website' })], [big('Bookmark', 'bookmark', todo)]] },
     { label: 'Header & Footer', cols: [[big('Header', 'header', { id: 'ins-header', menu: 'header', tip: 'The same line at the top of every page you are editing (# = the page number)' })],
