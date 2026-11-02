@@ -69,7 +69,7 @@ function buildShell(n) {
   const shell = document.createElement('div');
   shell.className = 'page-shell';
   shell.dataset.page = n;
-  const pg = renderPage(week, n);
+  const pg = renderPage(week, n, { master: !!(editor && editor.masterMode) });
   marginGuide(pg, n);
   const ov = document.createElement('div');
   ov.className = 'overlay';
@@ -82,12 +82,14 @@ function buildShell(n) {
 }
 
 async function rerender(nums) {
+  // in master view a change shows on every page that shares the master side (master.js)
+  if (editor && editor.masterMode) nums = editor.masterPages(nums);
   const touched = [];
   for (const n of nums) {
     const shell = shells.get(n);
     if (!shell) continue;
     const old = shell.querySelector('.page');
-    const pg = renderPage(week, n);
+    const pg = renderPage(week, n, { master: !!(editor && editor.masterMode) });
     marginGuide(pg, n);
     old.replaceWith(pg);
     touched.push(pg);
@@ -125,6 +127,29 @@ async function setViewLayout(mode) {
   updateToolbar();
 }
 window.__bbSetViewLayout = setViewLayout;
+
+// View ▸ Master Page / Normal (master.js sets editor.masterMode first): the pages are drawn again from
+// the master (or from themselves), a banner says where you are, and page commands wait until Normal
+async function setMasterView(on, keepPage) {
+  document.body.classList.toggle('master-view', !!on);
+  let banner = $('master-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'master-banner';
+    banner.innerHTML = '<span class="mb-text"></span><button type="button" id="mb-close">Close Master Page</button>';
+    $('body').before(banner);
+    banner.querySelector('#mb-close').onclick = () => editor.setMasterMode(false);
+  }
+  banner.hidden = !on;
+  if (on) banner.querySelector('.mb-text').textContent = 'Master Page — ' + (editor.half === 'worship' ? 'worship' : 'announcements') + ' pages. Left-hand master = even pages, right-hand master = odd pages. What you put here appears behind every page.';
+  if (!week) { updateToolbar(); return; }
+  const keep = zoom;
+  await showSpreads();
+  zoom = keep;
+  applyZoom();
+  if (keepPage != null) goToPage(keepPage, { scroll: true });
+  updateToolbar();
+}
 
 async function showSpreads() {
   const stage = $('stage');
@@ -555,6 +580,18 @@ function updateToolbar() {
     'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
+  // master pages: the view switch needs a half; page commands wait until Normal view
+  const mv = !!(editor && editor.masterMode);
+  $('rb-master').disabled = !half;
+  $('rb-master').classList.toggle('active', mv);
+  $('rb-normal').classList.toggle('active', !mv);
+  $('pg-master').disabled = !half;
+  $('mp-edit').classList.toggle('active', mv);
+  setLabel('mp-edit', mv ? 'Close Master Page' : 'Edit Master Pages');
+  $('mp-use').disabled = !half || mv || lp == null || !editor.editable(lp);
+  $('mp-use').checked = !!(half && lp != null && editor.editable(lp) && editor.pageUsesMaster(lp));
+  $('mp-send').disabled = !(half && !mv && editor.sel && editor.editable(editor.sel.page));
+  if (mv) for (const id of ['pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move', 'pg-rename', 'pg-margins', 'pg-size', 'pg-orient', 'ins-header', 'ins-footer', 'ins-pagenum', 'pg-bg', 'pg-bgimage']) $(id).disabled = true;
   if (window.__bbGraphics && window.__bbGraphics.shown) window.__bbGraphics.refresh();
   $('rb-newweek').disabled = !week;
   $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
@@ -585,7 +622,7 @@ function onSelection(info) {
   const isTable = has && info.frame.kind === 'table';
   $('rb-table-group').hidden = !isTable;
   $('rb-table-design').hidden = !isTable;
-  for (const id of ['tb-row-above', 'tb-row-below', 'tb-row-del', 'tb-col-left', 'tb-col-right', 'tb-col-del', 'tb-borders', 'tb-fill']) $(id).disabled = !(isTable && editor.half && !info.locked);
+  for (const id of ['tb-row-above', 'tb-row-below', 'tb-row-del', 'tb-col-left', 'tb-col-right', 'tb-col-del', 'tb-borders', 'tb-fill', 'tb-merge']) $(id).disabled = !(isTable && editor.half && !info.locked);
   const can = !!(has && editor.half && !info.locked);
   for (const id of ['rb-wrap', 'rb-align', 'rb-rotate']) $(id).disabled = !can;
   $('rb-group').disabled = !(can && info.count >= 2);
@@ -973,6 +1010,7 @@ if (PRINT) {
     onState: updateToolbar,
     onSelection,
     pageRestore: (op, toStack) => runPageOp(op, { undoing: toStack }),
+    setMasterView,
     // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
     onTextMode: (on) => {
       for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input, button.rb-typing')) el.disabled = !on;
@@ -1246,6 +1284,15 @@ if (PRINT) {
   $('bg-more').addEventListener('change', (e) => { editor.setPageBackground(e.target.value); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
   $('pg-bgimage').onclick = () => editor.insertPicture(null, { fullPage: true });
   $('pg-rename').onclick = () => pageCommand('rename');
+  // ---- Page Design ▸ Master Pages, View ▸ Master Page / Normal (master.js)
+  $('mp-edit').onclick = () => editor.toggleMasterMode();
+  $('rb-master').onclick = () => editor.setMasterMode(true);
+  $('rb-normal').onclick = () => editor.setMasterMode(false);
+  $('mp-use').onchange = (e) => editor.setPageUsesMaster(e.target.checked).then(updateToolbar);
+  $('mp-send').onclick = () => editor.sendToMaster();
+  $('mp-clear-left').onclick = () => editor.clearMasterSide('left');
+  $('mp-clear-right').onclick = () => editor.clearMasterSide('right');
+  window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm' && editor.half && !editor.textEdit) { e.preventDefault(); editor.toggleMasterMode(); } });
   // ---- View ▸ Layout, Graphics Manager
   $('rb-single').onclick = () => setViewLayout('single');
   $('rb-spread').onclick = () => setViewLayout('spread');
@@ -1319,7 +1366,7 @@ if (PRINT) {
     $('tb-' + k).addEventListener('mousedown', (e) => e.preventDefault());
     $('tb-' + k).onclick = () => editor.tableOp(k);
   }
-  for (const id of ['tb-borders', 'tb-fill']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  for (const id of ['tb-borders', 'tb-fill', 'tb-merge']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
   $('tb-border-all').onclick = () => editor.tableStyle({ border: 'all' });
   $('tb-border-none').onclick = () => editor.tableStyle({ border: 'none' });
   for (const b of document.querySelectorAll('.tb-swatch')) b.onclick = () => editor.tableStyle({ borderColor: b.dataset.color });
@@ -1327,6 +1374,20 @@ if (PRINT) {
   $('tb-more').addEventListener('change', (e) => { editor.tableStyle({ borderColor: e.target.value.toUpperCase() }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
   for (const b of document.querySelectorAll('.tf-swatch')) b.onclick = () => editor.tableStyle({ fill: b.dataset.color });
   $('tf-none').onclick = () => editor.tableStyle({ fill: null });
+  // Table Format ▸ Merge: with the right / below neighbour, a rows × cols block, or split again
+  for (const [id, k] of Object.entries({ 'tb-merge-right': 'right', 'tb-merge-down': 'down', 'tb-split': 'split' })) {
+    $(id).addEventListener('mousedown', (e) => e.preventDefault());
+    $(id).onclick = () => editor.tableMerge(k);
+  }
+  $('tb-merge-dlg').onclick = async () => {
+    const tg = editor.tableTarget();
+    if (!tg) { setStatus('Click in a table cell first.'); return; }
+    const v = await modal('Merge Cells', '<p class="pd-note">Starting at the cell you are in (row ' + (tg.r + 1) + ', column ' + (tg.c + 1) + '):</p>' +
+      '<label class="pd-row">Rows to merge: <input name="rows" type="number" min="1" max="' + (tg.f.rows - tg.r) + '" value="1"></label>' +
+      '<label class="pd-row">Columns to merge: <input name="cols" type="number" min="1" max="' + (tg.f.cols - tg.c) + '" value="2"></label>', 'Merge');
+    if (!v) return;
+    editor.tableMerge({ rows: parseInt(v.rows, 10) || 1, cols: parseInt(v.cols, 10) || 1 });
+  };
   $('tf-more').addEventListener('change', (e) => { editor.tableStyle({ fill: e.target.value.toUpperCase() }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
   // ---- Shape Format ▸ Shape Styles
   for (const b of document.querySelectorAll('.sf-swatch')) b.onclick = () => editor.setShapeStyle({ fill: b.dataset.color });

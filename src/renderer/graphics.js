@@ -42,7 +42,11 @@ export class GraphicsPane {
       const pg = half && half.pages[String(p.number)];
       if (pg) for (const f of pg.frames) visit(f, { page: p.number, half: p.half });
     }
-    for (const [hn, half] of Object.entries(week.halves)) for (const f of half.pasteboard || []) visit(f, { page: null, half: hn, parked: true });
+    for (const [hn, half] of Object.entries(week.halves)) {
+      for (const f of half.pasteboard || []) visit(f, { page: null, half: hn, parked: true });
+      // master-page pictures (drawn on every page of that side)
+      for (const side of ['left', 'right']) for (const f of (half.master && half.master[side] && half.master[side].frames) || []) visit(f, { page: null, half: hn, master: side });
+    }
     return out;
   }
 
@@ -82,7 +86,7 @@ export class GraphicsPane {
     list.innerHTML = rows.map((x, i) => '<button type="button" class="gm-row' + (x.bad ? ' bad' : x.soft ? ' soft' : '') + '" data-i="' + i + '">' +
       (x.url && !x.bad ? '<img src="' + esc(x.url) + '" alt="">' : '<span class="gm-noimg">?</span>') +
       '<span class="gm-text"><b>' + esc(x.name) + '</b>' +
-      '<small>' + (x.p.parked ? 'Scratch area (' + x.p.half + ')' : 'Page ' + x.p.page + (x.p.inline ? ', in the text' : '')) + ' · ' + (x.p.w / 72).toFixed(2) + ' × ' + (x.p.h / 72).toFixed(2) + ' in</small>' +
+      '<small>' + (x.p.parked ? 'Scratch area (' + x.p.half + ')' : x.p.master ? (x.p.master === 'left' ? 'Left' : 'Right') + '-hand master page (' + x.p.half + ')' : 'Page ' + x.p.page + (x.p.inline ? ', in the text' : '')) + ' · ' + (x.p.w / 72).toFixed(2) + ' × ' + (x.p.h / 72).toFixed(2) + ' in</small>' +
       '<small>' + (x.bad ? '<span class="warn">Picture file missing</span>' : x.nat.w + ' × ' + x.nat.h + ' px · ' + x.dpi + ' dpi' + (x.soft ? ' <span class="warn">— low, prints soft</span>' : '')) +
       (x.p.low ? ' · <span class="warn">check picture</span>' : '') + '</small></span></button>').join('') || '<p class="gm-empty">No pictures in this week.</p>';
     for (const b of list.querySelectorAll('.gm-row')) b.onclick = () => { const x = rows[Number(b.dataset.i)]; if (x.p.page != null) this.app.goTo(x.p.page, x.p.id); };

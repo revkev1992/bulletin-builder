@@ -12,6 +12,7 @@ import { installStyles } from './stylesedit.js';
 import { installGuides } from './guides.js';
 import { installFields } from './fields.js';
 import { installTables } from './tableedit.js';
+import { installMaster } from './master.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -46,6 +47,7 @@ export class Editor {
     this.textEdit = null;     // { n, id, before }
     this.crop = null;         // { n, id } while cropping a picture
     this.clipboard = null;    // a copied frame (deep copy)
+    this.masterMode = false;  // View ▸ Master Page: the pages show and edit their master (master.js)
     this.idSeq = 0;
     setInterval(() => this.autosave(), AUTOSAVE_MS);
     window.addEventListener('pointermove', (e) => this.onMove(e));
@@ -56,7 +58,9 @@ export class Editor {
   // ------------------------------------------------------------ model helpers
   week() { return this.app.week(); }
   halfOf(n) { const p = this.week().manifest.pages.find((x) => x.number === n); return p && p.half; }
-  pageEntry(n) { const h = this.week().halves[this.halfOf(n)]; return h && h.pages[String(n)]; }
+  // the page's own entry — or, in master view, the master side that page shows (master.js)
+  pageEntry(n) { return this.masterMode ? this.masterEntry(n) : this.pageEntryReal(n); }
+  pageEntryReal(n) { const h = this.week().halves[this.halfOf(n)]; return h && h.pages[String(n)]; }
   editable(n) { return !!this.half && this.halfOf(n) === this.half; }
   pageSize() { return this.week().manifest.page; }
 
@@ -815,7 +819,19 @@ export class Editor {
       const c = this.textEdit.cell;
       const td = c && e.target.closest('td[data-row]');
       const sameCell = !c || (td && editing && editing.contains(td) && Number(td.dataset.row) === c[0] && Number(td.dataset.col) === c[1]);
-      if (editing && editing.contains(e.target) && sameCell) return;
+      if (editing && editing.contains(e.target) && sameCell) {
+        // a click in the box but below / beside its text (Publisher keeps the caret in the box): the
+        // caret goes to the end of the text instead of the focus leaving the box
+        const flow = this.editingFlow();
+        if (flow && !flow.contains(e.target)) {
+          e.preventDefault();
+          const rg = document.createRange();
+          rg.selectNodeContents(flow); rg.collapse(false);
+          const s = window.getSelection(); s.removeAllRanges(); s.addRange(rg);
+          flow.focus();
+        }
+        return;
+      }
       this.ending = this.endTextEdit();
     }
     this.lastPage = n;
@@ -1459,3 +1475,4 @@ installStyles(Editor);
 installGuides(Editor);
 installFields(Editor);
 installTables(Editor);
+installMaster(Editor);

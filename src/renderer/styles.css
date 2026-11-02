@@ -241,6 +241,16 @@ body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
   flex: none;
 }
 .frame { position: absolute; transform-origin: center center; }
+/* master-page objects drawn under a page: part of the page, never selectable from the page itself */
+.screen .page .master-obj { pointer-events: none; }
+.screen .page .master-obj .flow[contenteditable] { pointer-events: none; }
+/* View ▸ Master Page: the pages show their master; a banner above the stage says so */
+#master-banner { display: flex; align-items: center; gap: 12px; padding: 5px 12px; background: #fff4ce; color: #3b3a39; border-bottom: 1px solid #e6d9a3; font-size: 12px; }
+#master-banner[hidden] { display: none; }
+#master-banner button { font: inherit; padding: 2px 10px; border: 1px solid #a19f9d; border-radius: 3px; background: #fff; cursor: pointer; }
+.screen.master-view .page.master-page { outline: 2px dashed #c9a227; outline-offset: -1px; }
+.screen.master-view .page.master-page::before { content: attr(data-side) '-hand master'; position: absolute; left: 0; top: 0; z-index: 200000; padding: 1px 6px; background: #c9a227; color: #fff; font: 9px/14px "Segoe UI", sans-serif; text-transform: capitalize; pointer-events: none; }
+.screen.master-view #flowpanel { display: none !important; }
 .frame-image { overflow: hidden; }
 .frame-image img { position: absolute; max-width: none; user-select: none; }
 .frame-image.missing { background: repeating-linear-gradient(45deg, #fde, #fde 6px, #fff 6px, #fff 12px); }

@@ -1,7 +1,7 @@
 // Table editing (Insert ▸ Table, Table Format): installed on Editor.prototype. The cell being typed
 // in is editor.textEdit.cell = [row, col] (beginTextEdit knows tables); the row / column commands
 // work on that cell, or on the first row / column when the table is only selected.
-import { newTable, insertRow, deleteRow, insertColumn, deleteColumn } from './table.js';
+import { newTable, insertRow, deleteRow, insertColumn, deleteColumn, mergeCells, splitCell, anchorOf } from './table.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -63,9 +63,36 @@ export function installTables(Editor) {
     if (cell) {
       const r = kind === 'row-above' ? cell[0] + 1 : kind === 'row-del' ? Math.min(cell[0], next.rows - 1) : cell[0];
       const c = kind === 'col-left' ? cell[1] + 1 : kind === 'col-del' ? Math.min(cell[1], next.cols - 1) : cell[1];
-      this.beginTextEdit(tg.n, f.id, null, { cell: [r, c] });
+      this.beginTextEdit(tg.n, f.id, null, { cell: anchorOf(next, r, c) || [r, c] });
     }
     this.app.setStatus(({ 'row-above': 'Row inserted above', 'row-below': 'Row inserted below', 'row-del': 'Row deleted', 'col-left': 'Column inserted to the left', 'col-right': 'Column inserted to the right', 'col-del': 'Column deleted' })[kind] + '.');
+    return true;
+  };
+
+  // Table Format ▸ Merge ▸ Merge Right / Merge Down / Merge Cells… (rows × cols from the cell you are in)
+  // and Split Cells (the cell you are in back into its cells). kind: right | down | split | { rows, cols }
+  P.tableMerge = async function (kind) {
+    const tg = this.tableTarget();
+    if (!tg || !this.editable(tg.n) || this.locked(tg.n, this.topFrame(tg.n, tg.f.id))) { this.app.setStatus('Click in a table cell first.'); return false; }
+    const f0 = this.anyFrame(tg.n, tg.f.id);
+    const [ar, ac] = anchorOf(f0, tg.r, tg.c) || [tg.r, tg.c];
+    const span = (f0.cells[ar][ac].span) || [1, 1];
+    let next = null, what = '';
+    if (kind === 'split') { next = splitCell(f0, ar, ac); what = 'Cell split into ' + (span[0] * span[1]) + ' cells.'; if (!next) { this.app.setStatus('This cell is not merged.'); return false; } }
+    else if (kind === 'right') { if (ac + span[1] >= f0.cols) { this.app.setStatus('No cell to the right to merge with.'); return false; } next = mergeCells(f0, ar, ac, ar + span[0] - 1, ac + span[1]); what = 'Merged with the cell to the right.'; }
+    else if (kind === 'down') { if (ar + span[0] >= f0.rows) { this.app.setStatus('No cell below to merge with.'); return false; } next = mergeCells(f0, ar, ac, ar + span[0], ac + span[1] - 1); what = 'Merged with the cell below.'; }
+    else if (kind && kind.rows) { next = mergeCells(f0, ar, ac, ar + Math.max(1, kind.rows) - 1, ac + Math.max(1, kind.cols) - 1); what = 'Cells merged.'; }
+    if (!next) { this.app.setStatus('Nothing to merge.'); return false; }
+    if (this.textEdit) await this.endTextEdit();
+    await this.commit([tg.n], () => {
+      const pg = this.pageEntry(tg.n);
+      const i = pg.frames.findIndex((x) => x.id === f0.id);
+      if (i >= 0) pg.frames[i] = next;
+    });
+    this.syncTableHeight(tg.n, f0.id);
+    this.select(tg.n, f0.id);
+    this.beginTextEdit(tg.n, f0.id, null, { cell: [ar, ac] });
+    this.app.setStatus(what + ' Undo takes it back.');
     return true;
   };
 

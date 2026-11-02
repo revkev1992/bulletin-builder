@@ -459,7 +459,20 @@ function applyWrap(textFrame, area, obstacles) {
   for (const n of nodes.reverse()) flow.insertBefore(n, flow.firstChild);
 }
 
-export function renderPage(week, n) {
+// the master-page frames page n shows (master.js): the half's left master on even pages, right on
+// odd; none when the page ignores the master
+export function masterFrames(week, n) {
+  const entry = week.manifest.pages.find((p) => p.number === n);
+  const half = entry && week.halves[entry.half];
+  const page = half && half.pages[String(n)];
+  if (!half || !half.master || (page && page.master === false)) return [];
+  const side = half.master[n % 2 === 1 ? 'right' : 'left'];
+  return (side && side.frames) || [];
+}
+
+// opts.master: draw the page's MASTER side only (View ▸ Master Page), as ordinary frames the editor
+// can select; otherwise the master's objects go underneath the page's own, marked .master-obj
+export function renderPage(week, n, opts = {}) {
   pictureBase = week.baseUrl;
   setFieldPage(n, week.manifest.pages.length);
   const { width, height } = week.manifest.page;
@@ -467,7 +480,29 @@ export function renderPage(week, n) {
   const pg = el('div', 'page', { width: pt(width), height: pt(height) });
   pg.dataset.page = n;
   if (half) pg.dataset.half = half;
+  const masters = half ? masterFrames(week, n) : [];
+  if (opts.master) {
+    pg.classList.add('master-page');
+    pg.dataset.side = n % 2 === 1 ? 'right' : 'left';
+    const hm = half && week.halves[half].master;
+    const side = hm && hm[pg.dataset.side];
+    const all = flatten((side && side.frames) || []).sort((a, b) => (a.z || 0) - (b.z || 0));
+    const obstacles = all.filter((f) => f.wrap && f.kind !== 'group');
+    for (const f of all) {
+      const box = frameEl(f, week.baseUrl);
+      if (f.kind === 'text') applyWrap(f, box.querySelector('.text-area'), obstacles);
+      pg.appendChild(box);
+    }
+    return pg;
+  }
   if (page.background) pg.style.backgroundColor = page.background;
+  for (const f of flatten(masters).sort((a, b) => (a.z || 0) - (b.z || 0))) {
+    const box = frameEl(f, week.baseUrl);
+    box.classList.add('master-obj');
+    box.dataset.master = '1';
+    box.style.zIndex = String((f.z || 0) - 1000000);      // always under the page's own objects
+    pg.appendChild(box);
+  }
   const all = flatten(page.frames).sort((a, b) => (a.z || 0) - (b.z || 0));
   const obstacles = all.filter((f) => f.wrap && f.kind !== 'group');
   for (const f of all) {

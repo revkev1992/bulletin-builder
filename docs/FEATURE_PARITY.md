@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 35 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 37 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
@@ -79,7 +79,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Item | Status | Notes |
 |---|---|---|
 | Pages: insert / duplicate / delete / move page | ✅ | Undo/Redo of page changes ✅ (2026-10-20). Rename ✅ 2026-11-02 (Page Design ▸ Rename, Pages pane right-click; shown under the thumbnail) |
-| Tables | ✅ | 2026-11-02: Insert ▸ Table (rows × columns); each cell is typed in like a text box (click = caret; an empty cell's blank is replaced as you type); rows grow with their text; **Table Format**: Insert Above / Below / Left / Right, Delete Row / Column, Borders (all / none / colour / weight), Cell Fill; dragging the handles sizes the columns in proportion; a real `<table>` in the PDF (`table.js`, `tableedit.js`; suite `tables`). Merge / split cells, table styles ⬜ |
+| Tables | ✅ | 2026-11-02: Insert ▸ Table (rows × columns); each cell is typed in like a text box (click = caret; an empty cell's blank is replaced as you type); rows grow with their text; **Table Format**: Insert Above / Below / Left / Right, Delete Row / Column, Borders (all / none / colour / weight), Cell Fill; dragging the handles sizes the columns in proportion; a real `<table>` in the PDF (`table.js`, `tableedit.js`; suite `tables`). 2026-11-03: **Table Format ▸ Merge ▾** — Merge with Cell to the Right / Below, Merge Cells… (rows × columns from the cell you are in; the texts join in reading order, as Publisher), Split Cells; rows and columns inserted or deleted inside a merge keep it whole (suite `tablemerge`, unit test `test/table.test.js`). Table styles ⬜ |
 | Pictures from file | ✅ | Crop (with the cut-away part shown dimmed, 2026-10-20), Fit, Fill |
 | Shapes with fill/outline | ✅ | 2026-11-02: see Home ▸ Objects: other shapes |
 | Building blocks | ✅ | 2026-10-29: **Service Music library** (Insert ▸ Service Music): psalters (psalm + response), doxologies (tune), communion settings (setting + parts in order), Taizé, benediction responses, other; kept beside the weeks; goes in-line in the text (moves with it, like Word), or into the Order of Worship block; Replace for a new season. 2026-11-02: **Building Blocks** (Insert ▸ Page Parts / Borders & Accents / Calendars, right-click ▸ Add to Building Blocks…): select objects ▸ name them ▸ kept with their pictures in a `Building Blocks` folder beside the weeks (shared); the pane shows thumbnails; Insert places a copy (new ids) on the page you are editing; Rename / Remove (`blocks.js`, main `blocks:*`; suite `blocks`). No starter set yet (Kevin and the communications person save their own) |
@@ -96,7 +96,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Guides (margin / ruler), snap to guides & objects | ✅ | 2026-11-02: Page Design ▸ Guides ▾ (add horizontal / vertical, clear all) and **drag a guide off either ruler** onto a page; drag a guide to move it, off the page to remove it; green lines, saved per page (`page.guides`), never printed; **Align To ▸ Guides / Objects** switch the snapping (suite `design`) |
 | Colour & font schemes | ⬜ | (liturgical-season themes stay a v2 item) |
 | Page background | ✅ | 2026-11-02: Background ▾ (colour swatches, More Colors…, None) for the current page; **Apply Image** = a picture filling the page behind everything (suite `design`) |
-| Master pages | ⬜ | Header / Footer / Page Number on every page cover the common use (see Insert) |
+| Master pages | ✅ | 2026-11-03: Page Design ▸ Master Pages ▾ — **Edit Master Pages** (= View ▸ Master Page, Ctrl+M): the pages show their half's two-page master (left-hand master = even pages, right-hand = odd; page 1 is right-hand) and everything you insert, type, move or delete there goes on the master and appears behind every page of that side; **This page uses the master page** (off = the page ignores it); **Send to Master Page** (the selected objects leave the page for its master); Clear Left / Right-Hand Master; View ▸ Normal / Close Master Page comes back. A master is per half (saved in `worship.json` / `announcements.json`), so the two halves never share one. Master objects cannot be selected from a page and never wrap a page's text (suite `master`). Header / Footer / Page Number still put their own box on every page (they predate the master) |
 
 ## View
 
@@ -106,7 +106,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Zoom in/out, whole spread, 100%, page width, selected objects | ✅ | Selected Objects 2026-10-20 |
 | Rulers, boundaries, guides, page navigation, fields | ✅ | View ▸ Fields (2026-11-02): shade the page-number fields on screen |
 | Graphics manager | ✅ | 2026-11-02: View ▸ Show ▸ Graphics Manager — every picture (page objects, in-line music, parked items): page, printed size, pixels, dpi; flags missing files and under-150-dpi pictures; click a row to select it (suite `insertview`) |
-| Master page view | ⬜ | |
+| Master page view | ✅ | 2026-11-03: View ▸ Master Page / Normal (Ctrl+M), a yellow banner while you are on the master; page commands and Page Setup wait until Normal (suite `master`) |
 
 ## Publisher behaviours that already work
 

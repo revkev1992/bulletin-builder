@@ -201,10 +201,10 @@ export const TABS = [
     { label: 'Layout', cols: [[big('Guides', 'guides', { id: 'pg-guides', menu: 'guides', tip: 'Ruler guides on this page (or drag one off a ruler)' })], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { id: 'snap-guides', checked: true, tip: 'Snap objects to the margin and ruler guides' }), chk('Objects', { id: 'snap-objects', checked: true, tip: 'Snap objects to the edges and centres of other objects' })]] },
     { label: 'Pages', cols: [[sm('Delete', 'pagedel', { id: 'pg-delete', tip: 'Delete the current page' }), sm('Move', 'pagemove', { id: 'pg-move', tip: 'Move the current page' }), sm('Rename', 'rename', { id: 'pg-rename', tip: 'Give the current page a name (shown in the Pages pane)' })]] },
     { label: 'Schemes', cols: [[big('Color Schemes', 'schemes', todo)], [big('Fonts', 'fonts', todo)]] },
-    { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', { id: 'pg-bgimage', tip: 'A picture filling the whole current page, behind everything on it' })], [big('Background', 'background', { id: 'pg-bg', menu: 'background', tip: 'A colour for the whole current page' })], [big('Master Pages', 'master', todo)]] },
+    { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', { id: 'pg-bgimage', tip: 'A picture filling the whole current page, behind everything on it' })], [big('Background', 'background', { id: 'pg-bg', menu: 'background', tip: 'A colour for the whole current page' })], [big('Master Pages', 'master', { id: 'pg-master', menu: 'master', tip: 'Objects that appear on every page of your half (the left-hand master on even pages, the right-hand on odd)' })]] },
   ] },
   { id: 'view', label: 'View', groups: [
-    { label: 'Views', cols: [[big('Normal', 'normal', { id: 'rb-normal', active: true })], [big('Master Page', 'master', todo)]] },
+    { label: 'Views', cols: [[big('Normal', 'normal', { id: 'rb-normal', active: true, tip: 'The pages (Ctrl+M switches)' })], [big('Master Page', 'master', { id: 'rb-master', tip: 'Edit the master page: what you put there appears on every page of your half (Ctrl+M)' })]] },
     { label: 'Layout', cols: [[big('Single Page', 'single', { id: 'rb-single', tip: 'One page at a time, down the window' })], [big('Two-Page Spread', 'spread', { id: 'rb-spread', active: true, tip: 'Facing pages side by side, as the bulletin is read' })]] },
     { label: 'Show', cols: [
       [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', { id: 'show-fields', checked: true, tip: 'Shade the page-number fields on screen (never printed)' })],
@@ -237,7 +237,8 @@ export const TABS = [
     { label: 'Rows & Columns', id: 'rb-table-group', cols: [
       [sm('Insert Above', 'pageadd', { id: 'tb-row-above' }), sm('Insert Below', 'pageadd', { id: 'tb-row-below' }), sm('Delete Row', 'pagedel', { id: 'tb-row-del' })],
       [sm('Insert Left', 'pageadd', { id: 'tb-col-left' }), sm('Insert Right', 'pageadd', { id: 'tb-col-right' }), sm('Delete Column', 'pagedel', { id: 'tb-col-del' })]] },
-    { label: 'Table Design', id: 'rb-table-design', cols: [[big('Borders', 'table', { id: 'tb-borders', menu: 'tableborders' })], [big('Cell Fill', 'fill', { id: 'tb-fill', menu: 'tablefill', tip: 'A colour for the cell you are typing in' })]] },
+    { label: 'Table Design', id: 'rb-table-design', cols: [[big('Borders', 'table', { id: 'tb-borders', menu: 'tableborders' })], [big('Cell Fill', 'fill', { id: 'tb-fill', menu: 'tablefill', tip: 'A colour for the cell you are typing in' })],
+      [big('Merge', 'table', { id: 'tb-merge', menu: 'tablemerge', tip: 'Merge the cell you are in with its neighbours, or split a merged cell' })]] },
     { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
     { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
       [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
@@ -260,6 +261,12 @@ const bgSwatches = '<div class="rb-swatches">' + ['#FFFFFF', '#F2F2F2', '#D9D9D9
 const MENUS = {
   // Page Design ▸ Page Background ▸ Background: a colour for the current page
   background: [sm('No Background', 'clearfmt', { id: 'bg-none' }), { html: bgSwatches }],
+  // Page Design ▸ Page Background ▸ Master Pages (Publisher): edit the master, a page's use of it, Send to Master
+  master: [sm('Edit Master Pages', 'master', { id: 'mp-edit', tip: 'Show and edit the master page of your half (View ▸ Normal comes back)' }),
+    { check: true, label: 'This page uses the master page', id: 'mp-use', tip: 'Off: nothing from the master is drawn on the current page' },
+    sm('Send to Master Page', 'master', { id: 'mp-send', tip: 'The selected objects leave this page and go on its master, so they appear on every page of that side' }),
+    sm('Clear Left-Hand Master', 'del', { id: 'mp-clear-left', tip: 'Remove every object from the left-hand (even pages) master' }),
+    sm('Clear Right-Hand Master', 'del', { id: 'mp-clear-right', tip: 'Remove every object from the right-hand (odd pages) master' })],
   // Page Design ▸ Layout ▸ Guides: ruler guides on the current page (Publisher's green lines)
   guides: [sm('Add Horizontal Ruler Guide', 'linespacing', { id: 'gd-h', tip: 'A guide across the middle of the current page — drag it where you want it' }),
     sm('Add Vertical Ruler Guide', 'columns', { id: 'gd-v', tip: 'A guide down the middle of the current page — drag it where you want it' }),
@@ -268,6 +275,8 @@ const MENUS = {
   tableborders: [sm('All Borders', 'table', { id: 'tb-border-all' }), sm('No Borders', 'rect', { id: 'tb-border-none' }), { html: '<div class="rb-caption">Line colour</div>' + fillSwatches('tb', 'tb-more') },
     { html: '<div class="rb-caption">Weight</div><div class="rb-weights">' + [0.5, 0.75, 1, 1.5, 2.25, 3].map((w) => '<button type="button" class="tb-weight" data-weight="' + w + '"><span style="border-top:' + Math.max(1, w * 1.33) + 'px solid #333"></span>' + w + ' pt</button>').join('') + '</div>' }],
   tablefill: [sm('No Fill', 'clearfmt', { id: 'tf-none' }), { html: fillSwatches('tf', 'tf-more') }],
+  tablemerge: [sm('Merge with Cell to the Right', 'table', { id: 'tb-merge-right' }), sm('Merge with Cell Below', 'table', { id: 'tb-merge-down' }),
+    sm('Merge Cells…', 'table', { id: 'tb-merge-dlg', tip: 'How many rows and columns to merge, starting at the cell you are in' }), sm('Split Cells', 'columns', { id: 'tb-split', tip: 'A merged cell back into its cells (the text stays in the first)' })],
   // Insert ▸ Header & Footer (Publisher puts these on the master page; here: a small text box on every page of your half)
   pagenum: [sm('Current Page Number (where you are typing)', 'pagenum', { id: 'pn-caret', cls: 'rb-typing' }), sm('Number of Pages (where you are typing)', 'pagenum', { id: 'pn-count', cls: 'rb-typing' }),
     sm('Top of Every Page', 'header', { id: 'pn-top' }), sm('Bottom of Every Page', 'footer', { id: 'pn-bottom' }), sm('Remove Page Numbers', 'del', { id: 'pn-remove' })],
