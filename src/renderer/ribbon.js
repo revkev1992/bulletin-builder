@@ -196,7 +196,7 @@ export const TABS = [
       [big('Page Number', 'pagenum', { id: 'ins-pagenum', menu: 'pagenum', tip: 'A page number that updates by itself: where you are typing, or at the top or bottom of every page' })]] },
   ] },
   { id: 'design', label: 'Page Design', groups: [
-    { label: 'Template', cols: [[big('Change Template', 'template', todo)], [big('Options', 'options', todo)]] },
+    { label: 'Template', cols: [[big('Change Template', 'template', todo)], [big('Options', 'options', { id: 'pg-options', tip: 'Baseline guides, autosave, the view a week opens in (kept on this PC)' })]] },
     { label: 'Page Setup', cols: [[big('Margins', 'margins', { id: 'pg-margins', tip: 'Margin guides for every page (Page Setup)' })], [big('Orientation', 'orientation', { id: 'pg-orient', menu: 'orientation' })], [big('Size', 'size', { id: 'pg-size', tip: 'Page size: legal booklet, tabloid booklet, letter, or custom (Page Setup)' })]] },
     { label: 'Layout', cols: [[big('Guides', 'guides', { id: 'pg-guides', menu: 'guides', tip: 'Ruler guides on this page (or drag one off a ruler)' })], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { id: 'snap-guides', checked: true, tip: 'Snap objects to the margin and ruler guides' }), chk('Objects', { id: 'snap-objects', checked: true, tip: 'Snap objects to the edges and centres of other objects' })]] },
     { label: 'Pages', cols: [[sm('Delete', 'pagedel', { id: 'pg-delete', tip: 'Delete the current page' }), sm('Move', 'pagemove', { id: 'pg-move', tip: 'Move the current page' }), sm('Rename', 'rename', { id: 'pg-rename', tip: 'Give the current page a name (shown in the Pages pane)' })]] },
@@ -209,7 +209,7 @@ export const TABS = [
     { label: 'Show', cols: [
       [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', { id: 'show-fields', checked: true, tip: 'Shade the page-number fields on screen (never printed)' })],
       [chk('Rulers', { id: 'show-rulers', checked: true }), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show or hide the free-form scratch area beside the pages, as in Publisher (never printed)' })],
-      [chk('Graphics Manager', { id: 'gm-btn', tip: 'Every picture in the week: where it is, its printed size and resolution, and any that are missing or too small to print well' }), chk('Baselines', todo), chk('Shelf', { id: 'shelf-btn', checked: true, tip: 'Show or hide the shelf: parked objects down the left, staying put while the pages scroll (never printed)' })],
+      [chk('Graphics Manager', { id: 'gm-btn', tip: 'Every picture in the week: where it is, its printed size and resolution, and any that are missing or too small to print well' }), chk('Baselines', { id: 'show-baselines', tip: 'Baseline guides down every page, from the top margin (spacing in Page Design ▸ Options); never printed' }), chk('Shelf', { id: 'shelf-btn', checked: true, tip: 'Show or hide the shelf: parked objects down the left, staying put while the pages scroll (never printed)' })],
     ] },
     { label: 'Zoom', cols: [[big('100%', 'z100', { id: 'zoom-100' })], [big('Whole Page', 'wholepage', { id: 'zoom-fit', tip: 'Whole spread (Ctrl 0)' })],
       [{ html: '<div class="rb-row"><button id="zoom-out" class="rb-ico" title="Zoom Out (Ctrl -)">' + icon('zoomout', 16) + '</button><span id="zoom-label">100%</span><button id="zoom-in" class="rb-ico" title="Zoom In (Ctrl +)">' + icon('zoomin', 16) + '</button></div>' },
@@ -238,7 +238,8 @@ export const TABS = [
       [sm('Insert Above', 'pageadd', { id: 'tb-row-above' }), sm('Insert Below', 'pageadd', { id: 'tb-row-below' }), sm('Delete Row', 'pagedel', { id: 'tb-row-del' })],
       [sm('Insert Left', 'pageadd', { id: 'tb-col-left' }), sm('Insert Right', 'pageadd', { id: 'tb-col-right' }), sm('Delete Column', 'pagedel', { id: 'tb-col-del' })]] },
     { label: 'Table Design', id: 'rb-table-design', cols: [[big('Borders', 'table', { id: 'tb-borders', menu: 'tableborders' })], [big('Cell Fill', 'fill', { id: 'tb-fill', menu: 'tablefill', tip: 'A colour for the cell you are typing in' })],
-      [big('Merge', 'table', { id: 'tb-merge', menu: 'tablemerge', tip: 'Merge the cell you are in with its neighbours, or split a merged cell' })]] },
+      [big('Merge', 'table', { id: 'tb-merge', menu: 'tablemerge', tip: 'Merge the cell you are in with its neighbours, or split a merged cell' })],
+      [big('Table Styles', 'styles', { id: 'tb-styles', menu: 'tablestyles', tip: 'A ready-made look for the whole table: grid, shaded header row, banded rows, no lines' })]] },
     { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
     { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
       [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
@@ -275,6 +276,10 @@ const MENUS = {
   tableborders: [sm('All Borders', 'table', { id: 'tb-border-all' }), sm('No Borders', 'rect', { id: 'tb-border-none' }), { html: '<div class="rb-caption">Line colour</div>' + fillSwatches('tb', 'tb-more') },
     { html: '<div class="rb-caption">Weight</div><div class="rb-weights">' + [0.5, 0.75, 1, 1.5, 2.25, 3].map((w) => '<button type="button" class="tb-weight" data-weight="' + w + '"><span style="border-top:' + Math.max(1, w * 1.33) + 'px solid #333"></span>' + w + ' pt</button>').join('') + '</div>' }],
   tablefill: [sm('No Fill', 'clearfmt', { id: 'tf-none' }), { html: fillSwatches('tf', 'tf-more') }],
+  // Table Design ▸ Table Styles (Publisher's gallery, the useful few): applied to the whole table
+  tablestyles: [sm('Plain Grid', 'table', { id: 'ts-grid', tip: 'Thin black lines, no shading' }), sm('Header Row', 'table', { id: 'ts-header', tip: 'Grid; the first row shaded and bold' }),
+    sm('Banded Rows', 'table', { id: 'ts-banded', tip: 'Grid; every other row lightly shaded, the first row bold' }), sm('Header Row, No Lines', 'rect', { id: 'ts-header-open', tip: 'No lines; the first row shaded and bold' }),
+    sm('No Lines, No Shading', 'clearfmt', { id: 'ts-plain', tip: 'Text only' })],
   tablemerge: [sm('Merge with Cell to the Right', 'table', { id: 'tb-merge-right' }), sm('Merge with Cell Below', 'table', { id: 'tb-merge-down' }),
     sm('Merge Cells…', 'table', { id: 'tb-merge-dlg', tip: 'How many rows and columns to merge, starting at the cell you are in' }), sm('Split Cells', 'columns', { id: 'tb-split', tip: 'A merged cell back into its cells (the text stays in the first)' })],
   // Insert ▸ Header & Footer (Publisher puts these on the master page; here: a small text box on every page of your half)

@@ -655,6 +655,48 @@ ipcMain.handle('week:create', (_e, src, name, from) => {
   return newWeekFrom(src, path.join(parent, clean), { roll: true, start: from });
 });
 
+// File ▸ New ▸ a blank document (Publisher's blank page sizes): a week folder with an empty manifest and
+// two empty halves; every page belongs to the chosen half. setup = { name, preset, page: { width, height },
+// margins, pages, half }. Lands beside the current week's folder (or where the user chooses).
+ipcMain.handle('week:new-blank', async (e, nearFile, setup) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const clean = String(setup.name || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim() || 'New document';
+  let dest = global.__bbTestNewBlank;       // GUI tests: no native dialog
+  if (!dest) {
+    const parent = nearFile ? path.dirname(path.dirname(path.resolve(nearFile))) : app.getPath('documents');
+    const r = await dialog.showSaveDialog(win, {
+      title: 'New blank document — where to keep it',
+      defaultPath: path.join(parent, clean),
+      buttonLabel: 'Create',
+      properties: ['createDirectory', 'showOverwriteConfirmation'],
+    });
+    if (r.canceled || !r.filePath) return null;
+    dest = r.filePath.replace(/\.bulletin$/i, '');
+  }
+  dest = path.resolve(dest);
+  if (fs.existsSync(dest) && fs.readdirSync(dest).length) throw new Error('A folder named "' + path.basename(dest) + '" already exists there.');
+  const name = path.basename(dest);
+  const { width, height } = setup.page || {};
+  if (!(width > 0 && height > 0)) throw new Error('The page needs a width and a height.');
+  const count = Math.max(1, Math.min(64, parseInt(setup.pages, 10) || 1));
+  const half = setup.half === 'worship' ? 'worship' : 'announcements';
+  fs.mkdirSync(path.join(dest, 'assets'), { recursive: true });
+  const manifest = {
+    format: 'bulletin-builder/week', version: 1, title: name,
+    page: { width, height }, preset: setup.preset || 'custom',
+    margins: { top: 36, bottom: 36, inside: 36, outside: 36, mirror: true, ...(setup.margins || {}) },
+    defaultTabStop: 36,
+    pages: Array.from({ length: count }, (_, i) => ({ number: i + 1, half })),
+    halves: { worship: 'worship.json', announcements: 'announcements.json' },
+    styles: [], createdBlank: { at: new Date().toISOString() },
+  };
+  const pagesOf = (h) => Object.fromEntries(manifest.pages.filter((p) => p.half === h).map((p) => [String(p.number), { frames: [] }]));
+  fs.writeFileSync(path.join(dest, name + '.bulletin'), JSON.stringify(manifest, null, 1));
+  fs.writeFileSync(path.join(dest, 'worship.json'), JSON.stringify({ format: 'bulletin-builder/half', version: 1, half: 'worship', pages: pagesOf('worship'), pasteboard: [] }, null, 1));
+  fs.writeFileSync(path.join(dest, 'announcements.json'), JSON.stringify({ format: 'bulletin-builder/half', version: 1, half: 'announcements', pages: pagesOf('announcements'), pasteboard: [] }, null, 1));
+  return path.join(dest, name + '.bulletin');
+});
+
 ipcMain.handle('week:new-from', async (e, file) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const manifest = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));

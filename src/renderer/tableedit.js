@@ -104,6 +104,18 @@ export function installTables(Editor) {
     if (this.textEdit) await this.endTextEdit();
     await this.commit([tg.n], () => {
       const f = this.anyFrame(tg.n, tg.f.id);
+      // Table Styles: a look for the whole table (borders, header shading, banding, header bold)
+      if ('preset' in change) {
+        const P = { grid: { border: true }, header: { border: true, header: '#D9E2F3', bold: true }, banded: { border: true, band: '#F2F2F2', bold: true }, 'header-open': { border: false, header: '#D9E2F3', bold: true }, plain: { border: false } }[change.preset] || {};
+        f.border = P.border ? { color: (f.border && f.border.color) || '#000000', width: (f.border && f.border.width) || 0.75 } : null;
+        f.cells.forEach((row, r) => row.forEach((cl) => {
+          delete cl.fill;
+          if (P.header && r === 0) cl.fill = P.header;
+          else if (P.band && r % 2 === 1) cl.fill = P.band;
+          if (r === 0) for (const p of cl.paragraphs || []) for (const run of p.runs || []) { if (P.bold) run.bold = true; else delete run.bold; }
+        }));
+        f.tableStyle = change.preset;
+      }
       if ('border' in change) f.border = change.border === 'none' ? null : { color: (f.border && f.border.color) || '#000000', width: (f.border && f.border.width) || 0.75 };
       if ('borderColor' in change) f.border = { color: change.borderColor, width: (f.border && f.border.width) || 0.75 };
       if ('borderWidth' in change) f.border = { color: (f.border && f.border.color) || '#000000', width: change.borderWidth };

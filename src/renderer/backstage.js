@@ -46,10 +46,12 @@ export class Backstage {
         page.innerHTML = (name === 'home' ? '<h1>' + hello + '</h1>' : '<h1>New</h1>') +
           '<h2>New</h2><div class="bs-tiles">' +
           '<button type="button" class="bs-tile" id="bs-newweek"' + (file ? '' : ' disabled') + '>' + icon('newweek', 56) + '<span>New Week from This One</span></button>' +
-          '<button type="button" class="bs-tile todo" disabled title="Coming soon">' + icon('page', 56) + '<span>Blank 8.5 x 11"</span></button>' +
-          '<button type="button" class="bs-tile todo" disabled title="Coming soon">' + icon('size', 56) + '<span>More Blank Page Sizes</span></button></div>' +
+          '<button type="button" class="bs-tile" id="bs-blank-letter" title="A blank 8.5 × 11 in page (a flyer, an insert)">' + icon('page', 56) + '<span>Blank 8.5 x 11"</span></button>' +
+          '<button type="button" class="bs-tile" id="bs-blank-more" title="A blank legal or tabloid booklet, or any size">' + icon('size', 56) + '<span>More Blank Page Sizes</span></button></div>' +
           (name === 'home' ? '<h2>Recent</h2><div class="bs-recent"></div>' : '');
         page.querySelector('#bs-newweek').onclick = () => run(this.api.newWeek);
+        page.querySelector('#bs-blank-letter').onclick = () => run(() => this.api.newBlank('letter-sheet'));
+        page.querySelector('#bs-blank-more').onclick = () => run(() => this.api.newBlank(null));
         if (name === 'home') await this.recent(page.querySelector('.bs-recent'));
         break;
       }
@@ -106,6 +108,8 @@ export class Backstage {
         break;
       case 'close':
         return run(this.api.closeWindow);
+      case 'options':
+        return run(this.api.options);
       case 'account':
         page.innerHTML = '<h1>Account</h1><p>Bulletin Builder ' + esc(this.api.version || '') + '</p><p class="bs-note">Updates install automatically when you start the app.</p>';
         break;

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('bb', {
   recentWeeks: (file) => ipcRenderer.invoke('weeks:recent', file),
   describeWeek: (file) => ipcRenderer.invoke('week:describe', file),
   createWeek: (src, name, from) => ipcRenderer.invoke('week:create', src, name, from),
+  newBlank: (nearFile, setup) => ipcRenderer.invoke('week:new-blank', nearFile, setup),
   saveAs: (file) => ipcRenderer.invoke('week:save-as', file),
   edit: (what) => ipcRenderer.invoke('edit:do', what),
   setStyles: (file, styles) => ipcRenderer.invoke('week:set-styles', file, styles),

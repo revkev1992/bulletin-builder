@@ -9,6 +9,7 @@ import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, st
 import { GraphicsPane } from './graphics.js';
 import { BlocksPane } from './blocks.js';
 import { showPrintPreview } from './preview.js';
+import { applyOptions, optionsDialog, newBlankDialog, getOptions } from './options.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -62,6 +63,11 @@ function marginGuide(pageEl, n) {
     left: (odd ? inside : outside) + 'pt', right: (odd ? outside : inside) + 'pt',
   });
   pageEl.appendChild(g);
+  // View ▸ Show ▸ Baselines: horizontal guides from the top margin (spacing / offset = Options)
+  const b = document.createElement('div');
+  b.className = 'baseline-guide';
+  b.style.top = (m.top ?? 36) + 'pt';
+  pageEl.appendChild(b);
 }
 
 // a page on screen = shell (not clipped) > page (clipped, exactly what prints) + overlay (selection)
@@ -114,7 +120,7 @@ function refreshStatusCounts() {
 
 // View ▸ Layout: Two-Page Spread (Publisher's default) or Single Page; remembered on this PC
 let viewLayout = 'spread';
-try { viewLayout = localStorage.getItem('bb.view.layout') === 'single' ? 'single' : 'spread'; } catch (_) { /* default */ }
+try { viewLayout = (localStorage.getItem('bb.view.layout') || getOptions().openView) === 'single' ? 'single' : 'spread'; } catch (_) { /* default */ }
 async function setViewLayout(mode) {
   if (mode === viewLayout && document.querySelector('.spreads')) { updateToolbar(); return; }
   viewLayout = mode;
@@ -622,7 +628,7 @@ function onSelection(info) {
   const isTable = has && info.frame.kind === 'table';
   $('rb-table-group').hidden = !isTable;
   $('rb-table-design').hidden = !isTable;
-  for (const id of ['tb-row-above', 'tb-row-below', 'tb-row-del', 'tb-col-left', 'tb-col-right', 'tb-col-del', 'tb-borders', 'tb-fill', 'tb-merge']) $(id).disabled = !(isTable && editor.half && !info.locked);
+  for (const id of ['tb-row-above', 'tb-row-below', 'tb-row-del', 'tb-col-left', 'tb-col-right', 'tb-col-del', 'tb-borders', 'tb-fill', 'tb-merge', 'tb-styles']) $(id).disabled = !(isTable && editor.half && !info.locked);
   const can = !!(has && editor.half && !info.locked);
   for (const id of ['rb-wrap', 'rb-align', 'rb-rotate']) $(id).disabled = !can;
   $('rb-group').disabled = !(can && info.count >= 2);
@@ -732,6 +738,28 @@ async function newWeek() {
   }
 }
 window.__bbNewWeek = newWeek;
+
+// File ▸ New ▸ Blank 8.5 x 11" / More Blank Page Sizes: an empty document of the chosen size
+async function newBlank(presetKey) {
+  if (editor && editor.dirty && editor.half && !(await editor.save())) return;
+  const setup = await newBlankDialog(presetKey);
+  if (!setup) return;
+  try {
+    const f = await window.bb.newBlank(weekFile || null, setup);
+    if (f) { await open(f); setStatus('Blank document created: ' + setup.pages + ' page' + (setup.pages === 1 ? '' : 's') + '. Choose Bulletin ▸ I am changing ▸ ' + (setup.half === 'worship' ? 'Worship' : 'Announcements') + ' pages to start.'); }
+  } catch (err) {
+    setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+  }
+}
+window.__bbNewBlank = newBlank;
+
+// Page Design ▸ Options / File ▸ Options (per PC)
+async function showOptions() {
+  const o = await optionsDialog();
+  if (!o) return;
+  if (editor) editor.autosaveMinutes = o.autosaveMinutes;
+  setStatus('Options saved on this PC: baselines every ' + o.baselineSpacing + ' pt, autosave every ' + o.autosaveMinutes + ' min.');
+}
 
 // File ▸ Save As (F12), as Publisher: the copy gets your unsaved changes, this week stays as last saved
 async function saveAs() {
@@ -1222,7 +1250,7 @@ if (PRINT) {
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
     save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
-    newWeek, saveAs, exportPdf, exportPages, pack: packAndGo, print: printWeek, printOn, closeWindow: () => window.close(), info: weekInfo,
+    newWeek, newBlank, options: showOptions, saveAs, exportPdf, exportPages, pack: packAndGo, print: printWeek, printOn, closeWindow: () => window.close(), info: weekInfo,
     preview: (paper) => (week ? showPrintPreview(week, paper, (n) => renderPage(week, n), { inOrder: true }) : null),
   });
   window.bb.version().then((v) => { backstage.api.version = v; });
@@ -1235,6 +1263,11 @@ if (PRINT) {
   $('zoom-width').onclick = () => zoomBy(-1);
   $('stage').addEventListener('wheel', onWheelZoom, { passive: false });
   $('show-boundaries').onchange = (e) => document.body.classList.toggle('show-boundaries', e.target.checked);
+  $('show-baselines').onchange = (e) => { document.body.classList.toggle('show-baselines', e.target.checked); try { localStorage.setItem('bb.baselines', e.target.checked ? '1' : '0'); } catch (_) { /* per-PC */ } };
+  try { if (localStorage.getItem('bb.baselines') === '1') { $('show-baselines').checked = true; document.body.classList.add('show-baselines'); } } catch (_) { /* default off */ }
+  applyOptions();
+  editor.autosaveMinutes = getOptions().autosaveMinutes;
+  $('pg-options').onclick = () => showOptions();
   $('show-nav').onchange = (e) => { $('nav').hidden = !e.target.checked; };
   $('rb-paste').onclick = () => editor.command('paste');
   $('rb-paste-special').onclick = () => pasteSpecial();
@@ -1366,7 +1399,8 @@ if (PRINT) {
     $('tb-' + k).addEventListener('mousedown', (e) => e.preventDefault());
     $('tb-' + k).onclick = () => editor.tableOp(k);
   }
-  for (const id of ['tb-borders', 'tb-fill', 'tb-merge']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  for (const id of ['tb-borders', 'tb-fill', 'tb-merge', 'tb-styles']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  for (const k of ['grid', 'header', 'banded', 'header-open', 'plain']) $('ts-' + k).onclick = () => editor.tableStyle({ preset: k });
   $('tb-border-all').onclick = () => editor.tableStyle({ border: 'all' });
   $('tb-border-none').onclick = () => editor.tableStyle({ border: 'none' });
   for (const b of document.querySelectorAll('.tb-swatch')) b.onclick = () => editor.tableStyle({ borderColor: b.dataset.color });

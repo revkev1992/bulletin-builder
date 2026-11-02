@@ -299,6 +299,11 @@ p.para.dropcap::first-letter { initial-letter: var(--dc-lines); padding-right: 0
   border: 1px dashed rgba(47, 109, 181, .55);
 }
 .screen:not(.show-guides) .margin-guide { display: none; }
+/* View ▸ Show ▸ Baselines: a line every --bl-spacing from the top margin (+ --bl-offset); screen only */
+.baseline-guide { display: none; }
+.screen.show-baselines .page .baseline-guide { display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 100000; pointer-events: none;
+  margin-top: var(--bl-offset, 0pt); background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--bl-spacing, 12pt) - 1px), rgba(170, 120, 40, .45) calc(var(--bl-spacing, 12pt) - 1px), rgba(170, 120, 40, .45) var(--bl-spacing, 12pt)); }
+.print .baseline-guide, .thumb-page .baseline-guide, .pv-box .baseline-guide { display: none !important; }
 .screen .frame.overflow::after {
   content: "overflow";
   position: absolute; right: 0; bottom: -14px;

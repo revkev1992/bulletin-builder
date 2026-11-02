@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 37 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 38 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
@@ -44,13 +44,13 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 |---|---|---|
 | Open / Save / Recent | ✅ | |
 | Save As | ✅ | 2026-10-20: copies the week folder; unsaved changes go into the copy (F12) |
-| New (blank sizes, templates) | 🟡 | Only "New Week from This One" (Page Setup can turn any week into letter / tabloid / custom, 2026-11-02) |
+| New (blank sizes, templates) | ✅ | "New Week from This One" + 2026-11-03: File ▸ New ▸ **Blank 8.5 x 11"** / **More Blank Page Sizes** — an empty document (letter sheet, legal or tabloid booklet, or any size; portrait/landscape; page count; whose pages they are) made as a new week folder beside the others and opened (suite `options`). Templates ➖ (a week is its own template: New Week from This One) |
 | Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. 2026-10-29: "who arranges the booklet" — the printer's own booklet preset (pages in order, default) or Bulletin Builder. 2026-11-02: **Preview the sheets…** in the Print window (the imposed sides, or the pages in order), File ▸ Print ▸ Preview / Legal booklet / Ledger booklet (`preview.js`; suite `print`) |
 | Export PDF | ✅ | |
 | Export pages as PNG/JPG | ✅ | 2026-11-02: File ▸ Export ▸ Pages as Pictures — PNG or JPG, 150 or 300 dpi, one file per page (suite `fileextras`) |
 | Pack and Go | ✅ | 2026-11-02: File ▸ Export ▸ Pack and Go — one zip: the week folder (no history/locks), its pictures, a FONTS list (missing ones flagged) and a README (`src/pack.js`, unit test `test/pack.test.js`) |
 | Info (fonts used, image manager) | 🟡 | Fonts used/missing; the image manager is View ▸ Graphics Manager (2026-11-02) |
-| Options | ⬜ | |
+| Options | ✅ | 2026-11-03: File ▸ Options / Page Design ▸ Options — baseline-guide spacing and offset, autosave interval, the view a week opens in; kept on this PC (`options.js`; suite `options`) |
 
 ## Home
 
@@ -79,7 +79,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Item | Status | Notes |
 |---|---|---|
 | Pages: insert / duplicate / delete / move page | ✅ | Undo/Redo of page changes ✅ (2026-10-20). Rename ✅ 2026-11-02 (Page Design ▸ Rename, Pages pane right-click; shown under the thumbnail) |
-| Tables | ✅ | 2026-11-02: Insert ▸ Table (rows × columns); each cell is typed in like a text box (click = caret; an empty cell's blank is replaced as you type); rows grow with their text; **Table Format**: Insert Above / Below / Left / Right, Delete Row / Column, Borders (all / none / colour / weight), Cell Fill; dragging the handles sizes the columns in proportion; a real `<table>` in the PDF (`table.js`, `tableedit.js`; suite `tables`). 2026-11-03: **Table Format ▸ Merge ▾** — Merge with Cell to the Right / Below, Merge Cells… (rows × columns from the cell you are in; the texts join in reading order, as Publisher), Split Cells; rows and columns inserted or deleted inside a merge keep it whole (suite `tablemerge`, unit test `test/table.test.js`). Table styles ⬜ |
+| Tables | ✅ | 2026-11-02: Insert ▸ Table (rows × columns); each cell is typed in like a text box (click = caret; an empty cell's blank is replaced as you type); rows grow with their text; **Table Format**: Insert Above / Below / Left / Right, Delete Row / Column, Borders (all / none / colour / weight), Cell Fill; dragging the handles sizes the columns in proportion; a real `<table>` in the PDF (`table.js`, `tableedit.js`; suite `tables`). 2026-11-03: **Table Format ▸ Merge ▾** — Merge with Cell to the Right / Below, Merge Cells… (rows × columns from the cell you are in; the texts join in reading order, as Publisher), Split Cells; rows and columns inserted or deleted inside a merge keep it whole (suite `tablemerge`, unit test `test/table.test.js`). **Table Styles** (2026-11-03): Plain Grid / Header Row / Banded Rows / Header Row, No Lines / No Lines, No Shading — borders, shading and header bold for the whole table (suite `options`) |
 | Pictures from file | ✅ | Crop (with the cut-away part shown dimmed, 2026-10-20), Fit, Fill |
 | Shapes with fill/outline | ✅ | 2026-11-02: see Home ▸ Objects: other shapes |
 | Building blocks | ✅ | 2026-10-29: **Service Music library** (Insert ▸ Service Music): psalters (psalm + response), doxologies (tune), communion settings (setting + parts in order), Taizé, benediction responses, other; kept beside the weeks; goes in-line in the text (moves with it, like Word), or into the Order of Worship block; Replace for a new season. 2026-11-02: **Building Blocks** (Insert ▸ Page Parts / Borders & Accents / Calendars, right-click ▸ Add to Building Blocks…): select objects ▸ name them ▸ kept with their pictures in a `Building Blocks` folder beside the weeks (shared); the pane shows thumbnails; Insert places a copy (new ids) on the page you are editing; Rename / Remove (`blocks.js`, main `blocks:*`; suite `blocks`). No starter set yet (Kevin and the communications person save their own) |
@@ -104,7 +104,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 |---|---|---|
 | Two-page spread / single page | ✅ | 2026-11-02: View ▸ Single Page / Two-Page Spread (remembered per PC; the Pages pane keeps its spreads; Whole Page / Page Width zoom fit the one page) (suite `insertview`) |
 | Zoom in/out, whole spread, 100%, page width, selected objects | ✅ | Selected Objects 2026-10-20 |
-| Rulers, boundaries, guides, page navigation, fields | ✅ | View ▸ Fields (2026-11-02): shade the page-number fields on screen |
+| Rulers, boundaries, guides, page navigation, fields | ✅ | View ▸ Fields (2026-11-02): shade the page-number fields on screen. **Baselines** (2026-11-03): View ▸ Show ▸ Baselines — horizontal guides every N pt from the top margin (Options), never printed, remembered per PC (suite `options`) |
 | Graphics manager | ✅ | 2026-11-02: View ▸ Show ▸ Graphics Manager — every picture (page objects, in-line music, parked items): page, printed size, pixels, dpi; flags missing files and under-150-dpi pictures; click a row to select it (suite `insertview`) |
 | Master page view | ✅ | 2026-11-03: View ▸ Master Page / Normal (Ctrl+M), a yellow banner while you are on the master; page commands and Page Setup wait until Normal (suite `master`) |
 

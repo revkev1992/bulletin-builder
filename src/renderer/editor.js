@@ -49,7 +49,9 @@ export class Editor {
     this.clipboard = null;    // a copied frame (deep copy)
     this.masterMode = false;  // View ▸ Master Page: the pages show and edit their master (master.js)
     this.idSeq = 0;
-    setInterval(() => this.autosave(), AUTOSAVE_MS);
+    this.autosaveMinutes = AUTOSAVE_MS / 60000;   // Options can change it (app.js)
+    this.lastAutosave = Date.now();
+    setInterval(() => { if (Date.now() - this.lastAutosave >= this.autosaveMinutes * 60000) { this.lastAutosave = Date.now(); this.autosave(); } }, 15000);
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
     window.addEventListener('keydown', (e) => this.onKey(e));
