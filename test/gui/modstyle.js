@@ -111,4 +111,24 @@ exports.run = async (h) => {
   await h.clickSel('#undo');
   await h.wait(800);
   h.ok('Undo brings the style back', stylesOnDisk().some((s) => s.name === 'Normal') && (await paraOf('All are invited')).style === 'Normal');
+
+  // Import Styles… from another week (a copy of this one with an extra style and a changed Normal)
+  const path = require('path');
+  const otherWeek = path.join(h.tmp, 'other.bulletin');
+  const m = JSON.parse(fs.readFileSync(h.weekCopy, 'utf8'));
+  m.title = 'Other week';
+  m.styles = [{ name: 'Normal', run: { font: 'Georgia', size: 10.5 }, para: { align: 'left' } }, { name: 'Imported Heading', run: { font: 'Georgia', size: 15, bold: true }, para: { align: 'center' } }];
+  fs.writeFileSync(otherWeek, JSON.stringify(m));
+  global.__bbTestImportFrom = otherWeek;
+  await h.click(w3.x, w3.y);
+  await h.clickSel('#rb-styles');
+  await h.clickSel('#sg-import');
+  h.ok('Import Styles… says what the other week has (1 new style)', await h.until(`!!document.querySelector('dialog.pub-dialog[open]')`, 3000) && /1 new style: Imported Heading/.test(await h.js(`document.querySelector('dialog .pd-body').textContent`)));
+  await h.clickSel('dialog input[name="replace"]');
+  await h.clickSel('dialog .pd-ok');
+  await h.wait(900);
+  h.ok('the new style is in this week, and Normal was replaced (Georgia 10.5)', stylesOnDisk().some((s) => s.name === 'Imported Heading') && /Georgia/.test((stylesOnDisk().find((s) => s.name === 'Normal') || { run: {} }).run.font || ''));
+  const imp = await paraOf('All are invited');
+  h.ok('…paragraphs using Normal took the replaced style', imp && imp.runs.every((r) => r.font === 'Georgia' && r.size === 10.5), { imp });
+  delete global.__bbTestImportFrom;
 };

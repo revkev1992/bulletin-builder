@@ -296,6 +296,19 @@ ipcMain.handle('week:rename-page', (e, file, n, name) => {
 });
 // a hyperlink in the bulletin, Ctrl+clicked: the browser (never inside the app)
 ipcMain.handle('shell:open', (_e, url) => { if (/^(https?:|mailto:)/i.test(String(url))) shell.openExternal(url); });
+// Home ▸ Styles ▸ Import Styles…: the named styles of another week's .bulletin file
+ipcMain.handle('week:read-styles', async (e, hint) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  let src = global.__bbTestImportFrom;     // GUI tests: no native dialog
+  if (!src) {
+    const r = await dialog.showOpenDialog(win, { title: 'Import Styles — choose the week to take them from', defaultPath: hint ? path.dirname(path.dirname(path.resolve(hint))) : undefined,
+      filters: [{ name: 'Bulletin week', extensions: ['bulletin'] }], properties: ['openFile'] });
+    if (r.canceled) return null;
+    src = r.filePaths[0];
+  }
+  const m = JSON.parse(fs.readFileSync(path.resolve(src), 'utf8'));
+  return { title: m.title, styles: Array.isArray(m.styles) ? m.styles : [] };
+});
 // right-click Cut / Copy / Paste in text: the browser's own clipboard commands
 ipcMain.handle('edit:do', (e, what) => { if (['cut', 'copy', 'paste'].includes(what)) e.sender[what](); });
 ipcMain.handle('app:version', () => app.getVersion());

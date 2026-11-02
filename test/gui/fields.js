@@ -102,4 +102,11 @@ exports.run = async (h) => {
   h.ok('saved: runs with pageNumber and pageCount fields, text kept around them', runs && runs.some((r) => r.f === 'pageNumber') && runs.some((r) => r.f === 'pageCount') && runs.some((r) => /budget p\. $/.test(r.t)), { runs });
   h.ok('…drawn as 12 and ' + total + ' on the page', (await h.js(`[...document.querySelectorAll('${BOX} .field')].map((f) => f.textContent).join(',')`)) === '12,' + total);
   await h.shot('field-in-text');
+  // View ▸ Show ▸ Fields: the shading on screen
+  const shade = () => h.js(`getComputedStyle(document.querySelector('${BOX} .field')).backgroundColor`);
+  h.ok('fields are shaded on screen', /rgba\(43, 125, 233/.test(await shade()));
+  await h.clickSel('.rb-tab[data-tab="view"]');
+  await h.clickSel('#show-fields');
+  h.ok('View ▸ Fields unticked: no shading', !/rgba\(43, 125, 233/.test(await shade()));
+  await h.clickSel('#show-fields');
 };

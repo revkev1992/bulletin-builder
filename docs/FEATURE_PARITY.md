@@ -63,7 +63,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Paragraph: align, bullets, numbering, indents, line spacing, Paragraph… dialog, columns, ¶ | ✅ | |
 | Paragraph: tab stops | ✅ | 2026-10-20: ruler (click/drag/drag-off), Tabs dialog (position, alignment, leader), indent markers |
 | Paragraph: drop cap | ✅ | 2026-11-02: Drop Cap gallery (3 lines / 2 lines / Custom… / none), saved as `paragraph.dropCap`, drawn with CSS initial-letter (suite `dropcap`) |
-| Styles: apply a named style, New Style… | ✅ | 2026-10-20: gallery of the week's styles (from Publisher). 2026-11-02: right-click a style ▸ **Modify…** (font, size, bold/italic/small caps, colour, alignment, spacing, indents), **Update to Match Selection**, **Delete** — every paragraph in the half using the style changes; one undo step with its paragraphs (suite `modstyle`). Import Styles ⬜ |
+| Styles: apply a named style, New Style… | ✅ | 2026-10-20: gallery of the week's styles (from Publisher). 2026-11-02: right-click a style ▸ **Modify…** (font, size, bold/italic/small caps, colour, alignment, spacing, indents), **Update to Match Selection**, **Delete** — every paragraph in the half using the style changes; one undo step with its paragraphs (suite `modstyle`). **Import Styles…** (gallery): another week's named styles, new ones added, existing ones replaced only if you tick it (suite `modstyle`) |
 | Objects: text box, picture, line, rectangle | ✅ | |
 | Objects: other shapes | ✅ | 2026-11-02: oval, rounded rectangle, triangle, right arrow, diamond, line with arrowhead(s) — SVG in the box, exact outline; **Shape Format ▸ Shape Styles**: Shape Fill, Shape Outline (colour, weight, arrows), No Fill / No Outline; a text box takes fill and outline too (suite `shapes`) |
 | Objects: table | ✅ | 2026-11-02: see Insert ▸ Tables |
@@ -104,7 +104,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 |---|---|---|
 | Two-page spread / single page | ✅ | 2026-11-02: View ▸ Single Page / Two-Page Spread (remembered per PC; the Pages pane keeps its spreads; Whole Page / Page Width zoom fit the one page) (suite `insertview`) |
 | Zoom in/out, whole spread, 100%, page width, selected objects | ✅ | Selected Objects 2026-10-20 |
-| Rulers, boundaries, guides, page navigation | ✅ | |
+| Rulers, boundaries, guides, page navigation, fields | ✅ | View ▸ Fields (2026-11-02): shade the page-number fields on screen |
 | Graphics manager | ✅ | 2026-11-02: View ▸ Show ▸ Graphics Manager — every picture (page objects, in-line music, parked items): page, printed size, pixels, dpi; flags missing files and under-150-dpi pictures; click a row to select it (suite `insertview`) |
 | Master page view | ⬜ | |
 

@@ -90,5 +90,6 @@ export function galleryHtml(styles, current) {
   };
   return '<div class="sg-list">' + styles.map(item).join('') + '</div><div class="ctx-sep"></div>' +
     '<button type="button" class="sg-cmd" id="sg-new">New Style…</button>' +
+    '<button type="button" class="sg-cmd" id="sg-import" title="Copy the named styles of another week into this one">Import Styles…</button>' +
     '<button type="button" class="sg-cmd" id="sg-modify"' + (current ? '' : ' disabled') + ' title="Change the style this paragraph uses (or right-click any style: Modify, Update to Match Selection, Delete)">Modify ' + (current ? '"' + esc(current) + '"' : 'Style') + '…</button>';
 }

@@ -961,7 +961,7 @@ async function pageCommand(kind) {
 if (PRINT) {
   window.__bbReady = open(params.get('week'));
 } else {
-  document.body.classList.add('screen', 'show-guides', 'show-halves');
+  document.body.classList.add('screen', 'show-guides', 'show-halves', 'show-fields');
   editor = new Editor({
     week: () => week,
     file: () => weekFile,
@@ -1099,6 +1099,29 @@ if (PRINT) {
       });
     }
     m.querySelector('#sg-modify').onclick = () => { m.remove(); if (cur) modify(cur); };
+    // Import Styles…: another week's styles; a name already here is replaced only if you say so
+    m.querySelector('#sg-import').onclick = async () => {
+      m.remove();
+      const saved = keepSel();
+      let r;
+      try { r = await window.bb.readStyles(weekFile); } catch (err) { setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>'); return; }
+      if (!r) { backSel(saved); return; }
+      const mine = new Set(styles.map((x) => x.name));
+      const fresh = r.styles.filter((s) => !mine.has(s.name)), same = r.styles.filter((s) => mine.has(s.name));
+      const v = await modal('Import Styles from ' + r.title.replace(/</g, '&lt;'),
+        '<p>' + fresh.length + ' new style' + (fresh.length === 1 ? '' : 's') + (fresh.length ? ': ' + fresh.map((s) => s.name).slice(0, 12).join(', ').replace(/</g, '&lt;') + (fresh.length > 12 ? '…' : '') : '') + '.</p>' +
+        (same.length ? '<label><input type="checkbox" name="replace"> Also replace the ' + same.length + ' style' + (same.length === 1 ? '' : 's') + ' this week already has with that week\'s version</label>' : '') +
+        '<p class="pd-note">Paragraphs keep their look; replaced styles restyle the paragraphs that use them.</p>', 'Import');
+      backSel(saved);
+      if (!v) return;
+      let n = 0;
+      if (v.replace) for (const s of same) { const k = await editor.changeStyle(s.name, normStyle(s)); if (k !== false) n++; }
+      if (fresh.length) {
+        const list = [...(week.manifest.styles || []), ...fresh];
+        try { await window.bb.setStyles(weekFile, list); week.manifest.styles = list; } catch (err) { setStatus('<span class="warn">' + String(err.message || err) + '</span>'); return; }
+      }
+      setStatus('Imported ' + fresh.length + ' new style' + (fresh.length === 1 ? '' : 's') + (v.replace ? ' and replaced ' + n : '') + ' from ' + r.title + '.');
+    };
     m.querySelector('#sg-new').onclick = async () => {
       m.remove();
       const para = currentParagraph(flow);
@@ -1261,6 +1284,7 @@ if (PRINT) {
   window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && editor.textEdit) { e.preventDefault(); insertLink(); } });
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
+  $('show-fields').onchange = (e) => document.body.classList.toggle('show-fields', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);
   $('pasteboard-btn').onchange = (e) => scratch.set('free', e.target.checked);
   $('shelf-btn').onchange = (e) => scratch.set('shelf', e.target.checked);

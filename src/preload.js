@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('bb', {
   saveAs: (file) => ipcRenderer.invoke('week:save-as', file),
   edit: (what) => ipcRenderer.invoke('edit:do', what),
   setStyles: (file, styles) => ipcRenderer.invoke('week:set-styles', file, styles),
+  readStyles: (hint) => ipcRenderer.invoke('week:read-styles', hint),
   setPage: (file, setup) => ipcRenderer.invoke('week:set-page', file, setup),
   renamePage: (file, n, name) => ipcRenderer.invoke('week:rename-page', file, n, name),
   exportPages: (file, opts) => ipcRenderer.invoke('week:export-pages', file, opts),

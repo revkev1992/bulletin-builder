@@ -207,7 +207,7 @@ export const TABS = [
     { label: 'Views', cols: [[big('Normal', 'normal', { id: 'rb-normal', active: true })], [big('Master Page', 'master', todo)]] },
     { label: 'Layout', cols: [[big('Single Page', 'single', { id: 'rb-single', tip: 'One page at a time, down the window' })], [big('Two-Page Spread', 'spread', { id: 'rb-spread', active: true, tip: 'Facing pages side by side, as the bulletin is read' })]] },
     { label: 'Show', cols: [
-      [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', todo)],
+      [chk('Boundaries', { id: 'show-boundaries' }), chk('Guides', { id: 'show-guides', checked: true }), chk('Fields', { id: 'show-fields', checked: true, tip: 'Shade the page-number fields on screen (never printed)' })],
       [chk('Rulers', { id: 'show-rulers', checked: true }), chk('Page Navigation', { id: 'show-nav', checked: true }), chk('Scratch Area', { id: 'pasteboard-btn', tip: 'Show or hide the free-form scratch area beside the pages, as in Publisher (never printed)' })],
       [chk('Graphics Manager', { id: 'gm-btn', tip: 'Every picture in the week: where it is, its printed size and resolution, and any that are missing or too small to print well' }), chk('Baselines', todo), chk('Shelf', { id: 'shelf-btn', checked: true, tip: 'Show or hide the shelf: parked objects down the left, staying put while the pages scroll (never printed)' })],
     ] },
