@@ -158,6 +158,30 @@ export async function pageSetupDialog(m, focus = 'margins') {
     margins: { top: n('top'), bottom: n('bottom'), inside: n('inside'), outside: n('outside'), mirror: !!r.mirror } };
 }
 
+// Insert ▸ Link (Ctrl+K): Publisher's Insert Hyperlink, the useful part — text to display + address.
+// `text` = the selected text (fixed) or '' (typed here); `link` = the address already there, if any.
+// Returns { text, url } (url '' = remove the link) or null.
+export async function linkDialog(text, link) {
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const r = await modal(link ? 'Edit Hyperlink' : 'Insert Hyperlink',
+    '<label class="pd-row">Text to display: <input name="text" value="' + esc(text) + '"' + (text ? ' readonly' : ' required') + ' style="width:260px"></label>' +
+    '<label class="pd-row">Address: <input name="url" value="' + esc(link || '') + '" placeholder="www.highlandumc.org  or  someone@example.org" style="width:260px"></label>' +
+    '<p class="pd-note">A web address or an e-mail address. ' + (link ? 'Leave the address empty to remove the link. ' : '') + 'The link works in the PDF and on the website; in Bulletin Builder, Ctrl+click opens it.</p>',
+    'OK', (d) => { d.querySelector(text ? 'input[name="url"]' : 'input[name="text"]').focus(); });
+  if (!r) return null;
+  let url = String(r.url || '').trim();
+  if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url)) url = (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(url) ? 'mailto:' : 'https://') + url;
+  return { text: String(r.text || '').trim(), url };
+}
+
+// Page Design ▸ Pages ▸ Rename (and the Pages pane's right-click): a name for the page
+export async function renamePageDialog(n, name) {
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const r = await modal('Rename Page ' + n, '<label class="pd-row">Page name: <input name="name" value="' + esc(name || '') + '" maxlength="60" style="width:240px"></label>' +
+    '<p class="pd-note">Shown under the page in the Pages pane. Leave it empty for no name.</p>');
+  return r ? String(r.name || '').trim() : null;
+}
+
 export async function deletePageDialog(current, frameCount) {
   const r = await modal('Delete Page',
     '<p>Delete page ' + current + (frameCount ? ' and the ' + frameCount + ' object' + (frameCount === 1 ? '' : 's') + ' on it' : '') + '?</p>' +

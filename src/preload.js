@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('bb', {
   edit: (what) => ipcRenderer.invoke('edit:do', what),
   setStyles: (file, styles) => ipcRenderer.invoke('week:set-styles', file, styles),
   setPage: (file, setup) => ipcRenderer.invoke('week:set-page', file, setup),
+  renamePage: (file, n, name) => ipcRenderer.invoke('week:rename-page', file, n, name),
+  openExternal: (url) => ipcRenderer.invoke('shell:open', url),
   onOpen: (fn) => ipcRenderer.on('week:open', (_e, file) => fn(file)),
   onZoom: (fn) => ipcRenderer.on('view:zoom', (_e, factor) => fn(factor)),
   onCommand: (fn) => ipcRenderer.on('cmd', (_e, name) => fn(name)),

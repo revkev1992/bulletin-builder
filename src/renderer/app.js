@@ -5,7 +5,8 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, modal } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal } from './pagedialogs.js';
+import { GraphicsPane } from './graphics.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -107,6 +108,22 @@ function refreshStatusCounts() {
   $('counts').innerHTML = bits.filter(Boolean).join(' · ');
 }
 
+// View ▸ Layout: Two-Page Spread (Publisher's default) or Single Page; remembered on this PC
+let viewLayout = 'spread';
+try { viewLayout = localStorage.getItem('bb.view.layout') === 'single' ? 'single' : 'spread'; } catch (_) { /* default */ }
+async function setViewLayout(mode) {
+  if (mode === viewLayout && document.querySelector('.spreads')) { updateToolbar(); return; }
+  viewLayout = mode;
+  try { localStorage.setItem('bb.view.layout', mode); } catch (_) { /* per-PC convenience only */ }
+  if (!week) { updateToolbar(); return; }
+  const lp = editor.sel ? editor.sel.page : editor.lastPage;
+  await reload();
+  zoomBy(0);
+  if (lp != null) goToPage(lp);
+  updateToolbar();
+}
+window.__bbSetViewLayout = setViewLayout;
+
 async function showSpreads() {
   const stage = $('stage');
   stage.innerHTML = '';
@@ -114,13 +131,13 @@ async function showSpreads() {
   const { width, height } = week.manifest.page;
   const numbers = week.manifest.pages.map((p) => p.number);
   const wrap = document.createElement('div');
-  wrap.className = 'spreads';
+  wrap.className = 'spreads' + (viewLayout === 'single' ? ' single' : '');
   wrap.style.setProperty('--page-w', width + 'pt');
   wrap.style.setProperty('--page-h', height + 'pt');
   const nav = $('nav-pages');
   nav.innerHTML = '';
   nav.style.setProperty('--thumb-ratio', String(width / height));
-  for (const pair of spreadsOf(numbers)) {
+  for (const pair of (viewLayout === 'single' ? numbers.map((n) => [n]) : spreadsOf(numbers))) {
     const label = pair.filter(Boolean).join('–');
     const sw = document.createElement('section');
     sw.className = 'spread-wrap';
@@ -139,18 +156,19 @@ async function showSpreads() {
     }
     sw.appendChild(spread);
     wrap.appendChild(sw);
-
-    // Pages pane, as Publisher: a thumbnail per page, paired in spreads, number underneath
+  }
+  // Pages pane, as Publisher: a thumbnail per page, paired in spreads, number (and name) underneath
+  for (const pair of spreadsOf(numbers)) {
     const row = document.createElement('div');
     row.className = 'nav-spread';
     for (const n of pair) {
       const cell = document.createElement('div');
       cell.className = 'nav-page' + (n == null ? ' blank' : '');
       if (n != null) {
-        const h = week.manifest.pages.find((p) => p.number === n).half;
+        const entry = week.manifest.pages.find((p) => p.number === n);
         cell.dataset.page = n;
-        cell.title = 'Page ' + n + ' (' + h + ')';
-        cell.innerHTML = '<div class="nav-thumb half-' + h + '"></div><div class="nav-num">' + n + '</div>';
+        cell.title = 'Page ' + n + (entry.name ? ' — ' + entry.name : '') + ' (' + entry.half + ')';
+        cell.innerHTML = '<div class="nav-thumb half-' + entry.half + '"></div><div class="nav-num">' + n + '</div>' + (entry.name ? '<div class="nav-name">' + entry.name.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) + '</div>' : '');
         cell.addEventListener('click', () => goToPage(n));
         cell.addEventListener('contextmenu', (e) => { e.preventDefault(); goToPage(n); pageMenu(e.clientX, e.clientY, n); });
       }
@@ -217,7 +235,7 @@ function pageMenu(x, y, n) {
     : 'Page ' + n + ' belongs to the other half of the bulletin';
   const items = [
     ['Insert Page…', 'insert', !!editor.half], ['Insert Blank Page', 'blank', !!editor.half], ['Insert Duplicate Page', 'dup', !!editor.half],
-    null, ['Delete Page', 'delete', own], ['Move Page…', 'move', own], ['Rename…', null, false],
+    null, ['Delete Page', 'delete', own], ['Move Page…', 'move', own], ['Rename…', 'rename', !!editor.half],
   ];
   const m = document.createElement('div');
   m.className = 'ctx-menu';
@@ -274,10 +292,14 @@ async function pageContextMenu(e) {
   if (flow && flow.closest('.frame').contains(e.target)) {
     const sel = window.getSelection();
     const has = sel.rangeCount && !sel.isCollapsed;
+    const inLink = !!linkAtCaret(flow);
     showMenu(e.clientX, e.clientY, [
       { label: 'Cut', cmd: 'text-cut', on: has, run: () => window.bb.edit('cut') },
       { label: 'Copy', cmd: 'text-copy', on: has, run: () => window.bb.edit('copy') },
       { label: 'Paste', cmd: 'text-paste', on: true, run: () => window.bb.edit('paste') },
+      null,
+      { label: inLink ? 'Edit Hyperlink…' : 'Hyperlink…', cmd: 'link', on: has || inLink, run: () => insertLink() },
+      { label: 'Remove Hyperlink', cmd: 'unlink', on: inLink, run: () => removeLink() },
       null,
       { label: 'Paragraph…', cmd: 'paragraph', on: true, run: () => $('t-paradlg').click() },
       { label: 'Tabs…', cmd: 'tabs', on: true, run: () => window.__bbRulers.tabsDialog() },
@@ -335,6 +357,59 @@ async function pageContextMenu(e) {
   ], 'ctx-page');
 }
 
+// ---------------------------------------------------------------- hyperlinks (Insert ▸ Link, Ctrl+K)
+// the <a> the caret (or the selection's start) is in, while typing
+function linkAtCaret(flow) {
+  const s = window.getSelection();
+  if (!flow || !s.rangeCount || !flow.contains(s.anchorNode)) return null;
+  const el = s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement;
+  const a = el.closest('a[href]');
+  return a && flow.contains(a) ? a : null;
+}
+async function insertLink() {
+  const flow = editor.editingFlow();
+  if (!flow) { setStatus('Click in some text first, then Insert ▸ Link puts a hyperlink on it.'); return; }
+  const s = window.getSelection();
+  const a = linkAtCaret(flow);
+  // the caret inside a link with nothing selected: the whole link is edited
+  if (a && s.isCollapsed) { const r = document.createRange(); r.selectNodeContents(a); s.removeAllRanges(); s.addRange(r); }
+  const picked = s.rangeCount && !s.isCollapsed ? s.toString().replace(/​/g, '') : '';
+  const saved = s.rangeCount ? s.getRangeAt(0).cloneRange() : null;
+  const v = await linkDialog(picked, a ? a.getAttribute('href') : '');
+  flow.focus();
+  if (saved) { s.removeAllRanges(); s.addRange(saved); }
+  if (!v) return;
+  if (!picked) {
+    if (!v.text || !v.url) return;
+    document.execCommand('insertText', false, v.text);
+    for (let i = 0; i < v.text.length; i++) s.modify('extend', 'backward', 'character');
+  }
+  // a new link gets Publisher's hyperlink look (blue, underlined); your formatting after that
+  editor.format('link', { url: v.url || null, decorate: !!v.url && !a });
+  if (v.url) setStatus('Hyperlink: ' + v.url + ' — Ctrl+click it to open; it works in the PDF and on the website.');
+  else setStatus('Hyperlink removed.');
+}
+function removeLink() {
+  const flow = editor.editingFlow();
+  const a = flow && linkAtCaret(flow);
+  if (!a) return;
+  const s = window.getSelection();
+  const r = document.createRange(); r.selectNodeContents(a); s.removeAllRanges(); s.addRange(r);
+  editor.format('link', { url: null });
+  setStatus('Hyperlink removed (the text keeps its formatting).');
+}
+// a link on a page: never followed inside the app; Ctrl+click opens it in the browser; hovering says where it goes
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('#stage a[href]');
+  if (!a) return;
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) window.bb.openExternal(a.href);
+});
+document.addEventListener('mouseover', (e) => {
+  const a = e.target.closest('#stage a[href]');
+  if (a) setStatus('Link: ' + a.getAttribute('href') + ' — Ctrl+click to open it.');
+});
+
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); });
 
@@ -364,16 +439,17 @@ function applyZoom(at) {
 
 function zoomBy(factor) {
   if (!week) return;
+  const across = viewLayout === 'single' ? 1 : 2;      // pages side by side
   if (factor === -1) {
-    // page width: the two pages of a spread fill the width of the window
+    // page width: the two pages of a spread (or the one page) fill the width of the window
     const { width } = week.manifest.page;
-    zoom = ($('stage').clientWidth - 64) / (2 * width * 96 / 72);
+    zoom = ($('stage').clientWidth - 64) / (across * width * 96 / 72);
   } else if (factor === 0) {
-    // whole spread: fit two pages side by side into the stage
+    // whole spread: fit two pages side by side (or one page) into the stage
     const stage = $('stage');
     const { width, height } = week.manifest.page;
     const pxPerPt = 96 / 72;
-    zoom = Math.min((stage.clientWidth - 64) / (2 * width * pxPerPt), (stage.clientHeight - 90) / (height * pxPerPt));
+    zoom = Math.min((stage.clientWidth - 64) / (across * width * pxPerPt), (stage.clientHeight - 90) / (height * pxPerPt));
   } else {
     zoom = Math.min(4, Math.max(0.2, zoom * factor));
   }
@@ -472,7 +548,10 @@ function updateToolbar() {
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
-    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient']) $(id).disabled = !half;
+    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename']) $(id).disabled = !half;
+  $('rb-single').classList.toggle('active', viewLayout === 'single');
+  $('rb-spread').classList.toggle('active', viewLayout !== 'single');
+  if (window.__bbGraphics && window.__bbGraphics.shown) window.__bbGraphics.refresh();
   $('rb-newweek').disabled = !week;
   $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
   const wh = week && week.halves.worship;
@@ -767,6 +846,25 @@ async function pageCommand(kind) {
     setStatus('<span class="warn">Page ' + cur + ' belongs to the other half. Click one of the ' + editor.half + ' pages first.</span>');
     return;
   }
+  if (kind === 'rename') {
+    const entry = week.manifest.pages.find((p) => p.number === cur);
+    const name = await renamePageDialog(cur, entry && entry.name);
+    if (name == null) return;
+    try {
+      const saved = await window.bb.renamePage(weekFile, cur, name);
+      if (saved) entry.name = saved; else delete entry.name;
+      const cell = document.querySelector('#nav-pages .nav-page[data-page="' + cur + '"]');
+      if (cell) {
+        cell.title = 'Page ' + cur + (entry.name ? ' — ' + entry.name : '') + ' (' + entry.half + ')';
+        cell.querySelector('.nav-name')?.remove();
+        if (entry.name) { const d = document.createElement('div'); d.className = 'nav-name'; d.textContent = entry.name; cell.appendChild(d); }
+      }
+      setStatus(saved ? 'Page ' + cur + ' is now named "' + saved + '".' : 'Page ' + cur + ' has no name now.');
+    } catch (err) {
+      setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+    }
+    return;
+  }
   let op = null;
   if (kind === 'blank') op = { type: 'insert', ref: cur, where: 'after', count: 1 };
   else if (kind === 'dup') op = { type: 'insert', ref: cur, where: 'after', count: 1, duplicate: cur };
@@ -1028,6 +1126,17 @@ if (PRINT) {
   $('bg-none').onclick = () => editor.setPageBackground(null);
   $('bg-more').addEventListener('change', (e) => { editor.setPageBackground(e.target.value); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
   $('pg-bgimage').onclick = () => editor.insertPicture(null, { fullPage: true });
+  $('pg-rename').onclick = () => pageCommand('rename');
+  // ---- View ▸ Layout, Graphics Manager
+  $('rb-single').onclick = () => setViewLayout('single');
+  $('rb-spread').onclick = () => setViewLayout('spread');
+  const graphics = new GraphicsPane({ week: () => week, editor: () => editor, goTo: (n, id) => { goToPage(n); if (id && editor.topFrame(n, id)) editor.select(n, editor.topFrame(n, id).id); } });
+  window.__bbGraphics = graphics;
+  $('gm-btn').onchange = (e) => graphics.set(e.target.checked);
+  // ---- Insert ▸ Link (Ctrl+K)
+  $('ins-link').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ins-link').onclick = () => insertLink();
+  window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && editor.textEdit) { e.preventDefault(); insertLink(); } });
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);

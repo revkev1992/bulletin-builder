@@ -79,7 +79,10 @@ export function pageContent(week, n) {
 
 // ------------------------------------------------------------------ text
 function runSpan(run, para) {
-  const span = el('span', 'run');
+  // a hyperlink (Insert ▸ Link): a real <a>, so the PDF and the website carry it; it looks exactly
+  // like its formatting (styles.css: a.run inherits colour and underline), as in Publisher
+  const span = el(run.link ? 'a' : 'span', 'run');
+  if (run.link) span.href = run.link;
   const size = run.size || (para.mark && para.mark.size) || 11;
   const font = run.font || (para.mark && para.mark.font);
   const s = span.style;

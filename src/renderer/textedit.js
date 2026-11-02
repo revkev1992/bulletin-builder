@@ -46,6 +46,8 @@ function runPropsOf(e, para) {
   if (c && c !== '#000000') r.color = c;
   const ls = parseFloat(cs.letterSpacing);
   if (ls && px) r.tracking = Math.round(((ls / px) / 0.5) * 100 + 100);
+  const a = e.closest('a[href]');
+  if (a && para.contains(a)) r.link = a.getAttribute('href');
   return r;
 }
 
@@ -244,6 +246,32 @@ export function formatSelection(cmd, value, flow) {
     case 'lineSpacing':
       rebuildParas(flow, selectedParas(flow), (p) => ({ ...p, lineSpacing: { multiple: Number(value) } }));
       break;
+    case 'link': {      // Insert ▸ Link: value = { url, decorate } (url '' / null removes the link from the selection)
+      const url = value && value.url;
+      const unwrap = (a) => a.replaceWith(...a.childNodes);
+      styleSelection(flow, (e) => {
+        if (value && value.decorate) { e.style.color = '#0563C1'; e.style.textDecoration = 'underline'; }   // Publisher's hyperlink look
+        for (const d of [...e.querySelectorAll('a')]) unwrap(d);
+        if (e.tagName === 'A') {   // the marked element is the link itself (the whole link was selected)
+          if (url) e.setAttribute('href', url); else unwrap(e);
+          return;
+        }
+        const outer = e.parentElement && e.parentElement.closest('a[href]');
+        if (outer && flow.contains(outer)) {
+          // part of an existing link: split it so only the selection changes
+          const before = outer.cloneNode(false), after = outer.cloneNode(false);
+          const kids = [...outer.childNodes];
+          const i = kids.indexOf(e);
+          kids.slice(0, i).forEach((k) => before.appendChild(k));
+          kids.slice(i + 1).forEach((k) => after.appendChild(k));
+          outer.replaceWith(before, e, after);
+          if (!before.childNodes.length) before.remove();
+          if (!after.childNodes.length) after.remove();
+        }
+        if (url) { const a = document.createElement('a'); a.setAttribute('href', url); a.className = 'run'; e.replaceWith(a); a.appendChild(e); }
+      });
+      break;
+    }
     case 'dropCap':     // Home ▸ Paragraph ▸ Drop Cap: value = { lines } or null for none
       rebuildParas(flow, selectedParas(flow), (p) => {
         const q = { ...p };
@@ -292,7 +320,7 @@ function styleSelection(flow, fn) {
   if (!sel.rangeCount || sel.isCollapsed) return false;
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('hiliteColor', false, MARK);
-  const marked = [...flow.querySelectorAll('span, font')].filter((e) => e.style.backgroundColor === MARK);
+  const marked = [...flow.querySelectorAll('span, font, a')].filter((e) => e.style.backgroundColor === MARK);
   for (const e of marked) { e.style.backgroundColor = ''; fn(e, getComputedStyle(e)); }
   return marked.length > 0;
 }

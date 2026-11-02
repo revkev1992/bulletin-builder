@@ -186,6 +186,22 @@ ipcMain.handle('week:set-page', (e, file, setup) => {
     for (const h of borrowed) session.release(abs, h);
   }
 });
+// Page Design ▸ Pages ▸ Rename: a page's name lives in the manifest (shown in the Pages pane)
+ipcMain.handle('week:rename-page', (e, file, n, name) => {
+  const c = claims.get(e.sender.id);
+  if (!c || path.resolve(c.file) !== path.resolve(file)) throw new Error('Choose which pages you are changing first (Bulletin ▸ I am changing).');
+  const abs = path.resolve(file);
+  const m = JSON.parse(fs.readFileSync(abs, 'utf8'));
+  const p = (m.pages || []).find((x) => x.number === Number(n));
+  if (!p) throw new Error('There is no page ' + n + '.');
+  const clean = String(name || '').trim().slice(0, 60);
+  if (clean) p.name = clean; else delete p.name;
+  fs.writeFileSync(abs + '.saving', JSON.stringify(m, null, 1));
+  fs.renameSync(abs + '.saving', abs);
+  return clean;
+});
+// a hyperlink in the bulletin, Ctrl+clicked: the browser (never inside the app)
+ipcMain.handle('shell:open', (_e, url) => { if (/^(https?:|mailto:)/i.test(String(url))) shell.openExternal(url); });
 // right-click Cut / Copy / Paste in text: the browser's own clipboard commands
 ipcMain.handle('edit:do', (e, what) => { if (['cut', 'copy', 'paste'].includes(what)) e.sender[what](); });
 ipcMain.handle('app:version', () => app.getVersion());

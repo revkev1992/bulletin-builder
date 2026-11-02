@@ -214,6 +214,7 @@ body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
 .spread-wrap { margin: 0 auto 36pt; width: max-content; }
 .spread-label { font-size: 11px; color: #4a4741; margin: 0 0 4px 2px; }
 .spread { display: flex; }
+.spreads.single .spread { justify-content: center; }
 .spread .page { box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
 .spread .slot { width: var(--page-w); height: var(--page-h); }
 .spread .slot.blank { background: transparent; }
@@ -257,6 +258,10 @@ p.para.pic-para { top: 0; }
 /* initial-letter, not a float: a float could never sit above an earlier wrap-float (a wrapped picture
    lower in the same box pushed the letter down to it) */
 p.para.dropcap::first-letter { initial-letter: var(--dc-lines); padding-right: 0.08em; }
+/* a hyperlink (Insert ▸ Link): the text's own formatting, nothing added */
+.page a.run { color: inherit; text-decoration: inherit; cursor: inherit; }
+.screen .page a.run { cursor: text; }
+.screen body:not(.editing) .page a.run, .screen .page-shell:not(.editable) a.run { cursor: pointer; }
 .tab { display: inline-block; height: 1px; }
 .tab.leader-dot { border-bottom: 1.2pt dotted currentColor; }
 .tab.leader-dash { border-bottom: 1pt dashed currentColor; }
@@ -537,6 +542,25 @@ body:not(.editing) .scratch-item .frame { cursor: default; }
 @keyframes shelf-fresh { from { outline: 3px solid #f0a020; outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 2px; } }
 .scratch-ghost { position: fixed; z-index: 100000; pointer-events: none; opacity: .85; }
 .scratch-ghost .scratch-board { background: transparent; outline: none; }
+/* View ▸ Graphics Manager (graphics.js) */
+#gmpane { width: 270px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; min-height: 0; }
+#gmpane[hidden] { display: none; }
+#gmpane .fp-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 15px; color: var(--rb-accent, #077568); }
+#gmpane .gm-close { border: 0; background: none; font-size: 13px; padding: 2px 6px; }
+.gm-sum { padding: 0 10px 8px; color: #444; }
+.gm-sum .warn, .gm-row .warn { color: var(--warn); }
+.gm-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+.gm-row { display: flex; gap: 8px; align-items: center; text-align: left; background: #fff; border: 1px solid #e1dfdd; border-radius: 4px; padding: 5px; }
+.gm-row:hover { border-color: #9cc9c2; }
+.gm-row.soft { border-left: 3px solid #e0a800; }
+.gm-row.bad { border-left: 3px solid var(--warn); }
+.gm-row img { width: 48px; height: 40px; object-fit: contain; background: #f3f2f1; flex: none; }
+.gm-noimg { width: 48px; height: 40px; display: flex; align-items: center; justify-content: center; background: #fde; color: var(--warn); flex: none; }
+.gm-text { display: flex; flex-direction: column; min-width: 0; }
+.gm-text b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-text small { color: #605e5c; }
+.gm-empty { color: #7a7774; padding: 8px 2px; }
+.nav-name { font-size: 9px; color: #666; max-width: 46px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Service Music library pane (musiclib.js) */
 #musicpane { width: 270px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; min-height: 0; }
 #musicpane[hidden] { display: none; }
