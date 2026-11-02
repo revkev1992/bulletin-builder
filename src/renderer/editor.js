@@ -13,6 +13,7 @@ import { installGuides } from './guides.js';
 import { installFields } from './fields.js';
 import { installTables } from './tableedit.js';
 import { installMaster } from './master.js';
+import { installBookmarks } from './bookmarks.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -1478,3 +1479,4 @@ installGuides(Editor);
 installFields(Editor);
 installTables(Editor);
 installMaster(Editor);
+installBookmarks(Editor);

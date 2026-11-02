@@ -62,7 +62,7 @@ function readParagraph(p, base) {
     text = text && text.replace(/\u200b/g, '');   // caret anchors from editing, never saved
     if (!text) return;
     const last = runs[runs.length - 1];
-    if (last && !last.field && sameProps(last, props)) last.text += text;
+    if (last && !last.field && !last.bookmark && sameProps(last, props)) last.text += text;
     else runs.push({ text, ...props });
   };
   const nodes = [];
@@ -74,6 +74,7 @@ function readParagraph(p, base) {
       else if (c.nodeType === 1) {
         if (c.classList.contains('tab')) nodes.push({ tab: c });
         else if (c.classList.contains('field')) nodes.push({ field: c });
+        else if (c.classList.contains('bookmark')) nodes.push({ bookmark: c });
         else if (c.classList.contains('brk')) { brk = c.classList.contains('brk-frame') ? 'frame' : 'column'; boxEnd = c.dataset.box || null; }
         else if (c.tagName === 'BR') { if (!c.classList.contains('tab-break')) nodes.push({ br: c }); }
         else walk(c);
@@ -92,6 +93,11 @@ function readParagraph(p, base) {
       const props = runPropsOf(n.field, p);
       runs.push({ text: '#', field: n.field.dataset.field, ...props });
       lastProps = props;
+      continue;
+    }
+    if (n.bookmark) {   // a bookmark marker: its own empty run (Insert ▸ Bookmark)
+      const props = runPropsOf(n.bookmark, p);
+      runs.push({ text: '', bookmark: n.bookmark.dataset.bookmark, ...props });
       continue;
     }
     if (n.tab || n.br) {
@@ -425,6 +431,7 @@ function atoms(root) {
       else if (c.nodeType === 1) {
         // a tab or a line break is one character (as tab / newline in the saved text)
         if (c.classList.contains('tab') || c.classList.contains('field') || (c.tagName === 'BR' && !c.classList.contains('tab-break'))) out.push({ node: c, len: 1, tab: true });
+        else if (c.classList.contains('bookmark')) continue;   // zero width: no character
         else walk(c);
       }
     }
@@ -522,7 +529,7 @@ function stripMarker(para, re) {
   const runs = para.runs.map((x) => ({ ...x }));
   let cut = (leadingText(para).match(re) || [''])[0].length;
   for (const x of runs) { const t = Math.min(cut, x.text.length); x.text = x.text.slice(t); cut -= t; if (!cut) break; }
-  return { ...para, runs: runs.filter((x) => x.text.length) };
+  return { ...para, runs: runs.filter((x) => x.text.length || x.bookmark) };
 }
 function setList(para, marker) {
   let p = para;
@@ -727,6 +734,7 @@ export function canon(paras) {
     const pieces = [];
     for (const r of p.runs) {
       const { kerning: _k, ...props } = r;
+      if (r.bookmark) { pieces.push({ ...props, text: '' }); continue; }   // a bookmark marker counts, text or not
       for (const t of r.text.split(/([\n\t]+)/)) if (t) pieces.push({ ...props, text: t });
     }
     for (const rest of pieces) {

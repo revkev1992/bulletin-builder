@@ -129,6 +129,8 @@ let pictureBase = '';
 let currentPage = null, pageTotal = null;
 export function setFieldPage(n, total) { currentPage = n; pageTotal = total; }
 const FIELD_LABEL = { pageNumber: '#', pageCount: '##' };
+// a bookmark's element id (and the target of a link to it): letters, digits, - and _ only
+export const bookmarkId = (name) => String(name).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'bookmark';
 export function fieldText(field) {
   if (field === 'pageNumber') return currentPage != null ? String(currentPage) : FIELD_LABEL.pageNumber;
   if (field === 'pageCount') return pageTotal != null ? String(pageTotal) : FIELD_LABEL.pageCount;
@@ -186,6 +188,17 @@ export function paragraphEl(para, frameId) {
   const target = () => seg || p;
   for (const run of para.runs) {
     // a field (page number / page count): one unbreakable piece showing the page's own value
+    // a bookmark (Insert ▸ Bookmark): a zero-width marker a link can point at (#bm-<name>)
+    if (run.bookmark) {
+      const span = runSpan({ ...run, text: '' }, para);
+      span.classList.add('bookmark');
+      span.contentEditable = 'false';
+      span.dataset.bookmark = run.bookmark;
+      span.id = 'bm-' + bookmarkId(run.bookmark);
+      span.title = 'Bookmark: ' + run.bookmark;
+      target().appendChild(span);
+      continue;
+    }
     if (run.field) {
       const span = runSpan(run, para);
       span.classList.add('field');

@@ -283,6 +283,12 @@ p.para.pic-para { top: 0; }
 p.para.dropcap::first-letter { initial-letter: var(--dc-lines); padding-right: 0.08em; }
 /* a page-number field (Insert ▸ Page Number): shaded on screen only, as in Publisher */
 .screen.show-fields .page .field { background: rgba(43, 125, 233, .12); border-radius: 2px; }
+/* a bookmark (Insert ▸ Bookmark): nothing printed; on screen (with Fields shown) a small flag */
+.page .run.bookmark { display: inline-block; position: relative; width: 0; overflow: visible; }
+.screen.show-fields .page .run.bookmark::before { content: '⚑'; position: absolute; transform: translate(-50%, -0.9em); font-size: 0.6em; color: #2b7de9; pointer-events: none; }
+.bm-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.bm-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.bm-row small { color: #605e5c; }
 /* a hyperlink (Insert ▸ Link): the text's own formatting, nothing added */
 .page a.run { color: inherit; text-decoration: inherit; cursor: inherit; }
 .screen .page a.run { cursor: text; }

@@ -161,17 +161,44 @@ export async function pageSetupDialog(m, focus = 'margins') {
 // Insert ▸ Link (Ctrl+K): Publisher's Insert Hyperlink, the useful part — text to display + address.
 // `text` = the selected text (fixed) or '' (typed here); `link` = the address already there, if any.
 // Returns { text, url } (url '' = remove the link) or null.
-export async function linkDialog(text, link) {
+// bookmarks: [{ name, id, page }] — Publisher's "Place in This Document"
+export async function linkDialog(text, link, bookmarks = []) {
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const toBm = link && link.startsWith('#bm-') ? link.slice(4) : '';
   const r = await modal(link ? 'Edit Hyperlink' : 'Insert Hyperlink',
     '<label class="pd-row">Text to display: <input name="text" value="' + esc(text) + '"' + (text ? ' readonly' : ' required') + ' style="width:260px"></label>' +
-    '<label class="pd-row">Address: <input name="url" value="' + esc(link || '') + '" placeholder="www.highlandumc.org  or  someone@example.org" style="width:260px"></label>' +
-    '<p class="pd-note">A web address or an e-mail address. ' + (link ? 'Leave the address empty to remove the link. ' : '') + 'The link works in the PDF and on the website; in Bulletin Builder, Ctrl+click opens it.</p>',
+    '<label class="pd-row">Address: <input name="url" value="' + esc(toBm ? '' : link || '') + '" placeholder="www.highlandumc.org  or  someone@example.org" style="width:260px"></label>' +
+    '<label class="pd-row">Or a place in this document: <select name="bookmark" id="lk-bookmark"><option value="">(none)</option>' +
+    bookmarks.map((b) => '<option value="' + esc(b.id) + '"' + (b.id === toBm ? ' selected' : '') + '>' + esc(b.name) + ' — page ' + b.page + '</option>').join('') + '</select></label>' +
+    '<p class="pd-note">A web address, an e-mail address, or a bookmark (Insert ▸ Bookmark). ' + (link ? 'Leave both empty to remove the link. ' : '') + 'The link works in the PDF and on the website; in Bulletin Builder, Ctrl+click follows it.</p>',
     'OK', (d) => { d.querySelector(text ? 'input[name="url"]' : 'input[name="text"]').focus(); });
   if (!r) return null;
   let url = String(r.url || '').trim();
-  if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url)) url = (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(url) ? 'mailto:' : 'https://') + url;
+  if (!url && r.bookmark) url = '#bm-' + r.bookmark;
+  else if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith('#')) url = (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(url) ? 'mailto:' : 'https://') + url;
   return { text: String(r.text || '').trim(), url };
+}
+
+// Insert ▸ Bookmark: name a new one at the caret; go to or delete an existing one.
+// Returns { add: name } | { goto: bookmark } | { remove: name } | null
+export async function bookmarkDialog(bookmarks, canAdd) {
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let action = null;
+  const r = await modal('Bookmark',
+    '<label class="pd-row">Bookmark name: <input name="name" id="bm-name" maxlength="60" placeholder="e.g. Prayer list"' + (canAdd ? '' : ' disabled') + ' style="width:220px"></label>' +
+    (canAdd ? '' : '<p class="pd-note">Click in some text first to add a bookmark where you are typing.</p>') +
+    (bookmarks.length ? '<fieldset><legend>Bookmarks in this week</legend><div class="bm-list">' + bookmarks.map((b, i) =>
+      '<div class="bm-row"><span>' + esc(b.name) + ' <small>(page ' + b.page + ', ' + esc(b.half) + ')</small></span><span><button type="button" class="bm-goto" data-i="' + i + '">Go To</button> <button type="button" class="bm-del" data-i="' + i + '">Delete</button></span></div>').join('') +
+      '</div></fieldset>' : '<p class="pd-note">No bookmarks in this week yet.</p>'),
+    'Add', (d) => {
+      for (const b of d.querySelectorAll('.bm-goto')) b.onclick = () => { action = { goto: bookmarks[+b.dataset.i] }; d.querySelector('button[value="cancel"]').click(); };
+      for (const b of d.querySelectorAll('.bm-del')) b.onclick = () => { action = { remove: bookmarks[+b.dataset.i].name }; d.querySelector('button[value="cancel"]').click(); };
+      if (!canAdd) d.querySelector('.pd-ok').disabled = true;
+    });
+  if (action) return action;
+  if (!r) return null;
+  const name = String(r.name || '').trim();
+  return name ? { add: name } : null;
 }
 
 // Page Design ▸ Pages ▸ Rename (and the Pages pane's right-click): a name for the page

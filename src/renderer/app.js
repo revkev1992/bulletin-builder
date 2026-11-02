@@ -5,7 +5,8 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal, bookmarkDialog } from './pagedialogs.js';
+import { allBookmarks } from './bookmarks.js';
 import { GraphicsPane } from './graphics.js';
 import { BlocksPane } from './blocks.js';
 import { showPrintPreview } from './preview.js';
@@ -409,7 +410,7 @@ async function insertLink() {
   if (a && s.isCollapsed) { const r = document.createRange(); r.selectNodeContents(a); s.removeAllRanges(); s.addRange(r); }
   const picked = s.rangeCount && !s.isCollapsed ? s.toString().replace(/​/g, '') : '';
   const saved = s.rangeCount ? s.getRangeAt(0).cloneRange() : null;
-  const v = await linkDialog(picked, a ? a.getAttribute('href') : '');
+  const v = await linkDialog(picked, a ? a.getAttribute('href') : '', allBookmarks(week));
   flow.focus();
   if (saved) { s.removeAllRanges(); s.addRange(saved); }
   if (!v) return;
@@ -420,8 +421,30 @@ async function insertLink() {
   }
   // a new link gets Publisher's hyperlink look (blue, underlined); your formatting after that
   editor.format('link', { url: v.url || null, decorate: !!v.url && !a });
-  if (v.url) setStatus('Hyperlink: ' + v.url + ' — Ctrl+click it to open; it works in the PDF and on the website.');
+  if (v.url) setStatus('Hyperlink: ' + v.url + ' — Ctrl+click it to ' + (v.url.startsWith('#') ? 'go there' : 'open') + '; it works in the PDF and on the website.');
   else setStatus('Hyperlink removed.');
+}
+
+// Insert ▸ Bookmark: add one at the caret, or go to / delete an existing one
+async function bookmarks() {
+  if (!week) return;
+  const flow = editor.editingFlow();
+  const s = window.getSelection();
+  const saved = flow && s.rangeCount ? s.getRangeAt(0).cloneRange() : null;
+  const r = await bookmarkDialog(allBookmarks(week), !!flow && !!editor.half);
+  if (flow) { flow.focus(); if (saved) { s.removeAllRanges(); s.addRange(saved); } }
+  if (!r) return;
+  if (r.add) { editor.insertBookmark(r.add); return; }
+  if (r.remove) { if (editor.textEdit) await editor.endTextEdit(); await editor.deleteBookmark(r.remove); return; }
+  if (r.goto) goToBookmark(r.goto.id, r.goto.page, r.goto.frameId);
+}
+function goToBookmark(id, page, frameId) {
+  if (editor.textEdit) editor.endTextEdit();
+  const el = document.getElementById('bm-' + id);
+  if (page != null) goToPage(page, { scroll: !el });
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (page != null && frameId && editor.topFrame(page, frameId)) editor.select(page, editor.topFrame(page, frameId).id);
+  setStatus('Bookmark on page ' + page + '.');
 }
 function removeLink() {
   const flow = editor.editingFlow();
@@ -437,11 +460,18 @@ document.addEventListener('click', (e) => {
   const a = e.target.closest('#stage a[href]');
   if (!a) return;
   e.preventDefault();
-  if (e.ctrlKey || e.metaKey) window.bb.openExternal(a.href);
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const href = a.getAttribute('href');
+  if (href.startsWith('#bm-')) {           // a link to a bookmark in this document
+    const bm = allBookmarks(week).find((b) => b.id === href.slice(4));
+    if (bm) goToBookmark(bm.id, bm.page, bm.frameId); else setStatus('<span class="warn">That bookmark is no longer in this week.</span>');
+    return;
+  }
+  window.bb.openExternal(a.href);
 });
 document.addEventListener('mouseover', (e) => {
   const a = e.target.closest('#stage a[href]');
-  if (a) setStatus('Link: ' + a.getAttribute('href') + ' — Ctrl+click to open it.');
+  if (a) { const href = a.getAttribute('href'); setStatus(href.startsWith('#bm-') ? 'Link to the bookmark "' + href.slice(4) + '" — Ctrl+click to go there.' : 'Link: ' + href + ' — Ctrl+click to open it.'); }
 });
 
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctx-menu')) document.querySelectorAll('.ctx-menu').forEach((m) => m.remove()); }, true);
@@ -600,6 +630,7 @@ function updateToolbar() {
   if (mv) for (const id of ['pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move', 'pg-rename', 'pg-margins', 'pg-size', 'pg-orient', 'ins-header', 'ins-footer', 'ins-pagenum', 'pg-bg', 'pg-bgimage']) $(id).disabled = true;
   if (window.__bbGraphics && window.__bbGraphics.shown) window.__bbGraphics.refresh();
   $('rb-newweek').disabled = !week;
+  $('ins-bookmark').disabled = !week;
   $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
   for (const id of ['ins-parts', 'ins-calendars', 'ins-borders']) $(id).disabled = !week;
   if (window.__bbBlocks && window.__bbBlocks.shown && !week) window.__bbBlocks.hide();
@@ -1361,6 +1392,8 @@ if (PRINT) {
   // ---- Insert ▸ Link (Ctrl+K)
   $('ins-link').addEventListener('mousedown', (e) => e.preventDefault());
   $('ins-link').onclick = () => insertLink();
+  $('ins-bookmark').addEventListener('mousedown', (e) => e.preventDefault());
+  $('ins-bookmark').onclick = () => bookmarks();
   window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && editor.textEdit) { e.preventDefault(); insertLink(); } });
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
