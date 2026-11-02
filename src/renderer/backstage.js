@@ -83,10 +83,15 @@ export class Backstage {
         break;
       case 'print':
         page.innerHTML = '<h1>Print</h1><div class="bs-actions"><button type="button" class="bs-action" id="bs-print"' + (file ? '' : ' disabled') + '>' + icon('print', 40) +
-          '<span>Print</span></button></div><p class="bs-note">Prints the saved week, every page in reading order, at its real size ' +
-          '(choose the printer, copies and two-sided printing in the next window). Save first if you have changes. ' +
-          'Booklet imposition and a sheet preview are not built yet.</p>';
+          '<span>Print</span></button><button type="button" class="bs-action" id="bs-preview"' + (file ? '' : ' disabled') + '>' + icon('page', 40) + '<span>Preview</span></button>' +
+          '<button type="button" class="bs-action" id="bs-legal"' + (file ? '' : ' disabled') + '>' + icon('print', 40) + '<span>Legal booklet</span></button>' +
+          '<button type="button" class="bs-action" id="bs-ledger"' + (file ? '' : ' disabled') + '>' + icon('print', 40) + '<span>Ledger booklet</span></button></div>' +
+          '<p class="bs-note"><b>Print</b> — every page in reading order at its real size (choose the printer, copies and two-sided printing in the next window). ' +
+          '<b>Preview</b> — the pages as they will print. <b>Legal / Ledger booklet</b> — the folded bulletin (Bulletin ▸ Print), with a preview of the sheets. Your changes are saved first.</p>';
         page.querySelector('#bs-print').onclick = () => run(this.api.print);
+        page.querySelector('#bs-preview').onclick = () => run(() => this.api.preview('letter'));
+        page.querySelector('#bs-legal').onclick = () => run(() => this.api.printOn('legal'));
+        page.querySelector('#bs-ledger').onclick = () => run(() => this.api.printOn('ledger'));
         break;
       case 'export':
         page.innerHTML = '<h1>Export</h1><div class="bs-actions">' +

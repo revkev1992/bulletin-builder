@@ -45,7 +45,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Open / Save / Recent | ✅ | |
 | Save As | ✅ | 2026-10-20: copies the week folder; unsaved changes go into the copy (F12) |
 | New (blank sizes, templates) | 🟡 | Only "New Week from This One" (Page Setup can turn any week into letter / tabloid / custom, 2026-11-02) |
-| Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. 2026-10-29: "who arranges the booklet" — the printer's own booklet preset (pages in order, default) or Bulletin Builder. Print preview ⬜ |
+| Print (printer, copies, range, booklet imposition, preview) | 🟡 | 2026-10-27: Bulletin ▸ Print Legal/Ledger booklet (imposed, short-edge duplex, Ledger scaled up) + Letter; Save as PDF. 2026-10-29: "who arranges the booklet" — the printer's own booklet preset (pages in order, default) or Bulletin Builder. 2026-11-02: **Preview the sheets…** in the Print window (the imposed sides, or the pages in order), File ▸ Print ▸ Preview / Legal booklet / Ledger booklet (`preview.js`; suite `print`) |
 | Export PDF | ✅ | |
 | Export pages as PNG/JPG | ✅ | 2026-11-02: File ▸ Export ▸ Pages as Pictures — PNG or JPG, 150 or 300 dpi, one file per page (suite `fileextras`) |
 | Pack and Go | ✅ | 2026-11-02: File ▸ Export ▸ Pack and Go — one zip: the week folder (no history/locks), its pictures, a FONTS list (missing ones flagged) and a README (`src/pack.js`, unit test `test/pack.test.js`) |

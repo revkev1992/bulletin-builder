@@ -28,7 +28,16 @@ exports.run = async (h) => {
         await h.js(`!!document.querySelector('dialog.pub-dialog[open] input[name="maker"][value="${first ? 'printer' : 'app'}"]:checked')`));
       await h.clickSel('dialog.pub-dialog input[name="maker"][value="app"]');
     }
-    if (paper === 'legal') await h.shot('print-dialog-legal');
+    if (paper === 'legal') {
+      await h.shot('print-dialog-legal');
+      // Preview the sheets… (Bulletin Builder arranges: the imposed sides; 16 pages → 8 sides)
+      await h.clickSel('dialog.pub-dialog #pr-preview');
+      h.ok('legal: Preview the sheets… shows the 8 imposed sides', await h.until(`document.querySelectorAll('dialog.preview-dialog[open] .pv-cell').length === 8`, 8000));
+      h.ok('…the first side is pages 16 | 1', /pages 16 \| 1/.test(await h.js(`document.querySelector('dialog.preview-dialog .pv-label').textContent`)));
+      await h.shot('print-preview');
+      await h.clickSel('dialog.preview-dialog .pd-ok');
+      await h.wait(300);
+    }
     await h.clickSel('dialog.pub-dialog input[name="how"][value="pdf"]');
     await h.clickSel('dialog.pub-dialog .pd-ok');
     const done = await h.until(`/PDF saved/.test(document.getElementById('status').textContent)`, 30000);

@@ -8,6 +8,7 @@ import { MusicPane } from './musiclib.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal } from './pagedialogs.js';
 import { GraphicsPane } from './graphics.js';
 import { BlocksPane } from './blocks.js';
+import { showPrintPreview } from './preview.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -818,7 +819,12 @@ async function printOn(paper) {
         ' In the next window choose ' + PAPER[paper].label + ' paper, landscape, print on both sides (flip on the short edge), and turn the printer’s own booklet setting off.</label></fieldset>'
       : '<p>' + text + '</p>') +
     '<fieldset><legend>Do</legend><label><input type="radio" name="how" value="print" checked> Print (choose the printer next)</label>' +
-    '<label><input type="radio" name="how" value="pdf"> Save as a PDF</label></fieldset><p class="pd-note">Your changes are saved first.</p>', 'Continue');
+    '<label><input type="radio" name="how" value="pdf"> Save as a PDF</label></fieldset>' +
+    '<p class="pd-note"><button type="button" id="pr-preview">Preview the sheets…</button> &nbsp; Your changes are saved first.</p>', 'Continue',
+    (d) => { d.querySelector('#pr-preview').onclick = () => {
+      const maker = d.querySelector('input[name="maker"]:checked');
+      showPrintPreview(week, paper, (n) => renderPage(week, n), { inOrder: booklet && !(maker && maker.value === 'app') });
+    }; });
   if (!v || !(await savedFirst())) return;
   const inOrder = booklet && v.maker !== 'app';
   if (booklet) { try { localStorage.setItem('bb.print.maker', v.maker === 'app' ? 'app' : 'printer'); } catch (_) { /* per-PC convenience only */ } }
@@ -1155,7 +1161,8 @@ if (PRINT) {
   const backstage = new Backstage($('backstage'), {
     week: () => week, file: () => weekFile, open, choose: () => window.bb.chooseWeek(),
     save: () => (editor.half ? editor.command('save') : setStatus('Nothing to save: choose Bulletin, I am changing, first.')),
-    newWeek, saveAs, exportPdf, exportPages, pack: packAndGo, print: printWeek, closeWindow: () => window.close(), info: weekInfo,
+    newWeek, saveAs, exportPdf, exportPages, pack: packAndGo, print: printWeek, printOn, closeWindow: () => window.close(), info: weekInfo,
+    preview: (paper) => (week ? showPrintPreview(week, paper, (n) => renderPage(week, n), { inOrder: true }) : null),
   });
   window.bb.version().then((v) => { backstage.api.version = v; });
   onFileTab(() => backstage.show(week ? 'info' : 'home'));

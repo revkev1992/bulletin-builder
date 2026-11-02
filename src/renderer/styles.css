@@ -557,6 +557,13 @@ body:not(.editing) .scratch-item .frame { cursor: default; }
 @keyframes shelf-fresh { from { outline: 3px solid #f0a020; outline-offset: 2px; } to { outline: 3px solid transparent; outline-offset: 2px; } }
 .scratch-ghost { position: fixed; z-index: 100000; pointer-events: none; opacity: .85; }
 .scratch-ghost .scratch-board { background: transparent; outline: none; }
+/* Print preview (preview.js): the imposed sheets, scaled into a scrolling dialog */
+.preview-dialog { width: 580px; max-height: 92vh; }
+.preview-dialog .pv-body { max-height: 72vh; overflow-y: auto; gap: 14px; }
+.pv-label { font-size: 12px; color: #444; margin-bottom: 3px; }
+.pv-box { position: relative; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.3); background: #fff; }
+.pv-box .sheet { position: absolute; left: 0; top: 0; }
+.pv-box .margin-guide { display: none; }
 /* Insert ▸ Building Blocks pane (blocks.js): the Service Music pane's look, thumbnails drawn with the real renderer */
 #blockspane { width: 270px; flex: none; border-left: 1px solid var(--chrome-line); background: #fbfaf8; font-size: 12px; display: flex; flex-direction: column; min-height: 0; }
 #blockspane[hidden] { display: none; }
