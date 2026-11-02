@@ -219,3 +219,13 @@ the worship pages. Absent `mode` = fixed layout (sections 3–4 only).
 - **v1 (2026-10-29)** — still v1 (additive): the `Service Music/` library beside the weeks (§1). Paragraph
   `picture` (in-line picture: `{ asset, w, h, before?, after? }`) is now also written by Insert ▸ Service Music
   into any text box, not only by Finish Layout.
+- **v1 (2026-11-02, Publisher parity)** — still v1 (additive; older files read fine, older apps ignore the new fields):
+  - paragraph `dropCap: { lines }` (Home ▸ Drop Cap; drawn with CSS initial-letter);
+  - run `link: "https://…" | "mailto:…"` (a hyperlink: rendered as `<a href>`, kept in the PDF);
+  - run `field: "pageNumber" | "pageCount"` with `text: "#"` — the page fills the number in when drawn;
+  - frame `role: "header" | "footer" | "pagenum"` — the small boxes Insert ▸ Header / Footer / Page Number put on every page (Remove takes off every frame with that role);
+  - shape `shape.type` now also `ellipse | roundRect | triangle | arrow | diamond` (drawn as SVG), line `shape.arrows: "end" | "both"`; `stroke: null` on a shape = no outline (absent = the default hairline); a shape's `fill` as for text boxes;
+  - page `guides: [{ pos, axis }]` are now written by the app too (ruler guides); page `background` (a colour) is written by Page Design ▸ Background;
+  - frame `background: true` marks a full-page picture placed by Page Design ▸ Apply Image;
+  - manifest page entries may carry `name` (Page Design ▸ Rename); manifest `page`, `preset` (`legal-booklet` / `tabloid-booklet` / `letter-sheet` / `custom`) and `margins` are written by Page Design ▸ Page Setup (the worship `flow.grid` follows the margins; a `history/manifest-pagesetup-*.bulletin` copy is kept first);
+  - manifest `styles` may now hold the normalised form `{ name, run, para }` (Modify Style / Update to Match Selection write it; Publisher's imported form is still read).
