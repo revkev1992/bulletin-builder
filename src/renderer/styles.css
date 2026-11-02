@@ -170,7 +170,11 @@ body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
 .guide-drag.h { left: 0; right: 0; height: 0; border-top-width: 1px; }
 .guide-drag.v { top: 0; bottom: 0; width: 0; border-left-width: 1px; }
 .guide-drag.ok { border-color: #1a9c3c; border-style: solid; }
-.bgswatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
+.bgswatch, .sf-swatch, .so-swatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
+.rb-weights { display: flex; flex-direction: column; padding: 0 4px 4px; }
+.so-weight { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 6px !important; font-size: 11px; }
+.so-weight span { display: inline-block; width: 60px; }
+.frame-shape svg { pointer-events: none; }
 .pd-body select { font: 13px "Segoe UI", sans-serif; }
 .pd-body input[readonly] { color: #777; background: #f3f2f1; }
 /* View ▸ Show ▸ Boundaries */

@@ -547,7 +547,8 @@ function updateToolbar() {
   $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
-  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
+  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
+    'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
     'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
@@ -584,6 +585,10 @@ function onSelection(info) {
   $('rb-columns').disabled = !(editor.textEdit || (can && info.frame.kind === 'text'));
   $('rb-textbox-group').hidden = !(has && info.frame.kind === 'text');
   $('rb-linking-group').hidden = !(has && info.frame.kind === 'text');
+  $('rb-shapestyle-group').hidden = !(has && (info.frame.kind === 'shape' || info.frame.kind === 'text'));
+  for (const id of ['sf-btn', 'so-btn']) $(id).disabled = !(can && (info.frame.kind === 'shape' || info.frame.kind === 'text'));
+  const isLine = has && info.frame.kind === 'shape' && info.frame.shape && info.frame.shape.type === 'line';
+  for (const b of document.querySelectorAll('.so-arrows')) b.hidden = !isLine;
   const lk = editor.linkState();
   $('lk-create').disabled = !lk.create; $('lk-break').disabled = !lk.brk; $('lk-prev').disabled = !lk.prev; $('lk-next').disabled = !lk.next;
   $('lk-create').classList.toggle('active', !!editor.linking);
@@ -1159,8 +1164,18 @@ if (PRINT) {
   $('lock-page').onclick = () => editor.command('lock-page');
   $('delete').onclick = () => editor.command('delete');
   const cmdButtons = { front: 'front', back: 'back', 'fwd-step': 'forward', 'back-step': 'backward', 'to-pasteboard': 'to-pasteboard', crop: 'crop', fit: 'fit', fill: 'fill',
-    'ins-text': 'insert-text', 'ins-picture': 'insert-picture', 'ins-line': 'insert-line', 'ins-rect': 'insert-rect' };
+    'ins-text': 'insert-text', 'ins-picture': 'insert-picture', 'ins-line': 'insert-line', 'ins-rect': 'insert-rect', 'ins-arrowline': 'insert-arrowline',
+    'ins-roundrect': 'insert-roundrect', 'ins-oval': 'insert-oval', 'ins-triangle': 'insert-triangle', 'ins-arrow': 'insert-arrow', 'ins-diamond': 'insert-diamond' };
   for (const [id, cmd] of Object.entries(cmdButtons)) $(id).onclick = () => editor.command(cmd);
+  // ---- Shape Format ▸ Shape Styles
+  for (const b of document.querySelectorAll('.sf-swatch')) b.onclick = () => editor.setShapeStyle({ fill: b.dataset.color });
+  for (const b of document.querySelectorAll('.so-swatch')) b.onclick = () => editor.setShapeStyle({ stroke: b.dataset.color });
+  $('sf-none').onclick = () => editor.setShapeStyle({ fill: null });
+  $('so-none').onclick = () => editor.setShapeStyle({ stroke: null });
+  $('sf-more').addEventListener('change', (e) => { editor.setShapeStyle({ fill: e.target.value }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
+  $('so-more').addEventListener('change', (e) => { editor.setShapeStyle({ stroke: e.target.value }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
+  for (const b of document.querySelectorAll('.so-weight')) b.onclick = () => editor.setShapeStyle({ weight: Number(b.dataset.weight) });
+  for (const b of document.querySelectorAll('.so-arrows')) b.onclick = () => editor.setShapeStyle({ arrows: b.id.replace('so-arrows-', '') });
   for (const id of ['fx', 'fy', 'fw', 'fh']) $(id).addEventListener('change', numericChange);
   // text toolbar: mousedown is cancelled so the caret/selection stays in the frame
   for (const b of document.querySelectorAll('.rb-text button')) b.addEventListener('mousedown', (e) => e.preventDefault());

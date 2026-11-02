@@ -321,6 +321,8 @@ export class Editor {
       case 'insert-text': return this.insert('text');
       case 'insert-line': return this.insert('line');
       case 'insert-rect': return this.insert('rect');
+      case 'insert-arrowline': case 'insert-roundrect': case 'insert-oval': case 'insert-triangle': case 'insert-arrow': case 'insert-diamond':
+        return this.insert(name.slice(7));
       case 'insert-picture': return this.insertPicture();
       case 'to-pasteboard': return this.toPasteboard();
       case 'group': return this.groupSelection();
@@ -447,12 +449,16 @@ export class Editor {
         text: { inset: [2.88, 2.88, 2.88, 2.88], valign: 'top',
           paragraphs: [{ style: 'Normal', align: 'left', mark: { font: 'Palatino Linotype', size: 11 },
             runs: [{ text: 'Type here', font: 'Palatino Linotype', size: 11 }] }] } };
-    } else if (kind === 'line') {
-      f = { id: this.newId(), kind: 'shape', shape: { type: 'line' }, x: r2(W / 2 - 108), y: r2(H / 2), w: 216, h: 0, z,
+    } else if (kind === 'line' || kind === 'arrowline') {
+      f = { id: this.newId(), kind: 'shape', shape: { type: 'line', ...(kind === 'arrowline' ? { arrows: 'end' } : {}) }, x: r2(W / 2 - 108), y: r2(H / 2), w: 216, h: 0, z,
         stroke: { color: '#000000', width: 1 } };
     } else {
-      f = { id: this.newId(), kind: 'shape', shape: { type: 'rect' }, x: r2(W / 2 - 72), y: r2(H / 2 - 36), w: 144, h: 72, z,
-        stroke: { color: '#000000', width: 1 } };
+      // Insert ▸ Shapes: rect, roundRect, ellipse, triangle, arrow, diamond — Publisher's default look
+      // (blue fill, darker outline) for the filled shapes, a plain outline for the rectangle
+      const type = { rect: 'rect', roundrect: 'roundRect', oval: 'ellipse', triangle: 'triangle', arrow: 'arrow', diamond: 'diamond' }[kind] || 'rect';
+      f = { id: this.newId(), kind: 'shape', shape: { type }, x: r2(W / 2 - 72), y: r2(H / 2 - 36), w: 144, h: 72, z,
+        stroke: { color: type === 'rect' ? '#000000' : '#1F4E79', width: 1 } };
+      if (type !== 'rect') f.fill = { color: '#5B9BD5' };
     }
     return this.addFrame(n, f).then((nf) => {
       if (kind === 'text' && this.beginTextEdit(n, nf.id)) document.execCommand('selectAll');

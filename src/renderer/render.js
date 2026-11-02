@@ -279,15 +279,19 @@ function frameEl(f, assetBase) {
   }
   if (f.kind === 'shape') {
     const st = f.stroke || { color: '#000', width: 0.75 };
-    if (f.shape && f.shape.type === 'line') {
+    const type = (f.shape && f.shape.type) || 'rect';
+    const arrows = f.shape && f.shape.arrows;
+    if (type === 'line' && !arrows) {
       const horizontal = f.w >= f.h;
       Object.assign(box.style, horizontal
         ? { height: '0', borderTop: pt(st.width) + ' solid ' + st.color, top: pt(f.y - st.width / 2) }
         : { width: '0', borderLeft: pt(st.width) + ' solid ' + st.color, left: pt(f.x - st.width / 2) });
-    } else {
-      box.style.border = pt(st.width) + ' solid ' + st.color;
-      box.style.boxSizing = 'border-box';
+    } else if (type === 'rect') {
+      if (f.stroke !== null) { box.style.border = pt(st.width) + ' solid ' + st.color; box.style.boxSizing = 'border-box'; }
       if (f.fill) box.style.backgroundColor = f.fill.color;
+    } else {
+      // Publisher's other shapes: drawn as SVG in the box (points = user units, so the outline is exact)
+      box.appendChild(shapeSvg(f, type, st));
     }
     return box;
   }
@@ -299,6 +303,62 @@ function frameEl(f, assetBase) {
     textFrame(f, box);
   }
   return box;
+}
+
+// Insert ▸ Shapes beyond the line and rectangle: oval, rounded rectangle, triangle, right arrow,
+// diamond, and a line with arrowheads. The box is the shape's bounds; the outline is inset by half its
+// width so the shape never spills past the box (Publisher does the same).
+const SVG = 'http://www.w3.org/2000/svg';
+export function shapeSvg(f, type, st) {
+  const svg = document.createElementNS(SVG, 'svg');
+  const w = Math.max(f.w, 0.01), h = Math.max(f.h, 0.01);
+  svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+  svg.style.cssText = 'display:block;overflow:visible';
+  const sw = f.stroke === null ? 0 : (st.width || 0.75);
+  const fill = f.fill ? f.fill.color : 'none';
+  const i = sw / 2;                            // inset so the whole outline stays in the box
+  let el;
+  const P = (pts) => pts.map((p) => p.join(',')).join(' ');
+  if (type === 'ellipse') { el = document.createElementNS(SVG, 'ellipse'); el.setAttribute('cx', w / 2); el.setAttribute('cy', h / 2); el.setAttribute('rx', Math.max(0, w / 2 - i)); el.setAttribute('ry', Math.max(0, h / 2 - i)); }
+  else if (type === 'roundRect') { el = document.createElementNS(SVG, 'rect'); el.setAttribute('x', i); el.setAttribute('y', i); el.setAttribute('width', Math.max(0, w - sw)); el.setAttribute('height', Math.max(0, h - sw)); const r = Math.min(w, h) * ((f.shape && f.shape.radius) || 0.15); el.setAttribute('rx', r); el.setAttribute('ry', r); }
+  else if (type === 'triangle') { el = document.createElementNS(SVG, 'polygon'); el.setAttribute('points', P([[w / 2, i], [w - i, h - i], [i, h - i]])); }
+  else if (type === 'diamond') { el = document.createElementNS(SVG, 'polygon'); el.setAttribute('points', P([[w / 2, i], [w - i, h / 2], [w / 2, h - i], [i, h / 2]])); }
+  else if (type === 'arrow') {   // a right arrow: shaft 40% of the height, head the last 35% of the width
+    const sh = h * 0.3, hx = w - Math.min(w * 0.35, h * 0.6);
+    el = document.createElementNS(SVG, 'polygon');
+    el.setAttribute('points', P([[i, sh], [hx, sh], [hx, i], [w - i, h / 2], [hx, h - i], [hx, h - sh], [i, h - sh]]));
+  } else if (type === 'line') {   // a line with arrowheads: along the box's long side
+    const horizontal = f.w >= f.h;
+    const g = document.createElementNS(SVG, 'g');
+    const ln = document.createElementNS(SVG, 'line');
+    const x0 = 0, y0 = horizontal ? 0 : 0, x1 = horizontal ? w : 0, y1 = horizontal ? 0 : h;
+    ln.setAttribute('x1', x0); ln.setAttribute('y1', y0); ln.setAttribute('x2', x1); ln.setAttribute('y2', y1);
+    ln.setAttribute('stroke', st.color); ln.setAttribute('stroke-width', sw);
+    g.appendChild(ln);
+    const a = (f.shape && f.shape.arrows) || 'end';
+    const head = (x, y, dir) => {   // dir: +1 points along the line's direction, -1 against
+      const L = Math.max(4, sw * 4), W = Math.max(3, sw * 2.5);
+      const p = document.createElementNS(SVG, 'polygon');
+      const pts = horizontal ? [[x, y], [x - dir * L, y - W], [x - dir * L, y + W]] : [[x, y], [x - W, y - dir * L], [x + W, y - dir * L]];
+      p.setAttribute('points', P(pts)); p.setAttribute('fill', st.color);
+      g.appendChild(p);
+    };
+    if (a === 'end' || a === 'both') head(x1, y1, 1);
+    if (a === 'start' || a === 'both') head(x0, y0, -1);
+    svg.appendChild(g);
+    svg.setAttribute('viewBox', '0 0 ' + (horizontal ? w : 1) + ' ' + (horizontal ? 1 : h));
+    svg.style.overflow = 'visible';
+    return svg;
+  } else { el = document.createElementNS(SVG, 'rect'); el.setAttribute('x', i); el.setAttribute('y', i); el.setAttribute('width', Math.max(0, w - sw)); el.setAttribute('height', Math.max(0, h - sw)); }
+  el.setAttribute('fill', fill);
+  if (f.fill && f.fill.opacity != null) el.setAttribute('fill-opacity', f.fill.opacity);
+  el.setAttribute('stroke', sw ? st.color : 'none');
+  el.setAttribute('stroke-width', sw);
+  el.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(el);
+  return svg;
 }
 
 function flatten(frames, out = []) {

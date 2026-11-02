@@ -153,6 +153,27 @@ export function installArrange(Editor) {
     }).then(async (done) => { if (done) await this.app.rerender(this.app.pageNumbers().filter((k) => k === this.sel.page)); return done; });
   };
 
+  // Shape Format ▸ Shape Styles: fill / outline colour / outline weight / line arrows, for the selected
+  // shapes and text boxes (Publisher). value: { fill: '#…' | null } | { stroke: '#…' | null } |
+  // { weight: pt } | { arrows: 'none' | 'end' | 'both' }
+  P.setShapeStyle = function (change) {
+    return this.changeSelection((live) => {
+      for (const f of live) {
+        if (f.kind === 'image' || f.kind === 'group') continue;
+        if ('fill' in change) { if (change.fill) f.fill = { ...(f.fill || {}), color: change.fill.toUpperCase() }; else delete f.fill; }
+        if ('stroke' in change) {
+          if (change.stroke) f.stroke = { color: change.stroke.toUpperCase(), width: (f.stroke && f.stroke.width) || 0.75 };
+          else if (f.kind === 'shape') f.stroke = null;      // a shape with no outline (null = none; absent = the default hairline)
+          else delete f.stroke;
+        }
+        if ('weight' in change) f.stroke = { color: (f.stroke && f.stroke.color) || '#000000', width: change.weight };
+        if ('arrows' in change && f.kind === 'shape' && f.shape && f.shape.type === 'line') {
+          if (change.arrows === 'none') delete f.shape.arrows; else f.shape.arrows = change.arrows;
+        }
+      }
+    });
+  };
+
   // text box columns (Text Box Format ▸ Columns / Home ▸ Paragraph ▸ Columns)
   P.setColumns = function (cols) {
     const t = this.textEdit;

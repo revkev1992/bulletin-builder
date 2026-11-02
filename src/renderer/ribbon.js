@@ -24,7 +24,13 @@ const ICONS = {
   table: `<rect x="4" y="5" width="24" height="22" fill="#fff" stroke="${G}" stroke-width="1.6"/><path d="M4 11h24M4 16.5h24M4 22h24M12 5v22M20 5v22" stroke="${G}" stroke-width="1.2"/>`,
   shapes: `<rect x="4" y="12" width="14" height="14" fill="#cfdcf0" stroke="${B}" stroke-width="1.6"/><circle cx="21" cy="11" r="8" fill="#fff" stroke="${B}" stroke-width="1.6" fill-opacity=".85"/>`,
   line: `<path d="M5 26 27 6" stroke="${G}" stroke-width="2.4"/>`,
+  arrowline: `<path d="M5 26 24 8" stroke="${G}" stroke-width="2.4"/><path d="M27 5l-2 9-7-7z" fill="${G}"/>`,
   rect: `<rect x="5" y="8" width="22" height="16" fill="#fff" stroke="${G}" stroke-width="2"/>`,
+  roundrect: `<rect x="5" y="8" width="22" height="16" rx="5" fill="#fff" stroke="${G}" stroke-width="2"/>`,
+  oval: `<ellipse cx="16" cy="16" rx="12" ry="9" fill="#fff" stroke="${G}" stroke-width="2"/>`,
+  triangle: `<path d="M16 5 28 27H4z" fill="#fff" stroke="${G}" stroke-width="2" stroke-linejoin="round"/>`,
+  arrow: `<path d="M4 12h14V6l10 10-10 10v-6H4z" fill="#fff" stroke="${G}" stroke-width="2" stroke-linejoin="round"/>`,
+  diamond: `<path d="M16 4 28 16 16 28 4 16z" fill="#fff" stroke="${G}" stroke-width="2" stroke-linejoin="round"/>`,
   styles: `<path d="M5 26 13 6h2l8 20M8 19h12" fill="none" stroke="${B}" stroke-width="2.2"/><path d="M20 26c3-8 6-12 9-15" fill="none" stroke="${G}" stroke-width="1.6"/>`,
   wrap: `${lines(3, 6, 6, 26, 4)}<rect x="10" y="11" width="12" height="11" fill="#cfdcf0" stroke="${B}"/>`,
   forward: `<rect x="4" y="4" width="16" height="16" fill="#ddd" stroke="${G}"/><rect x="12" y="12" width="16" height="16" fill="#cfdcf0" stroke="${B}" stroke-width="1.6"/>`,
@@ -221,6 +227,7 @@ export const TABS = [
   ] },
   // contextual (shown only while something is selected)
   { id: 'format', label: 'Shape Format', contextual: true, groups: [
+    { label: 'Shape Styles', id: 'rb-shapestyle-group', cols: [[big('Shape Fill', 'fill', { id: 'sf-btn', menu: 'shapefill', tip: 'Colour inside the shape or text box' })], [big('Shape Outline', 'rect', { id: 'so-btn', menu: 'shapeoutline', tip: 'Colour, weight and arrows of the outline' })]] },
     { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
     { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
       [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
@@ -236,6 +243,8 @@ export const TABS = [
 
 const swatches = '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="t-color-more" value="#000000"></label>';
+const fillSwatches = (cls, moreId) => '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#FFF2CC'].map((c) => '<button type="button" class="' + cls + '-swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+  '</div><label class="rb-more-color">More Colors… <input type="color" id="' + moreId + '" value="#2F6DB5"></label>';
 const bgSwatches = '<div class="rb-swatches">' + ['#FFFFFF', '#F2F2F2', '#D9D9D9', '#FFF2CC', '#FCE4D6', '#DDEBF7', '#E2EFDA', '#EAD1DC', '#D9E2F3', '#C6E0B4', '#FFC000', '#5B9BD5', '#ED7D31', '#70AD47', '#7030A0', '#2F6DB5', '#077568', '#B5702F', '#1F3864', '#000000'].map((c) => '<button type="button" class="bgswatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="bg-more" value="#FFFFFF"></label>';
 const MENUS = {
@@ -273,7 +282,14 @@ const MENUS = {
     sm('Select All Text in Text Box', 'textbox', { id: 'sel-text', tip: 'All the text of the box you are typing in' })],
   symbols: [{ html: '<div class="rb-symbols">' + ["✝","†","‡","℟","℣","©","®","™","—","–","…","•","¶","§","°","½","¼","¾","“","”","‘","’","«","»","♪","♫","✠","✦","★","é","è","ñ","ü","ç","×","÷"].map((c) => '<button type="button" class="sym" data-sym="' + c + '" title="U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + '">' + c + '</button>').join('') + '</div>' }],
   dates: [sm('date-0', null, { id: 'dt-0' }), sm('date-1', null, { id: 'dt-1' }), sm('date-2', null, { id: 'dt-2' }), sm('date-3', null, { id: 'dt-3' }), sm('date-4', null, { id: 'dt-4' }), sm('date-5', null, { id: 'dt-5' })],
-  shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Rectangle', 'rect', { id: 'ins-rect' })],
+  shapes: [sm('Line', 'line', { id: 'ins-line' }), sm('Line with Arrow', 'arrowline', { id: 'ins-arrowline' }), sm('Rectangle', 'rect', { id: 'ins-rect' }),
+    sm('Rounded Rectangle', 'roundrect', { id: 'ins-roundrect' }), sm('Oval', 'oval', { id: 'ins-oval' }), sm('Triangle', 'triangle', { id: 'ins-triangle' }),
+    sm('Right Arrow', 'arrow', { id: 'ins-arrow' }), sm('Diamond', 'diamond', { id: 'ins-diamond' })],
+  // Shape Format ▸ Shape Styles (Publisher): fill, outline colour, outline weight — for shapes and text boxes
+  shapefill: [sm('No Fill', 'clearfmt', { id: 'sf-none' }), { html: fillSwatches('sf', 'sf-more') }],
+  shapeoutline: [sm('No Outline', 'clearfmt', { id: 'so-none' }), { html: fillSwatches('so', 'so-more') },
+    { html: '<div class="rb-caption">Weight</div><div class="rb-weights">' + [0.25, 0.5, 0.75, 1, 1.5, 2.25, 3, 4.5, 6].map((w) => '<button type="button" class="so-weight" data-weight="' + w + '"><span style="border-top:' + Math.max(1, w * 1.33) + 'px solid #333"></span>' + w + ' pt</button>').join('') + '</div>' },
+    sm('Arrows: none', 'line', { id: 'so-arrows-none', cls: 'so-arrows' }), sm('Arrow at the end', 'arrowline', { id: 'so-arrows-end', cls: 'so-arrows' }), sm('Arrows at both ends', 'arrowline', { id: 'so-arrows-both', cls: 'so-arrows' })],
   page: [sm('Insert Blank Page', 'page', { id: 'pg-blank' }), sm('Insert Duplicate Page', 'copy', { id: 'pg-dup' }), sm('Insert Page…', 'pageadd', { id: 'pg-insert' })],
 };
 
