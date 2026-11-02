@@ -262,6 +262,8 @@ p.para.pic-para { top: 0; }
 /* initial-letter, not a float: a float could never sit above an earlier wrap-float (a wrapped picture
    lower in the same box pushed the letter down to it) */
 p.para.dropcap::first-letter { initial-letter: var(--dc-lines); padding-right: 0.08em; }
+/* a page-number field (Insert ▸ Page Number): shaded on screen only, as in Publisher */
+.screen .page .field { background: rgba(43, 125, 233, .12); border-radius: 2px; }
 /* a hyperlink (Insert ▸ Link): the text's own formatting, nothing added */
 .page a.run { color: inherit; text-decoration: inherit; cursor: inherit; }
 .screen .page a.run { cursor: text; }

@@ -188,7 +188,9 @@ export const TABS = [
     { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', todo)],
       [big('Symbol', 'symbol', { id: 'ins-symbol', menu: 'symbols', cls: 'rb-typing', tip: 'Insert a symbol where you are typing' })], [big('Date & Time', 'datetime', { id: 'ins-date', menu: 'dates', cls: 'rb-typing', tip: 'Insert the date or time where you are typing' })]] },
     { label: 'Links', cols: [[big('Link', 'link', { id: 'ins-link', cls: 'rb-typing', tip: 'Hyperlink on the selected text (Ctrl+K): kept in the PDF and on the website' })], [big('Bookmark', 'bookmark', todo)]] },
-    { label: 'Header & Footer', cols: [[big('Header', 'header', todo)], [big('Footer', 'footer', todo)], [big('Page Number', 'pagenum', todo)]] },
+    { label: 'Header & Footer', cols: [[big('Header', 'header', { id: 'ins-header', menu: 'header', tip: 'The same line at the top of every page you are editing (# = the page number)' })],
+      [big('Footer', 'footer', { id: 'ins-footer', menu: 'footer', tip: 'The same line at the bottom of every page you are editing (# = the page number)' })],
+      [big('Page Number', 'pagenum', { id: 'ins-pagenum', menu: 'pagenum', tip: 'A page number that updates by itself: where you are typing, or at the top or bottom of every page' })]] },
   ] },
   { id: 'design', label: 'Page Design', groups: [
     { label: 'Template', cols: [[big('Change Template', 'template', todo)], [big('Options', 'options', todo)]] },
@@ -255,6 +257,11 @@ const MENUS = {
     sm('Add Vertical Ruler Guide', 'columns', { id: 'gd-v', tip: 'A guide down the middle of the current page — drag it where you want it' }),
     sm('Clear All Ruler Guides', 'del', { id: 'gd-clear', tip: 'Remove every ruler guide from the current page' })],
   orientation: [sm('Portrait', 'single', { id: 'or-portrait' }), sm('Landscape', 'orientation', { id: 'or-landscape' })],
+  // Insert ▸ Header & Footer (Publisher puts these on the master page; here: a small text box on every page of your half)
+  pagenum: [sm('Current Page Number (where you are typing)', 'pagenum', { id: 'pn-caret', cls: 'rb-typing' }), sm('Number of Pages (where you are typing)', 'pagenum', { id: 'pn-count', cls: 'rb-typing' }),
+    sm('Top of Every Page', 'header', { id: 'pn-top' }), sm('Bottom of Every Page', 'footer', { id: 'pn-bottom' }), sm('Remove Page Numbers', 'del', { id: 'pn-remove' })],
+  header: [sm('Header on Every Page…', 'header', { id: 'hf-header' }), sm('Remove Headers', 'del', { id: 'hf-header-remove' })],
+  footer: [sm('Footer on Every Page…', 'footer', { id: 'hf-footer' }), sm('Remove Footers', 'del', { id: 'hf-footer-remove' })],
   case: [sm('Sentence case.', null, { id: 'case-sentence' }), sm('lowercase', null, { id: 'case-lower' }), sm('UPPERCASE', null, { id: 'case-upper' }),
     sm('Capitalize Each Word', null, { id: 'case-title' }), sm('tOGGLE cASE', null, { id: 'case-toggle' })],
   tracking: [sm('Very Tight', null, { id: 'trk-80' }), sm('Tight', null, { id: 'trk-90' }), sm('Normal', null, { id: 'trk-100' }),
@@ -385,6 +392,9 @@ export function buildRibbon(root, { title = '' } = {}) {
         const r = opener.getBoundingClientRect();
         Object.assign(m.style, { left: r.left + 'px', top: r.bottom + 2 + 'px' });
         m.hidden = false;
+        // a menu at the right edge of the ribbon stays inside the window
+        const mr = m.getBoundingClientRect();
+        if (mr.right > innerWidth - 4) m.style.left = Math.max(0, innerWidth - 4 - mr.width) + 'px';
       } else m.hidden = true;
     }
     const mir = e.target.closest('[data-mirror]');

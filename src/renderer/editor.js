@@ -10,6 +10,7 @@ import { installArrange } from './arrange.js';
 import { installLinking } from './linking.js';
 import { installStyles } from './stylesedit.js';
 import { installGuides } from './guides.js';
+import { installFields } from './fields.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -1424,3 +1425,4 @@ installArrange(Editor);
 installLinking(Editor);
 installStyles(Editor);
 installGuides(Editor);
+installFields(Editor);

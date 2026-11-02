@@ -549,7 +549,7 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
     'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
-    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename']) $(id).disabled = !half;
+    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
   if (window.__bbGraphics && window.__bbGraphics.shown) window.__bbGraphics.refresh();
@@ -1138,6 +1138,25 @@ if (PRINT) {
   const graphics = new GraphicsPane({ week: () => week, editor: () => editor, goTo: (n, id) => { goToPage(n); if (id && editor.topFrame(n, id)) editor.select(n, editor.topFrame(n, id).id); } });
   window.__bbGraphics = graphics;
   $('gm-btn').onchange = (e) => graphics.set(e.target.checked);
+  // ---- Insert ▸ Header & Footer ▸ Page Number / Header / Footer
+  for (const id of ['pn-caret', 'pn-count']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  $('pn-caret').onclick = () => editor.insertField('pageNumber');
+  $('pn-count').onclick = () => editor.insertField('pageCount');
+  $('pn-top').onclick = () => editor.addPageBoxes('pagenum', 'top', '#');
+  $('pn-bottom').onclick = () => editor.addPageBoxes('pagenum', 'bottom', '#');
+  $('pn-remove').onclick = () => editor.removePageBoxes('pagenum');
+  const headerFooter = async (role) => {
+    if (!editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+    const v = await modal(role === 'header' ? 'Header on Every Page' : 'Footer on Every Page',
+      '<label class="pd-row">Text: <input name="text" value="' + (role === 'header' ? 'Highland United Methodist Church' : 'Page # of ##') + '" style="width:280px" required></label>' +
+      '<label class="pd-row">Align: <select name="align"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></label>' +
+      '<p class="pd-note">Type # for the page number and ## for the number of pages — they fill themselves in. Goes in the ' + (role === 'header' ? 'top' : 'bottom') + ' margin of every ' + editor.half + ' page; one you already have is replaced.</p>');
+    if (v && v.text.trim()) editor.addPageBoxes(role, role === 'header' ? 'top' : 'bottom', v.text, v.align);
+  };
+  $('hf-header').onclick = () => headerFooter('header');
+  $('hf-footer').onclick = () => headerFooter('footer');
+  $('hf-header-remove').onclick = () => editor.removePageBoxes('header');
+  $('hf-footer-remove').onclick = () => editor.removePageBoxes('footer');
   // ---- Insert ▸ Link (Ctrl+K)
   $('ins-link').addEventListener('mousedown', (e) => e.preventDefault());
   $('ins-link').onclick = () => insertLink();

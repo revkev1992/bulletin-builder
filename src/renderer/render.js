@@ -123,6 +123,15 @@ function extraLeading(para) {
 
 // the week whose pictures are being drawn (renderPage sets it; an in-line picture needs it to find its file)
 let pictureBase = '';
+// the page being drawn and the week's page count: a page-number field (Insert ▸ Page Number) shows them
+let currentPage = null, pageTotal = null;
+export function setFieldPage(n, total) { currentPage = n; pageTotal = total; }
+const FIELD_LABEL = { pageNumber: '#', pageCount: '##' };
+export function fieldText(field) {
+  if (field === 'pageNumber') return currentPage != null ? String(currentPage) : FIELD_LABEL.pageNumber;
+  if (field === 'pageCount') return pageTotal != null ? String(pageTotal) : FIELD_LABEL.pageCount;
+  return '#';
+}
 
 export function paragraphEl(para, frameId) {
   const p = el('p', 'para');
@@ -174,6 +183,18 @@ export function paragraphEl(para, frameId) {
   let seg = null; // text after a tab lives in a .seg so right/centre tabs can measure it
   const target = () => seg || p;
   for (const run of para.runs) {
+    // a field (page number / page count): one unbreakable piece showing the page's own value
+    if (run.field) {
+      const span = runSpan(run, para);
+      span.classList.add('field');
+      span.contentEditable = 'false';
+      span.dataset.field = run.field;
+      span.title = run.field === 'pageCount' ? 'Number of pages (a field: updates by itself)' : 'Page number (a field: updates by itself)';
+      span.textContent = fieldText(run.field);
+      span.style.lineHeight = lineHeightFor(para, span.dataset.font, Number(span.dataset.size));
+      target().appendChild(span);
+      continue;
+    }
     const parts = run.text.replace(/\u000c/g, '').split(/(\t|\n|\u000b)/);
     for (const part of parts) {
       if (part === '') continue;
@@ -432,6 +453,7 @@ function applyWrap(textFrame, area, obstacles) {
 
 export function renderPage(week, n) {
   pictureBase = week.baseUrl;
+  setFieldPage(n, week.manifest.pages.length);
   const { width, height } = week.manifest.page;
   const { half, page } = pageContent(week, n);
   const pg = el('div', 'page', { width: pt(width), height: pt(height) });
@@ -449,6 +471,7 @@ export function renderPage(week, n) {
 }
 
 export function renderPasteboard(week) {
+  setFieldPage(null, week.manifest.pages.length);
   const items = [];
   for (const h of Object.values(week.halves)) items.push(...flatten(h.pasteboard || []));
   if (!items.length) return null;
