@@ -60,7 +60,8 @@ exports.run = async (h) => {
   h.ok('unticking hides the pane', await h.js(`document.getElementById('gmpane').hidden`));
 
   // ---- Insert ▸ Link on a selected word
-  await h.clickSel('#nav-pages .nav-page[data-page="' + P + '"]');
+  // (scroll the page into view directly: the thumbnail's smooth scroll could still be moving when the word is measured)
+  await h.js(`document.querySelector('.page-shell[data-page="${P}"]').scrollIntoView({ block: 'center' })`);
   await h.wait(600);
   const w = await word('budget');
   await h.click(w.x0 + 2, w.y);

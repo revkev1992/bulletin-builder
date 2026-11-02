@@ -151,8 +151,9 @@ export const TABS = [
   { id: 'home', label: 'Home', groups: [
     { label: 'Clipboard', cols: [
       [big('Paste', 'paste', { id: 'rb-paste', tip: 'Paste (Ctrl+V)' })],
-      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', { id: 'rb-painter', tip: 'Format Painter: copy the formatting where you are typing, then select text to paint it (double-click to paint several times; Esc to stop)' }),
-        sm('Paste Special', 'paste', { id: 'rb-paste-special', tip: 'Paste as unformatted text, or a picture from the clipboard (a screenshot)' })],
+      // (three rows per column at most: every tab's panel must stay the same height, or the pages jump when you change tabs)
+      [sm('Cut', 'cut', { id: 'rb-cut', tip: 'Cut (Ctrl+X)' }), sm('Copy', 'copy', { id: 'rb-copy', tip: 'Copy (Ctrl+C)' }), sm('Format Painter', 'painter', { id: 'rb-painter', tip: 'Format Painter: copy the formatting where you are typing, then select text to paint it (double-click to paint several times; Esc to stop)' })],
+      [sm('Paste Special', 'paste', { id: 'rb-paste-special', tip: 'Paste as unformatted text, or a picture from the clipboard (a screenshot)' })],
     ] },
     { label: 'Font', cls: 'rb-text', cols: [
       [{ row: [{ html: '<select id="t-font" title="Font" disabled>' + FONTS.map((f) => '<option>' + f + '</option>').join('') +
@@ -171,7 +172,7 @@ export const TABS = [
     ] },
     { label: 'Styles', cls: 'rb-text', cols: [[big('Styles', 'styles', { id: 'rb-styles', tip: 'Apply a style to the paragraph you are in, or make a New Style from it' })]] },
     { label: 'Objects', cols: [[big('Draw Text Box', 'textbox', { mirror: 'ins-text' })], [big('Pictures', 'picture', { mirror: 'ins-picture' })],
-      [big('Table', 'table', todo)], [big('Shapes', 'shapes', { id: 'rb-shapes-home', menu: 'shapes' })]] },
+      [big('Table', 'table', { mirror: 'ins-table' })], [big('Shapes', 'shapes', { id: 'rb-shapes-home', menu: 'shapes' })]] },
     { label: 'Arrange', cols: [
       [big('Wrap Text', 'wrap', { id: 'rb-wrap', menu: 'wrap' })],
       [sm('Bring Forward', 'forward', { id: 'rb-forward', menu: 'forward' }), sm('Send Backward', 'backward', { id: 'rb-backward', menu: 'backward' }), sm('Align', 'align', { id: 'rb-align', menu: 'align' })],
@@ -181,7 +182,7 @@ export const TABS = [
   ] },
   { id: 'insert', label: 'Insert', groups: [
     { label: 'Pages', cols: [[big('Page', 'pageadd', { id: 'rb-page', menu: 'page', tip: 'Insert a page' })]] },
-    { label: 'Tables', cols: [[big('Table', 'table', todo)]] },
+    { label: 'Tables', cols: [[big('Table', 'table', { id: 'ins-table', tip: 'A table of rows and columns; each cell is typed in like a text box' })]] },
     { label: 'Illustrations', cols: [[big('Pictures', 'picture', { id: 'ins-picture', tip: 'Insert a picture from a file' })], [big('Service Music', 'music', { id: 'ins-music', tip: 'Psalters, doxologies, communion settings, Taizé chants, benediction responses: kept once, used again (Service Music library)' })], [big('Shapes', 'shapes', { id: 'rb-shapes', menu: 'shapes' })],
       [big('Picture Placeholder', 'placeholder', todo)]] },
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', todo)], [big('Calendars', 'calendar', todo)], [big('Borders & Accents', 'borders', todo)], [big('Advertisements', 'ads', todo)]] },
@@ -231,6 +232,11 @@ export const TABS = [
   // contextual (shown only while something is selected)
   { id: 'format', label: 'Shape Format', contextual: true, groups: [
     { label: 'Shape Styles', id: 'rb-shapestyle-group', cols: [[big('Shape Fill', 'fill', { id: 'sf-btn', menu: 'shapefill', tip: 'Colour inside the shape or text box' })], [big('Shape Outline', 'rect', { id: 'so-btn', menu: 'shapeoutline', tip: 'Colour, weight and arrows of the outline' })]] },
+    // Publisher's Table Layout / Design tabs, the parts that matter (the cell you are typing in is the one worked on)
+    { label: 'Rows & Columns', id: 'rb-table-group', cols: [
+      [sm('Insert Above', 'pageadd', { id: 'tb-row-above' }), sm('Insert Below', 'pageadd', { id: 'tb-row-below' }), sm('Delete Row', 'pagedel', { id: 'tb-row-del' })],
+      [sm('Insert Left', 'pageadd', { id: 'tb-col-left' }), sm('Insert Right', 'pageadd', { id: 'tb-col-right' }), sm('Delete Column', 'pagedel', { id: 'tb-col-del' })]] },
+    { label: 'Table Design', id: 'rb-table-design', cols: [[big('Borders', 'table', { id: 'tb-borders', menu: 'tableborders' })], [big('Cell Fill', 'fill', { id: 'tb-fill', menu: 'tablefill', tip: 'A colour for the cell you are typing in' })]] },
     { label: 'Text', id: 'rb-textbox-group', cols: [[big('Columns', 'columns', { mirror: 'rb-columns', menu: 'columns' })]] },
     { label: 'Linking', id: 'rb-linking-group', cols: [[big('Create Link', 'link', { id: 'lk-create', tip: 'Then click an empty text box: the text flows on into it' })],
       [sm('Break', 'del', { id: 'lk-break', tip: 'Stop the text flowing on into the next box' }), sm('Previous', 'back', { id: 'lk-prev', tip: 'Go to the previous box of this story' }), sm('Next', 'export', { id: 'lk-next', tip: 'Go to the next box of this story' })]] },
@@ -258,6 +264,9 @@ const MENUS = {
     sm('Add Vertical Ruler Guide', 'columns', { id: 'gd-v', tip: 'A guide down the middle of the current page — drag it where you want it' }),
     sm('Clear All Ruler Guides', 'del', { id: 'gd-clear', tip: 'Remove every ruler guide from the current page' })],
   orientation: [sm('Portrait', 'single', { id: 'or-portrait' }), sm('Landscape', 'orientation', { id: 'or-landscape' })],
+  tableborders: [sm('All Borders', 'table', { id: 'tb-border-all' }), sm('No Borders', 'rect', { id: 'tb-border-none' }), { html: '<div class="rb-caption">Line colour</div>' + fillSwatches('tb', 'tb-more') },
+    { html: '<div class="rb-caption">Weight</div><div class="rb-weights">' + [0.5, 0.75, 1, 1.5, 2.25, 3].map((w) => '<button type="button" class="tb-weight" data-weight="' + w + '"><span style="border-top:' + Math.max(1, w * 1.33) + 'px solid #333"></span>' + w + ' pt</button>').join('') + '</div>' }],
+  tablefill: [sm('No Fill', 'clearfmt', { id: 'tf-none' }), { html: fillSwatches('tf', 'tf-more') }],
   // Insert ▸ Header & Footer (Publisher puts these on the master page; here: a small text box on every page of your half)
   pagenum: [sm('Current Page Number (where you are typing)', 'pagenum', { id: 'pn-caret', cls: 'rb-typing' }), sm('Number of Pages (where you are typing)', 'pagenum', { id: 'pn-count', cls: 'rb-typing' }),
     sm('Top of Every Page', 'header', { id: 'pn-top' }), sm('Bottom of Every Page', 'footer', { id: 'pn-bottom' }), sm('Remove Page Numbers', 'del', { id: 'pn-remove' })],
@@ -429,7 +438,7 @@ export function setContextual(kind) {
     return;
   }
   tab.hidden = false;
-  tab.textContent = kind === 'image' ? 'Picture Format' : kind === 'text' ? 'Text Box Format' : 'Shape Format';
+  tab.textContent = kind === 'image' ? 'Picture Format' : kind === 'text' ? 'Text Box Format' : kind === 'table' ? 'Table Format' : 'Shape Format';
   document.getElementById('rb-picture-group').hidden = kind !== 'image';
 }
 

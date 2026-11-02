@@ -548,7 +548,7 @@ function updateToolbar() {
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
-    'rb-paste', 'rb-paste-special', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
+    'rb-paste', 'rb-paste-special', 'ins-table', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
     'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
@@ -576,7 +576,11 @@ function onSelection(info) {
   $('lock-frame').classList.toggle('active', !!(has && info.frame.locked));
   setLabel('lock-frame', has && info.frame.locked ? 'Unlock' : 'Lock');
   for (const id of ['rb-copy', 'rb-cut']) $(id).disabled = !(has && editor.half && (id === 'rb-copy' || !info.locked));
-  setContextual(has && editor.half ? (info.frame.kind === 'image' ? 'image' : info.frame.kind === 'text' ? 'text' : 'shape') : null);
+  setContextual(has && editor.half ? (info.frame.kind === 'image' ? 'image' : info.frame.kind === 'text' ? 'text' : info.frame.kind === 'table' ? 'table' : 'shape') : null);
+  const isTable = has && info.frame.kind === 'table';
+  $('rb-table-group').hidden = !isTable;
+  $('rb-table-design').hidden = !isTable;
+  for (const id of ['tb-row-above', 'tb-row-below', 'tb-row-del', 'tb-col-left', 'tb-col-right', 'tb-col-del', 'tb-borders', 'tb-fill']) $(id).disabled = !(isTable && editor.half && !info.locked);
   const can = !!(has && editor.half && !info.locked);
   for (const id of ['rb-wrap', 'rb-align', 'rb-rotate']) $(id).disabled = !can;
   $('rb-group').disabled = !(can && info.count >= 2);
@@ -1262,6 +1266,26 @@ if (PRINT) {
     'ins-text': 'insert-text', 'ins-picture': 'insert-picture', 'ins-line': 'insert-line', 'ins-rect': 'insert-rect', 'ins-arrowline': 'insert-arrowline',
     'ins-roundrect': 'insert-roundrect', 'ins-oval': 'insert-oval', 'ins-triangle': 'insert-triangle', 'ins-arrow': 'insert-arrow', 'ins-diamond': 'insert-diamond' };
   for (const [id, cmd] of Object.entries(cmdButtons)) $(id).onclick = () => editor.command(cmd);
+  // ---- Insert ▸ Table, Table Format
+  $('ins-table').onclick = async () => {
+    if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+    const v = await modal('Insert Table', '<label class="pd-row">Rows: <input name="rows" type="number" min="1" max="50" value="3"></label>' +
+      '<label class="pd-row">Columns: <input name="cols" type="number" min="1" max="12" value="3"></label><p class="pd-note">Click in a cell to type. Rows grow with their text; drag the table\'s handles to size it.</p>', 'Insert');
+    if (v) editor.insertTable(Math.max(1, parseInt(v.rows, 10) || 3), Math.max(1, parseInt(v.cols, 10) || 3));
+  };
+  for (const k of ['row-above', 'row-below', 'row-del', 'col-left', 'col-right', 'col-del']) {
+    $('tb-' + k).addEventListener('mousedown', (e) => e.preventDefault());
+    $('tb-' + k).onclick = () => editor.tableOp(k);
+  }
+  for (const id of ['tb-borders', 'tb-fill']) $(id).addEventListener('mousedown', (e) => e.preventDefault());
+  $('tb-border-all').onclick = () => editor.tableStyle({ border: 'all' });
+  $('tb-border-none').onclick = () => editor.tableStyle({ border: 'none' });
+  for (const b of document.querySelectorAll('.tb-swatch')) b.onclick = () => editor.tableStyle({ borderColor: b.dataset.color });
+  for (const b of document.querySelectorAll('.tb-weight')) b.onclick = () => editor.tableStyle({ borderWidth: Number(b.dataset.weight) });
+  $('tb-more').addEventListener('change', (e) => { editor.tableStyle({ borderColor: e.target.value.toUpperCase() }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
+  for (const b of document.querySelectorAll('.tf-swatch')) b.onclick = () => editor.tableStyle({ fill: b.dataset.color });
+  $('tf-none').onclick = () => editor.tableStyle({ fill: null });
+  $('tf-more').addEventListener('change', (e) => { editor.tableStyle({ fill: e.target.value.toUpperCase() }); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
   // ---- Shape Format ▸ Shape Styles
   for (const b of document.querySelectorAll('.sf-swatch')) b.onclick = () => editor.setShapeStyle({ fill: b.dataset.color });
   for (const b of document.querySelectorAll('.so-swatch')) b.onclick = () => editor.setShapeStyle({ stroke: b.dataset.color });

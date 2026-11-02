@@ -1,6 +1,8 @@
 // The one renderer. Screen, PDF and (later) the website all draw a page through renderPage(),
 // so what you see while editing is what prints. Everything is positioned in CSS points.
 
+import { tableEl } from './table.js';
+
 // ------------------------------------------------------------------ fonts
 // Publisher stores weights as separate font names ("Candara Light", "Archer Bold"). Chromium
 // matches CSS families by family name, so each captured name also gets an @font-face alias that
@@ -316,6 +318,12 @@ function frameEl(f, assetBase) {
     }
     return box;
   }
+  if (f.kind === 'table') {
+    // Insert ▸ Table: a real <table>; its rows grow with their text, so the box's height follows
+    box.classList.add('frame-table');
+    box.appendChild(tableEl(f, paragraphEl));
+    return box;
+  }
   if (f.kind === 'text') {
     if (f.stroke) {
       box.style.border = pt(f.stroke.width) + ' solid ' + f.stroke.color;
@@ -597,7 +605,7 @@ export function layoutWraps(root) {
 export function findOverflow(root) {
   const out = [];
   root.classList.add('measuring'); // switches off the baseline nudge, which adds scroll height
-  for (const area of root.querySelectorAll('.text-area')) {
+  for (const area of root.querySelectorAll('.text-area:not(.cell-area)')) {   // table cells grow; they never overflow
     const fr = area.closest('.frame');
     fr.classList.remove('overflow');
     let over;
@@ -624,12 +632,11 @@ export function findOverflow(root) {
 
 export function fontsUsed(week) {
   const names = new Set();
+  const paras = (list) => { for (const p of list) { if (p.mark && p.mark.font) names.add(p.mark.font); for (const r of p.runs) if (r.font) names.add(r.font); } };
   const visit = (frames) => {
     for (const f of frames) {
-      if (f.text) for (const p of f.text.paragraphs) {
-        if (p.mark && p.mark.font) names.add(p.mark.font);
-        for (const r of p.runs) if (r.font) names.add(r.font);
-      }
+      if (f.text) paras(f.text.paragraphs);
+      if (f.cells) for (const row of f.cells) for (const c of row) paras(c.paragraphs || []);
       if (f.children) visit(f.children);
     }
   };

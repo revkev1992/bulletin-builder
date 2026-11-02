@@ -11,6 +11,7 @@ import { installLinking } from './linking.js';
 import { installStyles } from './stylesedit.js';
 import { installGuides } from './guides.js';
 import { installFields } from './fields.js';
+import { installTables } from './tableedit.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -186,6 +187,12 @@ export class Editor {
       g.y = r2(box.y + (g.y - f.y) * sy);
       g.w = r2(g.w * sx);
       g.h = r2(g.h * sy);
+      // a table's columns and rows scale with it (the rows are minimums: text can still make them taller)
+      if (g.kind === 'table') {
+        g.colWidths = g.colWidths.map((w) => r2(w * sx));
+        g.rowHeights = g.rowHeights.map((h) => r2(h * sy));
+        g.w = r2(g.colWidths.reduce((a, b) => a + b, 0));
+      }
     });
     return c;
   }
@@ -473,6 +480,7 @@ export class Editor {
   // Returns false when there is no text to put it in (the caller then places a picture on the page).
   async insertInlinePicture(rel) {
     let n, id, at = null;
+    if (this.textEdit && this.textEdit.cell) return false;     // a table cell: placed on the page instead
     if (this.textEdit) {
       const flow = this.editingFlow();
       const s = window.getSelection();
@@ -801,9 +809,13 @@ export class Editor {
   onDown(e, n) {
     if (e.button !== 0) return;
     if (this.textEdit) {
-      // clicks inside the box being typed in belong to the browser (caret, drag-select, double-click word)
+      // clicks inside the box being typed in belong to the browser (caret, drag-select, double-click word);
+      // in a table, only clicks in the SAME cell — another cell starts typing there
       const editing = this.app.shellOf(this.textEdit.n).querySelector('.frame.editing');
-      if (editing && editing.contains(e.target)) return;
+      const c = this.textEdit.cell;
+      const td = c && e.target.closest('td[data-row]');
+      const sameCell = !c || (td && editing && editing.contains(td) && Number(td.dataset.row) === c[0] && Number(td.dataset.col) === c[1]);
+      if (editing && editing.contains(e.target) && sameCell) return;
       this.ending = this.endTextEdit();
     }
     this.lastPage = n;
@@ -860,18 +872,21 @@ export class Editor {
       return;
     }
     if (e.shiftKey || e.ctrlKey) { e.preventDefault(); this.toggleMulti(n, top.id); return; }
-    // text: caret at the click (a grouped text box is reached by clicking it again once the group is selected)
-    const textEl = e.target.closest('.frame-text');
+    // text: caret at the click (a grouped text box is reached by clicking it again once the group is selected);
+    // a table cell the same way
+    const textEl = e.target.closest('.frame-text, .frame-table');
     const groupFirst = top.kind === 'group' && !(this.sel && this.sel.page === n && this.sel.id === top.id);
     const inner = textEl && this.anyFrame(n, textEl.dataset.id);
-    if (inner && inner.kind === 'text' && !e.altKey && !groupFirst && !this.multi.length && !this.locked(n, top) &&
+    if (inner && (inner.kind === 'text' || (inner.kind === 'table' && e.target.closest('td'))) && !e.altKey && !groupFirst && !this.multi.length && !this.locked(n, top) &&
         !(this.crop && this.crop.id === top.id)) {
       if (this.ending) {
         // leaving another text box: its page is re-rendered first, then the caret goes where you clicked
         e.preventDefault();
         const pt = { clientX: e.clientX, clientY: e.clientY };
         const id = textEl.dataset.id;
-        this.ending.then(() => { this.ending = null; this.beginTextEdit(n, id, pt); });
+        const td = e.target.closest('td[data-row]');
+        const cell = td ? [Number(td.dataset.row), Number(td.dataset.col)] : null;
+        this.ending.then(() => { this.ending = null; this.beginTextEdit(n, id, pt, cell ? { cell } : {}); });
         return;
       }
       if (this.beginTextEdit(n, textEl.dataset.id, e, { fromClick: true })) return;
@@ -1064,15 +1079,25 @@ export class Editor {
   beginTextEdit(n, id, e, opts = {}) {
     const f = this.anyFrame(n, id);
     const top = this.topFrame(n, id);
-    if (!f || f.kind !== 'text' || !this.editable(n) || this.locked(n, top)) return false;
+    if (!f || !(f.kind === 'text' || f.kind === 'table') || !this.editable(n) || this.locked(n, top)) return false;
+    // a table: the cell clicked (or given) is the text being typed in
+    let cell = null;
+    if (f.kind === 'table') {
+      const td = opts.cell ? null : e && e.target && e.target.closest && e.target.closest('td[data-row]');
+      cell = opts.cell || (td ? [Number(td.dataset.row), Number(td.dataset.col)] : [0, 0]);
+      if (!f.cells[cell[0]] || !f.cells[cell[0]][cell[1]]) return false;
+    }
     if (this.textEdit) this.endTextEdit();
     if (this.crop) this.crop = null;
     this.multi = [];
     this.lastPage = n;
     this.sel = { page: n, id: top.id };
-    this.textEdit = { n, id, before: JSON.stringify(this.week().halves[this.half]), dirtyBefore: this.dirty };
+    this.textEdit = { n, id, cell, before: JSON.stringify(this.week().halves[this.half]), dirtyBefore: this.dirty };
     const el = this.app.shellOf(n).querySelector('.frame[data-id="' + id + '"]');
-    const flow = el.querySelector('.flow');
+    const flow = cell ? el.querySelector('td[data-row="' + cell[0] + '"][data-col="' + cell[1] + '"] .flow') : el.querySelector('.flow');
+    if (!flow) { this.textEdit = null; return false; }
+    if (cell) flow.closest('td').classList.add('editing-cell');
+    const emptyCell = cell && !flow.textContent.replace(/[\s​]/g, '');
     el.classList.add('editing');
     flow.contentEditable = 'true';
     flow.spellcheck = true;
@@ -1108,15 +1133,16 @@ export class Editor {
       t = setTimeout(() => { layoutTabs(el, this.week().manifest.defaultTabStop || 36); findOverflow(el); }, 250);
       this.setDirty(true);
     });
-    const native = opts.fromClick && e && e.target && flow.contains(e.target);
+    const native = opts.fromClick && e && e.target && flow.contains(e.target) && !emptyCell;
     if (!native) {
       // the click was in the box's inset or below the last line: caret at the nearest spot, else the end
       if (opts.fromClick && e && e.preventDefault) e.preventDefault();
       flow.focus();
-      const r = e && document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+      const r = e && !emptyCell && document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
       const sel = window.getSelection();
       sel.removeAllRanges();
-      if (r && flow.contains(r.startContainer)) sel.addRange(r);
+      if (emptyCell) { const all = document.createRange(); all.selectNodeContents(flow); sel.addRange(all); }   // an empty cell: typing replaces its blank
+      else if (r && flow.contains(r.startContainer)) sel.addRange(r);
       else { const end = document.createRange(); end.selectNodeContents(flow); end.collapse(false); sel.addRange(end); }
     }
     this.drawSelection();
@@ -1153,6 +1179,7 @@ export class Editor {
     if (!flow) return;
     const t = this.textEdit;
     const f = this.anyFrame(t.n, t.id);
+    if (!f.text) return;                                      // no breaks inside a table cell
     if (kind === 'column' && !(f.text.columns > 1)) kind = 'frame';
     const sel = window.getSelection();
     const pOf = () => { const a = sel.rangeCount ? sel.anchorNode : null; return a && (a.nodeType === 1 ? a : a.parentElement).closest('p'); };
@@ -1200,7 +1227,7 @@ export class Editor {
   atStoryBoxStart() {
     const t = this.textEdit;
     const f = t && this.anyFrame(t.n, t.id);
-    if (!f || !f.text.chain || !f.text.chain.index) return false;
+    if (!f || !f.text || !f.text.chain || !f.text.chain.index) return false;
     const o = selectionOffsets(this.editingFlow());
     if (!o || o.start !== 0 || o.end !== 0) return false;
     const prev = this.storyFrames(f.text.chain.story).find((x) => x.frame.text.chain.index === f.text.chain.index - 1);
@@ -1266,7 +1293,8 @@ export class Editor {
   editingFlow() {
     if (!this.textEdit) return null;
     const el = this.app.shellOf(this.textEdit.n).querySelector('.frame[data-id="' + this.textEdit.id + '"]');
-    return el && el.querySelector('.flow');
+    const c = this.textEdit.cell;
+    return el && (c ? el.querySelector('td[data-row="' + c[0] + '"][data-col="' + c[1] + '"] .flow') : el.querySelector('.flow'));
   }
 
   format(cmd, value) {
@@ -1284,23 +1312,27 @@ export class Editor {
     this.textEdit = null;
     const flow = this.editingFlow.call({ textEdit: t, app: this.app });
     const f = this.anyFrame(t.n, t.id);
-    const paras = flow ? serializeFlow(flow) : f.text.paragraphs;
+    // the text being edited: the box's text, or one cell of a table
+    const store = t.cell ? f.cells[t.cell[0]][t.cell[1]] : f.text;
+    const paras = flow ? serializeFlow(flow) : store.paragraphs;
     this.app.onTextMode(false);
-    if (canon(paras) === canon(f.text.paragraphs)) {
+    if (canon(paras) === canon(store.paragraphs)) {
       this.setDirty(t.dirtyBefore);
       await this.app.rerender([t.n]);
+      if (t.cell) this.syncTableHeight(t.n, t.id);
       this.drawSelection();
       return;
     }
     this.undo.push(t.before);
     if (this.undo.length > UNDO_LIMIT) this.undo.shift();
     this.redo = [];
-    f.text.paragraphs = paras;
+    store.paragraphs = paras;
     const pages = new Set([t.n]);
     await this.app.rerender([t.n]);
-    if (f.text.chain) for (const n of this.reflow(f.text.chain.story)) pages.add(n);
+    if (f.text && f.text.chain) for (const n of this.reflow(f.text.chain.story)) pages.add(n);
     this.setDirty(true);
     await this.app.rerender([...pages]);
+    if (t.cell) this.syncTableHeight(t.n, t.id);
     this.drawSelection();
   }
 
@@ -1426,3 +1458,4 @@ installLinking(Editor);
 installStyles(Editor);
 installGuides(Editor);
 installFields(Editor);
+installTables(Editor);

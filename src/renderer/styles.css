@@ -58,8 +58,9 @@ button:disabled { opacity: .45; cursor: default; }
 #toolbar .rb-tab.active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 3px; border-radius: 2px; background: var(--rb-accent); }
 .rb-tab.rb-contextual { color: var(--rb-accent); }
 .rb-tab[hidden] { display: none; }
-.rb-panels { background: var(--rb-panel); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.14); min-height: 94px; padding: 4px 6px 0; overflow-x: auto; }
-.rb-panel { display: flex; align-items: stretch; min-height: 92px; }
+/* one fixed height for every tab's panel (Publisher): the pages never jump when you change tabs */
+.rb-panels { background: var(--rb-panel); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.14); height: 100px; padding: 4px 6px 0; overflow-x: auto; overflow-y: hidden; }
+.rb-panel { display: flex; align-items: stretch; height: 96px; }
 .rb-panel[hidden] { display: none; }
 .rb-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--rb-line); }
 .rb-group[hidden] { display: none; }
@@ -175,6 +176,14 @@ body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
 .so-weight { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 6px !important; font-size: 11px; }
 .so-weight span { display: inline-block; width: 60px; }
 .frame-shape svg { pointer-events: none; }
+/* Insert ▸ Table (table.js): rows grow with their text; a cell being typed in is outlined */
+.frame-table { height: auto !important; }
+.bb-table { font-kerning: normal; }
+.bb-table td { min-height: 1em; }
+.screen .frame-table td { cursor: text; }
+.bb-table td.editing-cell { outline: 1px dashed #2b7de9; outline-offset: -1px; }
+.cell-area .flow { min-height: 1em; }
+.tf-swatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
 .pd-body select { font: 13px "Segoe UI", sans-serif; }
 .pd-body input[readonly] { color: #777; background: #f3f2f1; }
 /* View ▸ Show ▸ Boundaries */

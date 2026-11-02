@@ -178,7 +178,7 @@ export function installArrange(Editor) {
   P.setColumns = function (cols) {
     const t = this.textEdit;
     const target = t ? { page: t.n, id: t.id } : this.sel;
-    if (!target) return Promise.resolve(false);
+    if (!target || (t && t.cell)) return Promise.resolve(false);
     const go = async () => {
       const f = this.anyFrame(target.page, target.id);
       if (!f || f.kind !== 'text' || !this.editable(target.page) || this.locked(target.page, f)) return false;

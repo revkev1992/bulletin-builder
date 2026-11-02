@@ -14,7 +14,7 @@ export function installLinking(Editor) {
   // the text box being worked with: the one you are typing in, else the selected one
   P.linkSource = function () {
     const t = this.textEdit;
-    if (t) return { n: t.n, f: this.anyFrame(t.n, t.id) };
+    if (t) { const f = this.anyFrame(t.n, t.id); return f && f.text ? { n: t.n, f } : null; }   // not a table cell
     if (!this.sel || this.multi.length) return null;
     const f = this.topFrame(this.sel.page, this.sel.id);
     return f && f.kind === 'text' ? { n: this.sel.page, f } : null;
