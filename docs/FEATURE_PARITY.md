@@ -9,13 +9,13 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 33 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 34 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
 hyperlinks · Single Page view · Graphics Manager · shapes (oval, rounded rectangle, triangle, arrow,
 diamond, arrow lines) with Shape Fill / Outline / weight · page-number fields, Header / Footer on every
-page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard picture) · Insert File (.txt/.docx).
+page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard picture) · Insert File (.txt/.docx) · Tables.
 
 ## Ribbon / overall look
 
@@ -66,7 +66,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Styles: apply a named style, New Style… | ✅ | 2026-10-20: gallery of the week's styles (from Publisher). 2026-11-02: right-click a style ▸ **Modify…** (font, size, bold/italic/small caps, colour, alignment, spacing, indents), **Update to Match Selection**, **Delete** — every paragraph in the half using the style changes; one undo step with its paragraphs (suite `modstyle`). Import Styles ⬜ |
 | Objects: text box, picture, line, rectangle | ✅ | |
 | Objects: other shapes | ✅ | 2026-11-02: oval, rounded rectangle, triangle, right arrow, diamond, line with arrowhead(s) — SVG in the box, exact outline; **Shape Format ▸ Shape Styles**: Shape Fill, Shape Outline (colour, weight, arrows), No Fill / No Outline; a text box takes fill and outline too (suite `shapes`) |
-| Objects: table | ⬜ | |
+| Objects: table | ✅ | 2026-11-02: see Insert ▸ Tables |
 | Arrange: wrap text, front/back, align & distribute, group, rotate/flip, multi-select | ✅ | GUI-tested 2026-10-20 |
 | Arrange: free-rotate handle | ✅ | 2026-10-20 (Shift = 15° steps); 2026-10-27 snaps to 90° with dashed guides, Alt = free |
 | Arrange: forward/backward one step | ✅ | 2026-10-29: Bring Forward ▾ / Send Backward ▾ split menus (one step, or to front / back), also on right-click |
@@ -79,10 +79,10 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Item | Status | Notes |
 |---|---|---|
 | Pages: insert / duplicate / delete / move page | ✅ | Undo/Redo of page changes ✅ (2026-10-20). Rename ✅ 2026-11-02 (Page Design ▸ Rename, Pages pane right-click; shown under the thumbnail) |
-| Tables | ⬜ | |
+| Tables | ✅ | 2026-11-02: Insert ▸ Table (rows × columns); each cell is typed in like a text box (click = caret; an empty cell's blank is replaced as you type); rows grow with their text; **Table Format**: Insert Above / Below / Left / Right, Delete Row / Column, Borders (all / none / colour / weight), Cell Fill; dragging the handles sizes the columns in proportion; a real `<table>` in the PDF (`table.js`, `tableedit.js`; suite `tables`). Merge / split cells, table styles ⬜ |
 | Pictures from file | ✅ | Crop (with the cut-away part shown dimmed, 2026-10-20), Fit, Fill |
 | Shapes with fill/outline | ✅ | 2026-11-02: see Home ▸ Objects: other shapes |
-| Building blocks | 🟡 | 2026-10-29: **Service Music library** (Insert ▸ Service Music): psalters (psalm + response), doxologies (tune), communion settings (setting + parts in order), Taizé, benediction responses, other; kept beside the weeks; goes in-line in the text (moves with it, like Word), or into the Order of Worship block; Replace for a new season. Publisher's own Page Parts / Calendars ⬜ |
+| Building blocks | ✅ | 2026-10-29: **Service Music library** (Insert ▸ Service Music): psalters (psalm + response), doxologies (tune), communion settings (setting + parts in order), Taizé, benediction responses, other; kept beside the weeks; goes in-line in the text (moves with it, like Word), or into the Order of Worship block; Replace for a new season. 2026-11-02: **Building Blocks** (Insert ▸ Page Parts / Borders & Accents / Calendars, right-click ▸ Add to Building Blocks…): select objects ▸ name them ▸ kept with their pictures in a `Building Blocks` folder beside the weeks (shared); the pane shows thumbnails; Insert places a copy (new ids) on the page you are editing; Rename / Remove (`blocks.js`, main `blocks:*`; suite `blocks`). No starter set yet (Kevin and the communications person save their own) |
 | Text box, Symbol, Date & Time, Insert File | ✅ | Symbol + Date & Time 2026-10-20. Insert File 2026-11-02: the text of a .txt or Word .docx where you are typing (`src/pack.js` reads the .docx) |
 | Breaks (text box / column) | ✅ | 2026-10-20 |
 | Hyperlinks | ✅ | 2026-11-02: Insert ▸ Link / Ctrl+K / right-click Hyperlink…: text + address (web or e-mail; https:// and mailto: added); a real `<a>` on the page, so the PDF and the website carry it; Ctrl+click opens it in the browser; Edit / Remove Hyperlink; new links blue + underlined (suite `insertview`). Bookmarks ⬜ |

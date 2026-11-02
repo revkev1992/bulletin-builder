@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('bb', {
   print: (file, paper) => ipcRenderer.invoke('week:print', file, paper),
   reveal: (p) => ipcRenderer.invoke('file:reveal', p),
   importPicturePath: (weekFile, src) => ipcRenderer.invoke('asset:import-path', weekFile, src),
+  blocks: {
+    list: (weekFile) => ipcRenderer.invoke('blocks:list', weekFile),
+    add: (weekFile, opts) => ipcRenderer.invoke('blocks:add', weekFile, opts),
+    rename: (weekFile, id, change) => ipcRenderer.invoke('blocks:rename', weekFile, id, change),
+    remove: (weekFile, id) => ipcRenderer.invoke('blocks:remove', weekFile, id),
+    use: (weekFile, id) => ipcRenderer.invoke('blocks:use', weekFile, id),
+  },
   music: {
     list: (weekFile) => ipcRenderer.invoke('music:list', weekFile),
     add: (weekFile, opts) => ipcRenderer.invoke('music:add', weekFile, opts),

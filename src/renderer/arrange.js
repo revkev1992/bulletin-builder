@@ -153,6 +153,27 @@ export function installArrange(Editor) {
     }).then(async (done) => { if (done) await this.app.rerender(this.app.pageNumbers().filter((k) => k === this.sel.page)); return done; });
   };
 
+  // a building block (or any bundle of frames with their top-left at 0,0) put on the page you are editing,
+  // centred, with new ids, on top, selected together — one undo step. Returns the page number.
+  P.placeFrames = async function (frames, w, h) {
+    const n = this.targetPage();
+    if (n == null) { this.app.setStatus('Click a page you are editing first.'); return null; }
+    if (this.pageEntry(n).locked) { this.app.setStatus('Page ' + n + ' is locked.'); return null; }
+    if (this.textEdit) await this.endTextEdit();
+    const { width: W, height: H } = this.pageSize();
+    const dx = r2(Math.max(0, (W - w) / 2)), dy = r2(Math.max(0, (H - h) / 2));
+    const top = this.maxZ(n) + 1;
+    const zs = []; frames.forEach((f) => each(f, (g) => zs.push(g.z || 0)));
+    const base = Math.min(...zs);
+    const placed = frames.map((f) => structuredClone(f));
+    for (const f of placed) each(f, (g) => { g.id = this.newId(); g.x = r2(g.x + dx); g.y = r2(g.y + dy); g.z = top + (g.z || 0) - base; });
+    await this.commit([n], () => { this.pageEntry(n).frames.push(...placed); });
+    this.sel = { page: n, id: placed[0].id };
+    this.multi = placed.slice(1).map((f) => f.id);
+    this.drawSelection();
+    return n;
+  };
+
   // Shape Format ▸ Shape Styles: fill / outline colour / outline weight / line arrows, for the selected
   // shapes and text boxes (Publisher). value: { fill: '#…' | null } | { stroke: '#…' | null } |
   // { weight: pt } | { arrows: 'none' | 'end' | 'both' }

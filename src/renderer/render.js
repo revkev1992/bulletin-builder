@@ -478,6 +478,19 @@ export function renderPage(week, n) {
   return pg;
 }
 
+// a few frames drawn on their own (a building block's thumbnail): a box the size of their bounds,
+// pictures found under baseUrl
+export function renderFrames(frames, baseUrl, pageTotal = null) {
+  setFieldPage(null, pageTotal);
+  pictureBase = baseUrl;
+  const all = flatten(frames);
+  const minX = Math.min(...all.map((f) => f.x)), minY = Math.min(...all.map((f) => f.y));
+  const maxX = Math.max(...all.map((f) => f.x + f.w)), maxY = Math.max(...all.map((f) => f.y + f.h));
+  const box = el('div', 'page block-preview', { width: pt(maxX - minX), height: pt(maxY - minY), overflow: 'hidden' });
+  for (const f of [...frames].sort((a, b) => (a.z || 0) - (b.z || 0))) box.appendChild(frameEl({ ...f, x: f.x - minX, y: f.y - minY }, baseUrl));
+  return box;
+}
+
 export function renderPasteboard(week) {
   setFieldPage(null, week.manifest.pages.length);
   const items = [];

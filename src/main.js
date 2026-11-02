@@ -455,6 +455,88 @@ ipcMain.handle('music:use', (_e, weekFile, id) => {
   return importAsset(weekFile, path.join(lib.dir, it.file));
 });
 
+// ---------------------------------------------------------------- building blocks (Insert ▸ Page Parts)
+// Publisher's Building Blocks: reusable snippets (a boxed announcement, a header strip, a border) saved
+// once and dropped into any week. A "Building Blocks" folder beside the week folders (shared, like the
+// Service Music library): library.json + the pictures the blocks use. A block = its frames with their
+// top-left at 0,0; using it copies its pictures into the week's assets and gives the frames new ids.
+const BLOCK_CATS = ['parts', 'borders', 'calendars', 'other'];
+const blocksDir = (weekFile) => path.join(path.dirname(path.dirname(path.resolve(weekFile))), 'Building Blocks');
+function readBlocks(weekFile) {
+  const dir = blocksDir(weekFile);
+  try {
+    const lib = JSON.parse(fs.readFileSync(path.join(dir, 'library.json'), 'utf8'));
+    return { dir, items: Array.isArray(lib.items) ? lib.items : [] };
+  } catch (_) { return { dir, items: [] }; }
+}
+function writeBlocks(weekFile, items) {
+  const dir = blocksDir(weekFile);
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = path.join(dir, 'library.json.tmp');
+  fs.writeFileSync(tmp, JSON.stringify({ format: 'bulletin-builder-blocks', version: 1, items }, null, 1));
+  fs.renameSync(tmp, path.join(dir, 'library.json'));
+}
+const eachFrameDeep = (f, fn) => { fn(f); (f.children || []).forEach((c) => eachFrameDeep(c, fn)); };
+const blocksView = (lib) => ({ dir: lib.dir, baseUrl: require('url').pathToFileURL(lib.dir + path.sep).href, items: lib.items });
+ipcMain.handle('blocks:list', (_e, weekFile) => blocksView(readBlocks(weekFile)));
+// frames: the selected objects (page coordinates); their pictures are copied into the library
+ipcMain.handle('blocks:add', (_e, weekFile, { name, category, frames }) => {
+  if (!BLOCK_CATS.includes(category)) category = 'parts';
+  const lib = readBlocks(weekFile);
+  fs.mkdirSync(lib.dir, { recursive: true });
+  const id = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const weekDir = path.dirname(path.resolve(weekFile));
+  const x0 = Math.min(...frames.map((f) => f.x)), y0 = Math.min(...frames.map((f) => f.y));
+  const x1 = Math.max(...frames.map((f) => f.x + f.w)), y1 = Math.max(...frames.map((f) => f.y + f.h));
+  const copies = JSON.parse(JSON.stringify(frames));
+  let k = 0;
+  for (const f of copies) eachFrameDeep(f, (g) => {
+    g.x = Math.round((g.x - x0) * 100) / 100; g.y = Math.round((g.y - y0) * 100) / 100;
+    delete g.locked; delete g.generated; delete g.role;
+    if (g.text) { delete g.text.chain; g.text.paragraphs.forEach((p) => delete p.continues); }
+    if (g.image && g.image.asset) {
+      const src = path.join(weekDir, g.image.asset);
+      if (fs.existsSync(src)) { const file = id + '-' + (++k) + path.extname(src); fs.copyFileSync(src, path.join(lib.dir, file)); g.image.asset = file; }
+    }
+  });
+  const item = { id, name: String(name || 'Block').trim().slice(0, 80) || 'Block', category, added: new Date().toISOString(), w: Math.round((x1 - x0) * 100) / 100, h: Math.round((y1 - y0) * 100) / 100, frames: copies };
+  lib.items.push(item);
+  writeBlocks(weekFile, lib.items);
+  return { item, ...blocksView(lib) };
+});
+ipcMain.handle('blocks:rename', (_e, weekFile, id, change) => {
+  const lib = readBlocks(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (it) { if (change.name) it.name = String(change.name).trim().slice(0, 80); if (BLOCK_CATS.includes(change.category)) it.category = change.category; writeBlocks(weekFile, lib.items); }
+  return blocksView(lib);
+});
+ipcMain.handle('blocks:remove', async (_e, weekFile, id) => {
+  const lib = readBlocks(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (!it) return blocksView(lib);
+  lib.items = lib.items.filter((x) => x.id !== id);
+  writeBlocks(weekFile, lib.items);
+  for (const f of it.frames) eachFrameDeep(f, (g) => {
+    const p = g.image && g.image.asset && path.join(lib.dir, g.image.asset);
+    if (p && fs.existsSync(p)) { if (argAfter('--gui')) fs.rmSync(p); else shell.trashItem(p).catch(() => {}); }
+  });
+  return blocksView(lib);
+});
+// use it in this week: its pictures are copied into the week's assets; the frames come back ready to place
+ipcMain.handle('blocks:use', (_e, weekFile, id) => {
+  const lib = readBlocks(weekFile);
+  const it = lib.items.find((x) => x.id === id);
+  if (!it) throw new Error('That building block is no longer in the library.');
+  const frames = JSON.parse(JSON.stringify(it.frames));
+  for (const f of frames) eachFrameDeep(f, (g) => {
+    if (g.image && g.image.asset) {
+      const src = path.join(lib.dir, g.image.asset);
+      if (fs.existsSync(src)) g.image.asset = importAsset(weekFile, src); else { g.image.missing = g.image.asset; delete g.image.asset; }
+    }
+  });
+  return { frames, w: it.w, h: it.h };
+});
+
 // ---------------------------------------------------------------- new week from an existing one
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 

@@ -7,6 +7,7 @@ import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
 import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal } from './pagedialogs.js';
 import { GraphicsPane } from './graphics.js';
+import { BlocksPane } from './blocks.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -333,6 +334,7 @@ async function pageContextMenu(e) {
       { label: 'Send Backward', cmd: 'backward', on: !locked, run: cmd('backward') },
       { label: several ? 'Group' : 'Ungroup', cmd: several ? 'group' : 'ungroup', on: several || f.kind === 'group', run: cmd(several ? 'group' : 'ungroup') },
       { label: f.locked ? 'Unlock' : 'Lock', cmd: 'lock-frame', on: true, run: cmd('lock-frame') },
+      { label: 'Add to Building Blocks…', cmd: 'to-blocks', on: !f.generated, run: () => window.__bbBlocks.addSelection() },
       ...(pic ? [null, { label: 'Add to Service Music…', cmd: 'to-music', on: true, run: () => editor.app.music.add(f.image.asset) },
         { label: 'Crop', cmd: 'crop', on: !locked, run: cmd('crop') }, { label: 'Fit', cmd: 'fit', on: !locked, run: cmd('fit') },
         { label: 'Fill', cmd: 'fill', on: !locked, run: cmd('fill') }] : []),
@@ -555,6 +557,8 @@ function updateToolbar() {
   if (window.__bbGraphics && window.__bbGraphics.shown) window.__bbGraphics.refresh();
   $('rb-newweek').disabled = !week;
   $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
+  for (const id of ['ins-parts', 'ins-calendars', 'ins-borders']) $(id).disabled = !week;
+  if (window.__bbBlocks && window.__bbBlocks.shown && !week) window.__bbBlocks.hide();
   const wh = week && week.halves.worship;
   $('rb-finish').disabled = !(half === 'worship' && isFlow(wh));
   $('rb-draft').disabled = !(half === 'worship' && isFinished(wh));
@@ -1237,6 +1241,13 @@ if (PRINT) {
   $('hf-footer').onclick = () => headerFooter('footer');
   $('hf-header-remove').onclick = () => editor.removePageBoxes('header');
   $('hf-footer-remove').onclick = () => editor.removePageBoxes('footer');
+  // ---- Insert ▸ Building Blocks (Page Parts / Calendars / Borders & Accents)
+  const blocks = new BlocksPane({ file: () => weekFile, editor: () => editor, week: () => week, setStatus, flashMode });
+  window.__bbBlocks = blocks;
+  editor.app.blocks = blocks;
+  $('ins-parts').onclick = () => blocks.toggle('parts');
+  $('ins-calendars').onclick = () => blocks.toggle('calendars');
+  $('ins-borders').onclick = () => blocks.toggle('borders');
   // ---- Insert ▸ Link (Ctrl+K)
   $('ins-link').addEventListener('mousedown', (e) => e.preventDefault());
   $('ins-link').onclick = () => insertLink();
