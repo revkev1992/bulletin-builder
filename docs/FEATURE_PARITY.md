@@ -9,13 +9,13 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 34 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 35 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
 hyperlinks · Single Page view · Graphics Manager · shapes (oval, rounded rectangle, triangle, arrow,
 diamond, arrow lines) with Shape Fill / Outline / weight · page-number fields, Header / Footer on every
-page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard picture) · Insert File (.txt/.docx) · Tables.
+page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard picture) · Insert File (.txt/.docx) · Tables · Building Blocks.
 
 ## Ribbon / overall look
 
