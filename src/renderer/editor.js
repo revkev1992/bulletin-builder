@@ -9,6 +9,7 @@ import { serializeFlow, formatSelection, pastePlain, reflowStory, joinStory, can
 import { installArrange } from './arrange.js';
 import { installLinking } from './linking.js';
 import { installStyles } from './stylesedit.js';
+import { installGuides } from './guides.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -525,6 +526,15 @@ export class Editor {
     const { width: W, height: H } = this.pageSize();
     const m = this.week().manifest.margins || {};
     const text = W - (m.inside ?? m.left ?? 36) - (m.outside ?? m.right ?? 36);
+    // Page Design ▸ Apply Image: the whole page, cropped evenly to fill it, behind everything
+    if (opts.fullPage) {
+      const A = size.w / size.h, F = W / H;
+      const k = A > F ? (1 - F / A) / 2 : (1 - A / F) / 2;
+      const crop = (A > F ? [k, 0, k, 0] : [0, k, 0, k]).map((v) => Math.round(v * 100000) / 100000);
+      const zs = this.pageEntry(n).frames.flatMap((f) => { const z = []; Editor.each(f, (g) => z.push(g.z || 0)); return z; });
+      return this.addFrame(n, { id: this.newId(), kind: 'image', x: 0, y: 0, w: W, h: H, z: Math.min(0, ...zs) - 1, background: true,
+        image: { asset: rel, crop, fit: 'fill' } });
+    }
     const w = opts.fullWidth ? r2(text) : 216, h = r2(w * size.h / size.w);
     return this.addFrame(n, { id: this.newId(), kind: 'image', x: r2(W / 2 - w / 2), y: r2(Math.max(36, H / 2 - h / 2)), w, h,
       z: this.maxZ(n) + 1, image: { asset: rel, crop: [0, 0, 0, 0], fit: 'crop' } });
@@ -744,11 +754,15 @@ export class Editor {
     const odd = n % 2 === 1;
     const inside = m.inside ?? 36, outside = m.outside ?? 36;
     const left = odd ? inside : outside, right = odd ? outside : inside;
-    const xs = [0, W / 2, W, left, W - right];
-    const ys = [0, H / 2, H, m.top ?? 36, H - (m.bottom ?? 36)];
+    // Page Design ▸ Align To: Guides = margin + ruler guides, Objects = other objects' edges and centres
+    const xs = [0, W / 2, W], ys = [0, H / 2, H];
     const pg = this.pageEntry(n) || { frames: [] };
-    for (const g of pg.guides || []) (g.axis === 'horizontal' ? ys : xs).push(g.pos);
-    for (const f of pg.frames) {
+    if (this.snapGuides !== false) {
+      xs.push(left, W - right);
+      ys.push(m.top ?? 36, H - (m.bottom ?? 36));
+      for (const g of pg.guides || []) (g.axis === 'horizontal' ? ys : xs).push(g.pos);
+    }
+    if (this.snapObjects !== false) for (const f of pg.frames) {
       if (f.id === excludeId) continue;
       xs.push(f.x, f.x + f.w / 2, f.x + f.w);
       ys.push(f.y, f.y + f.h / 2, f.y + f.h);
@@ -795,6 +809,9 @@ export class Editor {
     }
     // Publisher's overflow tag on a box whose text doesn't fit: click it to link to another box
     if (e.target.closest('.overflow-btn')) { e.preventDefault(); this.startLink(); return; }
+    // a ruler guide (guides.js): drag to move it, off the page to remove it
+    const rg = e.target.closest('.rguide');
+    if (rg) return this.beginGuideDrag(e, n, rg);
     const handle = e.target.closest('.handle');
     const edge = e.target.closest('.sel-edge');
     const frameEl = e.target.closest('.frame');
@@ -893,6 +910,7 @@ export class Editor {
     if (!d) return;
     if (!d.started && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < DRAG_START_PX) return;
     d.started = true;
+    if (d.mode === 'guide') return this.moveGuideDrag(e);
     if (d.mode === 'rotate') {
       let deg = d.r0 + (Math.atan2(e.clientY - d.c.y, e.clientX - d.c.x) - d.a0) * 180 / Math.PI;
       deg = e.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg * 10) / 10;
@@ -976,6 +994,7 @@ export class Editor {
     const d = this.drag;
     this.drag = null;
     if (this.ending) { await this.ending; this.ending = null; }
+    if (d && d.mode === 'guide') { if (d.started) await this.endGuideDrag(d); return; }
     if (!d || !d.started || !d.preview) return;
     if (d.mode === 'move' && d.others && d.others.length) { await this.moveSelection(d.dx, d.dy); return; }
     // dragged off its page (its middle outside the page): onto the facing page, or into the scratch area
@@ -1398,3 +1417,4 @@ export class Editor {
 installArrange(Editor);
 installLinking(Editor);
 installStyles(Editor);
+installGuides(Editor);

@@ -1,7 +1,8 @@
 // Publisher's page dialogs: Insert Page, Move Page, and the Delete confirmation.
 // Each returns the page operation for src/pages.js, or null when cancelled.
 
-export function modal(title, bodyHtml, okLabel = 'OK') {
+// setup(dialog) runs once the dialog is on the page (wire up controls, choose what to focus)
+export function modal(title, bodyHtml, okLabel = 'OK', setup = null) {
   return new Promise((resolve) => {
     const d = document.createElement('dialog');
     d.className = 'pub-dialog';
@@ -18,6 +19,7 @@ export function modal(title, bodyHtml, okLabel = 'OK') {
     d.showModal();
     const first = d.querySelector('input:not([type=radio]), select');
     if (first) first.focus();
+    if (setup) setup(d);
   });
 }
 
@@ -112,6 +114,48 @@ export async function styleDialog(st, fonts) {
   if (para.indentRight) out.para.indentRight = para.indentRight;
   if (para.keepWithNext) out.para.keepWithNext = true;
   return out;
+}
+
+// Page Design ▸ Page Setup (Margins / Size): Publisher's Page Setup dialog. `m` is the manifest;
+// `focus` names the part to put the cursor in. Returns { page, preset, margins } or null.
+export const PRESETS = {
+  'legal-booklet': { label: 'Legal booklet — 7 × 8.5 in pages (8.5 × 14 folded)', width: 504, height: 612 },
+  'tabloid-booklet': { label: 'Tabloid booklet — 8.5 × 11 in pages (11 × 17 folded)', width: 612, height: 792 },
+  'letter-sheet': { label: 'Letter sheet — 8.5 × 11 in, front and back', width: 612, height: 792 },
+  custom: { label: 'Custom size', width: 0, height: 0 },
+};
+export async function pageSetupDialog(m, focus = 'margins') {
+  const inch = (v) => (Math.round(((v || 0) / 72) * 1000) / 1000).toString();
+  const pg = m.page || { width: 504, height: 612 }, mg = m.margins || {};
+  const known = Object.keys(PRESETS).find((k) => k !== 'custom' && k === m.preset && Math.abs(PRESETS[k].width - Math.min(pg.width, pg.height)) < 0.5 && Math.abs(PRESETS[k].height - Math.max(pg.width, pg.height)) < 0.5);
+  const preset = known || 'custom';
+  const landscape = pg.width > pg.height;
+  const r = await modal('Page Setup',
+    '<fieldset><legend>Page</legend>' +
+    '<label class="pd-row">Size: <select name="preset" id="ps-preset">' + Object.entries(PRESETS).map(([k, p]) => '<option value="' + k + '"' + (k === preset ? ' selected' : '') + '>' + p.label + '</option>').join('') + '</select></label>' +
+    '<label class="pd-row">Width: <input name="width" id="ps-width" type="number" step="any" min="1" max="48" value="' + inch(Math.min(pg.width, pg.height)) + '">" &nbsp; Height: <input name="height" id="ps-height" type="number" step="any" min="1" max="48" value="' + inch(Math.max(pg.width, pg.height)) + '">"</label>' +
+    '<div class="pd-row"><label><input type="radio" name="orient" value="portrait"' + (landscape ? '' : ' checked') + '> Portrait</label> &nbsp; <label><input type="radio" name="orient" value="landscape"' + (landscape ? ' checked' : '') + '> Landscape</label></div></fieldset>' +
+    '<fieldset><legend>Margin guides</legend>' +
+    '<label class="pd-row">Top: <input name="top" type="number" step="any" min="0" value="' + inch(mg.top ?? 36) + '">" &nbsp; Bottom: <input name="bottom" type="number" step="any" min="0" value="' + inch(mg.bottom ?? 36) + '">"</label>' +
+    '<label class="pd-row"><span class="ps-in">Inside</span>: <input name="inside" type="number" step="any" min="0" value="' + inch(mg.inside ?? mg.left ?? 36) + '">" &nbsp; <span class="ps-out">Outside</span>: <input name="outside" type="number" step="any" min="0" value="' + inch(mg.outside ?? mg.right ?? 36) + '">"</label>' +
+    '<label><input type="checkbox" name="mirror"' + (mg.mirror !== false ? ' checked' : '') + '> Two-page master (mirrored: inside / outside margins)</label></fieldset>' +
+    '<p class="pd-note">Applies to every page of the week. Objects stay where they are; the worship pages are laid out again on the new margins. This cannot be undone with Undo (a copy of the week is kept in its history folder).</p>',
+    'OK', (d) => {
+      const sel = d.querySelector('#ps-preset'), w = d.querySelector('#ps-width'), hgt = d.querySelector('#ps-height');
+      const sync = () => { const p = PRESETS[sel.value]; const custom = sel.value === 'custom'; w.readOnly = hgt.readOnly = !custom; if (!custom) { w.value = inch(p.width); hgt.value = inch(p.height); } };
+      sel.addEventListener('change', sync);
+      sync();
+      const f = d.querySelector(focus === 'size' ? '#ps-preset' : 'input[name="top"]');
+      if (f) f.focus();
+    });
+  if (!r) return null;
+  const n = (k) => Math.round(parseFloat(r[k]) * 72 * 100) / 100;
+  let width = n('width'), height = n('height');
+  if (!(width > 0) || !(height > 0)) return null;
+  if (r.preset !== 'custom') { width = PRESETS[r.preset].width; height = PRESETS[r.preset].height; }
+  if ((r.orient === 'landscape') !== (width > height)) [width, height] = [height, width];
+  return { page: { width, height }, preset: r.preset,
+    margins: { top: n('top'), bottom: n('bottom'), inside: n('inside'), outside: n('outside'), mirror: !!r.mirror } };
 }
 
 export async function deletePageDialog(current, frameCount) {

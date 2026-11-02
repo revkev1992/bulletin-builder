@@ -157,6 +157,22 @@ body:not(.show-marks) .marks-layer, body.print .marks-layer { display: none; }
 .rb-more-color { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px; }
 .rb-menu .rb-check { height: 28px; padding-left: 6px; }
 
+/* Page Design ▸ Layout ▸ Guides: ruler guides (Publisher's green lines), in the overlay so they can be dragged */
+.page-shell .overlay > .rguide { position: absolute; z-index: 1; }
+.rguide.h { left: 0; right: 0; height: 0; border-top: 1px solid #1a9c3c; cursor: ns-resize; }
+.rguide.v { top: 0; bottom: 0; width: 0; border-left: 1px solid #1a9c3c; cursor: ew-resize; }
+.rguide.h::before { content: ''; position: absolute; left: 0; right: 0; top: -4px; height: 9px; }
+.rguide.v::before { content: ''; position: absolute; top: 0; bottom: 0; left: -4px; width: 9px; }
+.rguide.removing { opacity: .3; }
+.screen:not(.show-guides) .rguide, body:not(.editing) .rguide { pointer-events: none; }
+.screen:not(.show-guides) .rguide { display: none; }
+.guide-drag { position: fixed; z-index: 450000; pointer-events: none; border: 0 dashed #888; }
+.guide-drag.h { left: 0; right: 0; height: 0; border-top-width: 1px; }
+.guide-drag.v { top: 0; bottom: 0; width: 0; border-left-width: 1px; }
+.guide-drag.ok { border-color: #1a9c3c; border-style: solid; }
+.bgswatch { width: 18px; height: 18px; border: 1px solid #c8c6c4 !important; border-radius: 2px !important; }
+.pd-body select { font: 13px "Segoe UI", sans-serif; }
+.pd-body input[readonly] { color: #777; background: #f3f2f1; }
 /* View ▸ Show ▸ Boundaries */
 .screen.show-boundaries .page .frame { outline: 1px dotted #7aa7c7; }
 #nav[hidden] { display: none; }

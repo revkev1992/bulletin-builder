@@ -37,6 +37,8 @@ export class Rulers {
     this.drawKind();
     // keep the caret in the text box while using the ruler
     this.h.addEventListener('mousedown', (e) => this.onDown(e));
+    // not typing: drag a ruler guide off either ruler onto a page (Publisher)
+    this.v.addEventListener('mousedown', (e) => { if (!this.typing()) this.dragGuideOut(e, 'vertical'); });
     this.h.addEventListener('dblclick', (e) => { e.preventDefault(); if (this.typing()) this.tabsDialog(); });
     stage.addEventListener('scroll', () => this.update(), { passive: true });
     window.addEventListener('resize', () => this.update());
@@ -158,11 +160,48 @@ export class Rulers {
   }
 
   // ------------------------------------------------------------ mouse on the horizontal ruler
+  // drag off a ruler: a green guide line follows the pointer; let go over a page you are editing
+  // and that page gets a ruler guide there (horizontal from the top ruler, vertical from the left)
+  dragGuideOut(e, axis) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const ed = this.editor;
+    if (!ed.half) { ed.app.setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing) to add ruler guides.'); return; }
+    const line = document.createElement('div');
+    line.className = 'guide-drag ' + (axis === 'horizontal' ? 'h' : 'v');
+    let started = false, over = null;
+    const move = (ev) => {
+      if (!started && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 3) return;
+      if (!started) { started = true; document.body.appendChild(line); }
+      line.style[axis === 'horizontal' ? 'top' : 'left'] = (axis === 'horizontal' ? ev.clientY : ev.clientX) + 'px';
+      over = ed.pageAt(ev.clientX, ev.clientY);
+      const ok = over && ed.editable(over.n);
+      line.classList.toggle('ok', !!ok);
+      if (ok) {
+        const p = ed.ptOf(over.n, ev);
+        ed.app.setStatus('Ruler guide on page ' + over.n + ' at ' + ((axis === 'horizontal' ? p.y : p.x) / 72).toFixed(2) + '" — let go to place it.');
+      } else ed.app.setStatus(over ? 'Page ' + over.n + ' belongs to the other half.' : 'Drag onto a page you are editing.');
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      line.remove();
+      if (!started) return;
+      const at = ed.pageAt(ev.clientX, ev.clientY);
+      if (!at || !ed.editable(at.n)) { ed.app.setStatus(''); return; }
+      const p = ed.ptOf(at.n, ev);
+      ed.addGuide(at.n, axis, Math.round((axis === 'horizontal' ? p.y : p.x) * 2) / 2);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   onDown(e) {
     if (e.button !== 0) return;
     e.preventDefault();                    // the caret stays in the text box
     const ar = this.typing() ? this.area() : null;
-    if (!ar || e.detail > 1) return;
+    if (!ar) { if (e.detail <= 1) this.dragGuideOut(e, 'horizontal'); return; }
+    if (e.detail > 1) return;
     const toPt = (cx) => Math.max(0, Math.min(ar.wpt, Math.round(((cx - ar.left) / ar.ppt) / SNAP) * SNAP));
     const tabs = (ar.para.tabs || []).map((s) => ({ ...s }));
     const mark = e.target.closest('.rmark');

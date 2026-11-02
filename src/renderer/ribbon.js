@@ -186,11 +186,11 @@ export const TABS = [
   ] },
   { id: 'design', label: 'Page Design', groups: [
     { label: 'Template', cols: [[big('Change Template', 'template', todo)], [big('Options', 'options', todo)]] },
-    { label: 'Page Setup', cols: [[big('Margins', 'margins', todo)], [big('Orientation', 'orientation', todo)], [big('Size', 'size', todo)]] },
-    { label: 'Layout', cols: [[big('Guides', 'guides', todo)], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { checked: true, todo: true }), chk('Objects', { checked: true, todo: true })]] },
+    { label: 'Page Setup', cols: [[big('Margins', 'margins', { id: 'pg-margins', tip: 'Margin guides for every page (Page Setup)' })], [big('Orientation', 'orientation', { id: 'pg-orient', menu: 'orientation' })], [big('Size', 'size', { id: 'pg-size', tip: 'Page size: legal booklet, tabloid booklet, letter, or custom (Page Setup)' })]] },
+    { label: 'Layout', cols: [[big('Guides', 'guides', { id: 'pg-guides', menu: 'guides', tip: 'Ruler guides on this page (or drag one off a ruler)' })], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { id: 'snap-guides', checked: true, tip: 'Snap objects to the margin and ruler guides' }), chk('Objects', { id: 'snap-objects', checked: true, tip: 'Snap objects to the edges and centres of other objects' })]] },
     { label: 'Pages', cols: [[sm('Delete', 'pagedel', { id: 'pg-delete', tip: 'Delete the current page' }), sm('Move', 'pagemove', { id: 'pg-move', tip: 'Move the current page' }), sm('Rename', 'rename', todo)]] },
     { label: 'Schemes', cols: [[big('Color Schemes', 'schemes', todo)], [big('Fonts', 'fonts', todo)]] },
-    { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', todo)], [big('Background', 'background', todo)], [big('Master Pages', 'master', todo)]] },
+    { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', { id: 'pg-bgimage', tip: 'A picture filling the whole current page, behind everything on it' })], [big('Background', 'background', { id: 'pg-bg', menu: 'background', tip: 'A colour for the whole current page' })], [big('Master Pages', 'master', todo)]] },
   ] },
   { id: 'view', label: 'View', groups: [
     { label: 'Views', cols: [[big('Normal', 'normal', { id: 'rb-normal', active: true })], [big('Master Page', 'master', todo)]] },
@@ -236,7 +236,16 @@ export const TABS = [
 
 const swatches = '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="t-color-more" value="#000000"></label>';
+const bgSwatches = '<div class="rb-swatches">' + ['#FFFFFF', '#F2F2F2', '#D9D9D9', '#FFF2CC', '#FCE4D6', '#DDEBF7', '#E2EFDA', '#EAD1DC', '#D9E2F3', '#C6E0B4', '#FFC000', '#5B9BD5', '#ED7D31', '#70AD47', '#7030A0', '#2F6DB5', '#077568', '#B5702F', '#1F3864', '#000000'].map((c) => '<button type="button" class="bgswatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+  '</div><label class="rb-more-color">More Colors… <input type="color" id="bg-more" value="#FFFFFF"></label>';
 const MENUS = {
+  // Page Design ▸ Page Background ▸ Background: a colour for the current page
+  background: [sm('No Background', 'clearfmt', { id: 'bg-none' }), { html: bgSwatches }],
+  // Page Design ▸ Layout ▸ Guides: ruler guides on the current page (Publisher's green lines)
+  guides: [sm('Add Horizontal Ruler Guide', 'linespacing', { id: 'gd-h', tip: 'A guide across the middle of the current page — drag it where you want it' }),
+    sm('Add Vertical Ruler Guide', 'columns', { id: 'gd-v', tip: 'A guide down the middle of the current page — drag it where you want it' }),
+    sm('Clear All Ruler Guides', 'del', { id: 'gd-clear', tip: 'Remove every ruler guide from the current page' })],
+  orientation: [sm('Portrait', 'single', { id: 'or-portrait' }), sm('Landscape', 'orientation', { id: 'or-landscape' })],
   case: [sm('Sentence case.', null, { id: 'case-sentence' }), sm('lowercase', null, { id: 'case-lower' }), sm('UPPERCASE', null, { id: 'case-upper' }),
     sm('Capitalize Each Word', null, { id: 'case-title' }), sm('tOGGLE cASE', null, { id: 'case-toggle' })],
   tracking: [sm('Very Tight', null, { id: 'trk-80' }), sm('Tight', null, { id: 'trk-90' }), sm('Normal', null, { id: 'trk-100' }),

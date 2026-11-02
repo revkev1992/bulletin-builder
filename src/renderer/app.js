@@ -5,7 +5,7 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, modal } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, modal } from './pagedialogs.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -74,6 +74,7 @@ function buildShell(n) {
   shell.addEventListener('pointerdown', (e) => editor && editor.onDown(e, n));
   shell.addEventListener('dblclick', (e) => editor && editor.onDblClick(e, n));
   shells.set(n, shell);
+  if (editor) editor.drawGuides(n);
   return shell;
 }
 
@@ -87,6 +88,7 @@ async function rerender(nums) {
     marginGuide(pg, n);
     old.replaceWith(pg);
     touched.push(pg);
+    if (editor) editor.drawGuides(n);
   }
   for (const pg of touched) await settle(pg);
   thumbsLater(nums);
@@ -469,7 +471,8 @@ function updateToolbar() {
   $('lock-page').disabled = !(half && lp != null && editor.editable(lp));
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
-  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move']) $(id).disabled = !half;
+  for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'rb-paste', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
+    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient']) $(id).disabled = !half;
   $('rb-newweek').disabled = !week;
   $('ins-music').disabled = !week;      // the library can be browsed (and added to) in View only too
   const wh = week && week.halves.worship;
@@ -733,6 +736,28 @@ async function runPageOp(op, { undoing = null } = {}) {
   return r;
 }
 
+// Page Design ▸ Page Setup (Margins / Size / Orientation): the whole week's page and margin guides.
+// Saved first; written to the .bulletin file in the main process; the week is then re-opened.
+async function pageSetup(focus, direct) {
+  if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+  if (!(await savedFirst())) return;
+  const v = direct || await pageSetupDialog(week.manifest, focus);
+  if (!v) return;
+  try {
+    await window.bb.setPage(weekFile, v);
+  } catch (err) {
+    setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>');
+    return;
+  }
+  editor.sel = null; editor.multi = []; editor.undo = []; editor.redo = [];
+  await reload();
+  updateToolbar();
+  const p = week.manifest.page, m = week.manifest.margins || {};
+  setStatus('Page Setup: ' + (p.width / 72).toFixed(2) + ' × ' + (p.height / 72).toFixed(2) + ' in pages, margins ' +
+    [m.top, m.bottom, m.inside, m.outside].map((x) => ((x ?? 36) / 72).toFixed(2)).join(' / ') + ' in (top / bottom / inside / outside).');
+}
+window.__bbPageSetup = pageSetup;
+
 async function pageCommand(kind) {
   if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
   const cur = currentPage();
@@ -985,6 +1010,24 @@ if (PRINT) {
   for (const [id, kind] of Object.entries({ 'pg-blank': 'blank', 'pg-dup': 'dup', 'pg-insert': 'insert', 'pg-delete': 'delete', 'pg-move': 'move' })) {
     $(id).onclick = () => pageCommand(kind);
   }
+  // ---- Page Design: Page Setup, ruler guides, Align To, page background
+  $('pg-margins').onclick = () => pageSetup('margins');
+  $('pg-size').onclick = () => pageSetup('size');
+  for (const o of ['portrait', 'landscape']) $('or-' + o).onclick = () => {
+    if (!week) return;
+    const { width, height } = week.manifest.page;
+    const lo = Math.min(width, height), hi = Math.max(width, height);
+    pageSetup(null, { page: o === 'landscape' ? { width: hi, height: lo } : { width: lo, height: hi }, preset: week.manifest.preset, margins: week.manifest.margins });
+  };
+  $('gd-h').onclick = () => editor.addGuide(null, 'horizontal');
+  $('gd-v').onclick = () => editor.addGuide(null, 'vertical');
+  $('gd-clear').onclick = () => editor.clearGuides();
+  $('snap-guides').onchange = (e) => { editor.snapGuides = e.target.checked; };
+  $('snap-objects').onchange = (e) => { editor.snapObjects = e.target.checked; };
+  for (const b of document.querySelectorAll('.bgswatch')) b.onclick = () => editor.setPageBackground(b.dataset.color);
+  $('bg-none').onclick = () => editor.setPageBackground(null);
+  $('bg-more').addEventListener('change', (e) => { editor.setPageBackground(e.target.value); document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; }); });
+  $('pg-bgimage').onclick = () => editor.insertPicture(null, { fullPage: true });
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);
   $('show-halves').onchange = (e) => document.body.classList.toggle('show-halves', e.target.checked);

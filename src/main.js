@@ -125,6 +125,67 @@ ipcMain.handle('week:set-styles', (e, file, styles) => {
   fs.renameSync(abs + '.saving', abs);
   return true;
 });
+// Page Design ▸ Page Setup: page size, preset and margin guides live in the .bulletin file. The
+// worship half's flow grid (its 6" text area) follows the margins when it was on them, so the Order
+// of Worship lays itself out again on the new page; both halves' files are touched, so (as for a
+// page change) nobody else may be editing the other half right now.
+ipcMain.handle('week:set-page', (e, file, setup) => {
+  const c = claims.get(e.sender.id);
+  if (!c || path.resolve(c.file) !== path.resolve(file)) throw new Error('Choose which pages you are changing first (Bulletin ▸ I am changing).');
+  const abs = path.resolve(file);
+  const dir = path.dirname(abs);
+  const m = JSON.parse(fs.readFileSync(abs, 'utf8'));
+  const { width, height } = setup.page || {};
+  if (!(width > 0 && height > 0)) throw new Error('The page needs a width and a height.');
+  const old = { page: m.page, margins: m.margins || {} };
+  const wp = (m.halves || {}).worship && path.join(dir, m.halves.worship);
+  let w = null;
+  if (wp && fs.existsSync(wp)) {
+    w = JSON.parse(fs.readFileSync(wp, 'utf8'));
+    if (!(w.mode === 'flow' && w.flow) && !(w.mode === 'finished' && w.draft)) w = null;
+  }
+  const borrowed = [];
+  try {
+    if (w && c.half !== 'worship') {
+      for (const [id, x] of claims) if (id !== e.sender.id && x.half === 'worship' && path.resolve(x.file) === abs) throw new Error('The worship pages are open for editing in another Bulletin Builder window. Page Setup changes both halves, so close that first.');
+      const r = session.claim(abs, 'worship');
+      if (!r.ok) { const who = r.holder || {}; throw new Error(who.user + ' is editing the worship pages on ' + who.machine + '. Page Setup changes both halves, so wait until they close it.'); }
+      borrowed.push('worship');
+    }
+    const hist = path.join(dir, 'history');
+    fs.mkdirSync(hist, { recursive: true });
+    const st = Date.now();
+    fs.copyFileSync(abs, path.join(hist, 'manifest-pagesetup-' + st + '.bulletin'));
+    m.page = { width, height };
+    if (setup.preset) m.preset = setup.preset;
+    if (setup.margins) m.margins = { ...setup.margins };
+    if (w) {
+      const flow = w.mode === 'flow' ? w.flow : w.draft.flow;
+      const g = flow.grid || { left: 36, top: 36, width: 432, height: 540 };
+      const om = old.margins, op = old.page || { width: 504, height: 612 };
+      const near = (a, b) => Math.abs(a - b) < 0.6;
+      // the grid sat on the old margins (as the importer sets it): move it onto the new ones
+      const onMargins = near(g.left, om.inside ?? om.left ?? 36) && near(g.top, om.top ?? 36) &&
+        near(g.width, op.width - (om.inside ?? om.left ?? 36) - (om.outside ?? om.right ?? 36)) && near(g.height, op.height - (om.top ?? 36) - (om.bottom ?? 36));
+      const nm = m.margins || {};
+      if (onMargins || !flow.grid) {
+        const L = nm.inside ?? 36, R = nm.outside ?? 36, T = nm.top ?? 36, B = nm.bottom ?? 36;
+        const width2 = Math.max(72, width - L - R);
+        flow.grid = { ...g, left: L, top: T, width: width2, height: Math.max(72, height - T - B),
+          tabs: (g.tabs || []).map((t) => ({ ...t, pos: Math.round(t.pos / (g.width || 432) * width2 * 100) / 100 })) };
+        fs.copyFileSync(wp, path.join(hist, 'worship-pagesetup-' + st + '.json'));
+        if (w.layout) w.layout.flowHash = null;
+        fs.writeFileSync(wp + '.saving', JSON.stringify(w, null, 1));
+        fs.renameSync(wp + '.saving', wp);
+      }
+    }
+    fs.writeFileSync(abs + '.saving', JSON.stringify(m, null, 1));
+    fs.renameSync(abs + '.saving', abs);
+    return { page: m.page, margins: m.margins, preset: m.preset };
+  } finally {
+    for (const h of borrowed) session.release(abs, h);
+  }
+});
 // right-click Cut / Copy / Paste in text: the browser's own clipboard commands
 ipcMain.handle('edit:do', (e, what) => { if (['cut', 'copy', 'paste'].includes(what)) e.sender[what](); });
 ipcMain.handle('app:version', () => app.getVersion());
@@ -163,6 +224,7 @@ ipcMain.on('doc:dirty', (e, flag) => dirty.set(e.sender.id, !!flag));
 // copy a picture into the week's assets folder (same bytes = same file) and return its path
 ipcMain.handle('asset:import', async (e, weekFile) => {
   const win = BrowserWindow.fromWebContents(e.sender);
+  if (global.__bbTestPicture) return importAsset(weekFile, global.__bbTestPicture);   // GUI tests: no native dialog
   const r = await dialog.showOpenDialog(win, {
     title: 'Insert picture',
     filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'] }],
