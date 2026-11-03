@@ -14,6 +14,7 @@ import { installFields } from './fields.js';
 import { installTables } from './tableedit.js';
 import { installMaster } from './master.js';
 import { installBookmarks } from './bookmarks.js';
+import { bodyFont } from './schemes.js';
 import { findOverflow, layoutTabs } from './render.js';
 import { isFlow, layoutFlow, worshipPages, finishLayout, backToDraft, isFinished } from './flow.js';
 
@@ -460,10 +461,11 @@ export class Editor {
     const z = this.maxZ(n) + 1;
     let f;
     if (kind === 'text') {
+      const font = bodyFont(this.week().manifest);        // the week's font scheme (Page Design ▸ Fonts)
       f = { id: this.newId(), kind: 'text', x: r2(W / 2 - 108), y: r2(H / 2 - 36), w: 216, h: 72, z,
         text: { inset: [2.88, 2.88, 2.88, 2.88], valign: 'top',
-          paragraphs: [{ style: 'Normal', align: 'left', mark: { font: 'Palatino Linotype', size: 11 },
-            runs: [{ text: 'Type here', font: 'Palatino Linotype', size: 11 }] }] } };
+          paragraphs: [{ style: 'Normal', align: 'left', mark: { font, size: 11 },
+            runs: [{ text: 'Type here', font, size: 11 }] }] } };
     } else if (kind === 'line' || kind === 'arrowline') {
       f = { id: this.newId(), kind: 'shape', shape: { type: 'line', ...(kind === 'arrowline' ? { arrows: 'end' } : {}) }, x: r2(W / 2 - 108), y: r2(H / 2), w: 216, h: 0, z,
         stroke: { color: '#000000', width: 1 } };

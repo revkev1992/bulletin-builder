@@ -17,7 +17,8 @@ function makeHarness(win, outDir) {
   let shotN = 0;
   const h = {
     win, wc, wait, checks, outDir,
-    js: (expr) => wc.executeJavaScript(expr),
+    // a page expression that throws names itself in the log (Electron's own error never says which one)
+    js: (expr) => wc.executeJavaScript(expr).catch((err) => { console.log('  JS FAILED: ' + String(expr).replace(/\s+/g, ' ').slice(0, 240)); throw err; }),
     // box of the first element matching a CSS selector, in window coordinates
     async rect(sel) {
       return wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(sel)});

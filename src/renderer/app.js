@@ -11,6 +11,7 @@ import { GraphicsPane } from './graphics.js';
 import { BlocksPane } from './blocks.js';
 import { showPrintPreview } from './preview.js';
 import { applyOptions, optionsDialog, newBlankDialog, getOptions } from './options.js';
+import { COLOR_SCHEMES, FONT_SCHEMES, applySchemeToRibbon, schemeName } from './schemes.js';
 import { paragraphSettings, captureFormat, applyFormat, currentParagraph } from './textedit.js';
 import { galleryHtml, normStyle, styleFromPara } from './styles-gallery.js';
 import { Rulers } from './ruler.js';
@@ -550,6 +551,7 @@ async function open(file) {
   await ensureLayout();
   document.title = 'Bulletin Builder — ' + week.manifest.title;
   if (PRINT) return printLayout();
+  applySchemeToRibbon(week.manifest);
   $('title').textContent = week.manifest.title;
   if (editor && editor.half) await editor.release();
   await showSpreads();
@@ -561,6 +563,7 @@ async function open(file) {
 async function reload() {
   week = await window.bb.loadWeek(weekFile);
   await ensureLayout();
+  applySchemeToRibbon(week.manifest);
   const keep = zoom;
   await showSpreads();
   zoom = keep;
@@ -613,7 +616,7 @@ function updateToolbar() {
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
     'rb-paste', 'rb-paste-special', 'ins-table', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
-    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum']) $(id).disabled = !half;
+    'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum', 'pg-colorschemes', 'pg-fonts']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
   // master pages: the view switch needs a half; page commands wait until Normal view
@@ -1299,6 +1302,20 @@ if (PRINT) {
   applyOptions();
   editor.autosaveMinutes = getOptions().autosaveMinutes;
   $('pg-options').onclick = () => showOptions();
+  // ---- Page Design ▸ Schemes: colour scheme / font scheme for the whole week (manifest)
+  const setScheme = async (change, what) => {
+    if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing): a scheme belongs to the whole week.'); return; }
+    try {
+      const r = await window.bb.setScheme(weekFile, change);
+      if (r.colorScheme) week.manifest.colorScheme = r.colorScheme;
+      if (r.fontScheme) week.manifest.fontScheme = r.fontScheme;
+      applySchemeToRibbon(week.manifest);
+      setStatus(what + ' (kept with the week; the colour pickers and the Font box offer it first — what is already on the pages is not changed).');
+    } catch (err) { setStatus('<span class="warn">' + String(err.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') + '</span>'); }
+    document.querySelectorAll('.rb-menu').forEach((m) => { m.hidden = true; });
+  };
+  for (const b of document.querySelectorAll('.cs-item')) b.onclick = () => { const s = COLOR_SCHEMES.find((x) => x.id === b.dataset.scheme); if (s) setScheme({ colorScheme: { name: s.name, colors: s.colors } }, 'Colour scheme: ' + s.name); };
+  for (const b of document.querySelectorAll('.fs-item')) b.onclick = () => { const s = FONT_SCHEMES.find((x) => x.id === b.dataset.scheme); if (s) setScheme({ fontScheme: { name: s.name, heading: s.heading, body: s.body } }, 'Font scheme: ' + s.name); };
   $('show-nav').onchange = (e) => { $('nav').hidden = !e.target.checked; };
   $('rb-paste').onclick = () => editor.command('paste');
   $('rb-paste-special').onclick = () => pasteSpecial();

@@ -10,15 +10,16 @@
 const r2 = (v) => Math.round(v * 100) / 100;
 const FONT = 'Palatino Linotype', SIZE = 10;
 
-export const emptyPara = (text = '') => ({ style: 'Normal', align: 'left', mark: { font: FONT, size: SIZE }, runs: text ? [{ text, font: FONT, size: SIZE }] : [] });
+export const emptyPara = (text = '', font = FONT) => ({ style: 'Normal', align: 'left', mark: { font, size: SIZE }, runs: text ? [{ text, font, size: SIZE }] : [] });
 export const emptyCell = () => ({ paragraphs: [emptyPara()] });
 
-export function newTable(id, { x, y, w, rows = 3, cols = 3, z = 1 } = {}) {
+// font: the week's body font (Page Design ▸ Fonts) for the new cells
+export function newTable(id, { x, y, w, rows = 3, cols = 3, z = 1, font = FONT } = {}) {
   const cw = r2(w / cols);
   return { id, kind: 'table', x: r2(x), y: r2(y), w: r2(cw * cols), h: rows * 20, z, rows, cols,
     colWidths: Array.from({ length: cols }, () => cw), rowHeights: Array.from({ length: rows }, () => 20),
     border: { color: '#000000', width: 0.75 }, inset: 2.88,
-    cells: Array.from({ length: rows }, () => Array.from({ length: cols }, emptyCell)) };
+    cells: Array.from({ length: rows }, () => Array.from({ length: cols }, () => ({ paragraphs: [emptyPara('', font)] }))) };
 }
 
 // Merged cells (Table Format ▸ Merge / Split): the top-left cell of a merge is the ANCHOR and carries

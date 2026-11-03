@@ -222,6 +222,18 @@ ipcMain.handle('week:set-styles', (e, file, styles) => {
   fs.renameSync(abs + '.saving', abs);
   return true;
 });
+// Page Design ▸ Schemes: the colour / font scheme lives in the .bulletin file (whole week)
+ipcMain.handle('week:set-scheme', (e, file, change) => {
+  const c = claims.get(e.sender.id);
+  if (!c || path.resolve(c.file) !== path.resolve(file)) throw new Error('Choose which pages you are changing first (Bulletin ▸ I am changing).');
+  const abs = path.resolve(file);
+  const m = JSON.parse(fs.readFileSync(abs, 'utf8'));
+  if (change.colorScheme) m.colorScheme = { name: String(change.colorScheme.name || 'Custom'), colors: (change.colorScheme.colors || []).slice(0, 8).map((x) => String(x).toUpperCase()) };
+  if (change.fontScheme) m.fontScheme = { name: String(change.fontScheme.name || ''), heading: String(change.fontScheme.heading || ''), body: String(change.fontScheme.body || '') };
+  fs.writeFileSync(abs + '.saving', JSON.stringify(m, null, 1));
+  fs.renameSync(abs + '.saving', abs);
+  return { colorScheme: m.colorScheme, fontScheme: m.fontScheme };
+});
 // Page Design ▸ Page Setup: page size, preset and margin guides live in the .bulletin file. The
 // worship half's flow grid (its 6" text area) follows the margins when it was on them, so the Order
 // of Worship lays itself out again on the new page; both halves' files are touched, so (as for a

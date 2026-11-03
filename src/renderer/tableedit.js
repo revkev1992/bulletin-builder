@@ -2,6 +2,7 @@
 // in is editor.textEdit.cell = [row, col] (beginTextEdit knows tables); the row / column commands
 // work on that cell, or on the first row / column when the table is only selected.
 import { newTable, insertRow, deleteRow, insertColumn, deleteColumn, mergeCells, splitCell, anchorOf } from './table.js';
+import { bodyFont } from './schemes.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -15,7 +16,7 @@ export function installTables(Editor) {
     if (this.textEdit) await this.endTextEdit();
     const m = this.marginBox(n);
     const w = Math.min(m.w, 288);
-    const t = newTable(this.newId(), { x: m.x + (m.w - w) / 2, y: m.y + 36, w, rows, cols, z: this.maxZ(n) + 1 });
+    const t = newTable(this.newId(), { x: m.x + (m.w - w) / 2, y: m.y + 36, w, rows, cols, z: this.maxZ(n) + 1, font: bodyFont(this.week().manifest) });
     const f = await this.addFrame(n, t);
     this.syncTableHeight(n, f.id);
     this.app.setStatus('Table inserted: click in a cell to type; Table Format adds rows and columns.');

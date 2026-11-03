@@ -649,3 +649,14 @@ dialog .mu-f[hidden] { display: none; }
 .fp-roster .fp-rhead span { font-size: 11px; color: #605e5c; }
 .fp-roster .fp-tot { text-align: right; font-variant-numeric: tabular-nums; }
 .fp-music { width: 100%; }
+
+/* Page Design ▸ Schemes */
+.rb-swatches.scheme { border-bottom: 1px solid #e1dfdd; margin-bottom: 2px; }
+.cs-list { display: flex; flex-direction: column; max-height: 360px; overflow: auto; min-width: 220px; }
+.cs-item, .fs-item { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border: 0; background: none; text-align: left; font: inherit; cursor: pointer; border-radius: 3px; }
+.cs-item:hover, .fs-item:hover { background: #f3f2f1; }
+.cs-item.active, .fs-item.active { background: #e1ecf7; }
+.cs-chips { display: inline-flex; gap: 2px; }
+.cs-chips i { display: inline-block; width: 14px; height: 14px; border: 1px solid #c8c6c4; border-radius: 2px; }
+.fs-sample { display: inline-flex; gap: 4px; width: 44px; font-size: 15px; }
+.fs-sample b { font-weight: 700; } .fs-sample i { font-style: normal; color: #605e5c; }

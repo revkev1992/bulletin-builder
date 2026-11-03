@@ -120,7 +120,8 @@ exports.run = async (h) => {
   h.ok('Paragraph… sets 12 pt before', (await paraOfCaret()).para.spaceBefore === 12, { para: (await paraOfCaret()).para });
   await h.shot('formatted');
 
-  // ¶ shows marks
+  // ¶ shows marks (Show Formatting is remembered per PC — start from off, whatever an earlier run left)
+  if (await h.js(`document.body.classList.contains('show-marks')`)) { await h.clickSel('#rb-marks'); await h.wait(200); }
   await h.clickSel('#rb-marks');
   h.ok('¶ turns on special characters', await h.js(`document.body.classList.contains('show-marks')`));
   await h.shot('marks');

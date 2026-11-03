@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('bb', {
   setStyles: (file, styles) => ipcRenderer.invoke('week:set-styles', file, styles),
   readStyles: (hint) => ipcRenderer.invoke('week:read-styles', hint),
   setPage: (file, setup) => ipcRenderer.invoke('week:set-page', file, setup),
+  setScheme: (file, change) => ipcRenderer.invoke('week:set-scheme', file, change),
   renamePage: (file, n, name) => ipcRenderer.invoke('week:rename-page', file, n, name),
   exportPages: (file, opts) => ipcRenderer.invoke('week:export-pages', file, opts),
   pack: (file, info) => ipcRenderer.invoke('week:pack', file, info),

@@ -4,6 +4,7 @@
 //
 // Controls keep the element ids the editor has always used (save, undo, front, crop, t-bold, fx …),
 // so app.js and the self-tests drive them unchanged. A command that is not built yet is shown the way
+import { colorSchemeMenuHtml, fontSchemeMenuHtml } from './schemes.js';
 // Publisher shows it but disabled, marked `todo` ("Coming soon") — see docs/FEATURE_PARITY.md.
 
 const S = (body, size = 32) => `<svg viewBox="0 0 32 32" width="${size}" height="${size}" aria-hidden="true">${body}</svg>`;
@@ -200,7 +201,7 @@ export const TABS = [
     { label: 'Page Setup', cols: [[big('Margins', 'margins', { id: 'pg-margins', tip: 'Margin guides for every page (Page Setup)' })], [big('Orientation', 'orientation', { id: 'pg-orient', menu: 'orientation' })], [big('Size', 'size', { id: 'pg-size', tip: 'Page size: legal booklet, tabloid booklet, letter, or custom (Page Setup)' })]] },
     { label: 'Layout', cols: [[big('Guides', 'guides', { id: 'pg-guides', menu: 'guides', tip: 'Ruler guides on this page (or drag one off a ruler)' })], [{ html: '<div class="rb-caption">Align To</div>' }, chk('Guides', { id: 'snap-guides', checked: true, tip: 'Snap objects to the margin and ruler guides' }), chk('Objects', { id: 'snap-objects', checked: true, tip: 'Snap objects to the edges and centres of other objects' })]] },
     { label: 'Pages', cols: [[sm('Delete', 'pagedel', { id: 'pg-delete', tip: 'Delete the current page' }), sm('Move', 'pagemove', { id: 'pg-move', tip: 'Move the current page' }), sm('Rename', 'rename', { id: 'pg-rename', tip: 'Give the current page a name (shown in the Pages pane)' })]] },
-    { label: 'Schemes', cols: [[big('Color Schemes', 'schemes', todo)], [big('Fonts', 'fonts', todo)]] },
+    { label: 'Schemes', cols: [[big('Color Schemes', 'schemes', { id: 'pg-colorschemes', menu: 'colorschemes', tip: 'The eight colours every colour picker offers first (the church seasons, or Publisher classics); kept with the week' })], [big('Fonts', 'fonts', { id: 'pg-fonts', menu: 'fontschemes', tip: 'A heading + body font pair, listed first in the Font box and used for new text boxes' })]] },
     { label: 'Page Background', cols: [[big('Apply Image', 'applyimage', { id: 'pg-bgimage', tip: 'A picture filling the whole current page, behind everything on it' })], [big('Background', 'background', { id: 'pg-bg', menu: 'background', tip: 'A colour for the whole current page' })], [big('Master Pages', 'master', { id: 'pg-master', menu: 'master', tip: 'Objects that appear on every page of your half (the left-hand master on even pages, the right-hand on odd)' })]] },
   ] },
   { id: 'view', label: 'View', groups: [
@@ -253,13 +254,16 @@ export const TABS = [
   ] },
 ];
 
-const swatches = '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+const swatches = '<div class="rb-swatches scheme" title="Scheme colours (Page Design > Color Schemes)">' + [0,1,2,3,4,5,6,7].map((i) => '<button type="button" class="scheme-swatch swatch" data-slot="' + i + '" data-color="#000000" style="background:#000000"></button>').join('') + '</div>' + '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="t-color-more" value="#000000"></label>';
-const fillSwatches = (cls, moreId) => '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#FFF2CC'].map((c) => '<button type="button" class="' + cls + '-swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+const fillSwatches = (cls, moreId) => '<div class="rb-swatches scheme" title="Scheme colours (Page Design > Color Schemes)">' + [0,1,2,3,4,5,6,7].map((i) => '<button type="button" class="scheme-swatch ' + cls + '-swatch" data-slot="' + i + '" data-color="#000000" style="background:#000000"></button>').join('') + '</div>' + '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#FFF2CC'].map((c) => '<button type="button" class="' + cls + '-swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="' + moreId + '" value="#2F6DB5"></label>';
-const bgSwatches = '<div class="rb-swatches">' + ['#FFFFFF', '#F2F2F2', '#D9D9D9', '#FFF2CC', '#FCE4D6', '#DDEBF7', '#E2EFDA', '#EAD1DC', '#D9E2F3', '#C6E0B4', '#FFC000', '#5B9BD5', '#ED7D31', '#70AD47', '#7030A0', '#2F6DB5', '#077568', '#B5702F', '#1F3864', '#000000'].map((c) => '<button type="button" class="bgswatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
+const bgSwatches = '<div class="rb-swatches scheme" title="Scheme colours (Page Design > Color Schemes)">' + [0,1,2,3,4,5,6,7].map((i) => '<button type="button" class="scheme-swatch bgswatch" data-slot="' + i + '" data-color="#000000" style="background:#000000"></button>').join('') + '</div>' + '<div class="rb-swatches">' + ['#FFFFFF', '#F2F2F2', '#D9D9D9', '#FFF2CC', '#FCE4D6', '#DDEBF7', '#E2EFDA', '#EAD1DC', '#D9E2F3', '#C6E0B4', '#FFC000', '#5B9BD5', '#ED7D31', '#70AD47', '#7030A0', '#2F6DB5', '#077568', '#B5702F', '#1F3864', '#000000'].map((c) => '<button type="button" class="bgswatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
   '</div><label class="rb-more-color">More Colors… <input type="color" id="bg-more" value="#FFFFFF"></label>';
 const MENUS = {
+  // Page Design ▸ Schemes (schemes.js)
+  colorschemes: [{ html: colorSchemeMenuHtml() }],
+  fontschemes: [{ html: fontSchemeMenuHtml() }],
   // Page Design ▸ Page Background ▸ Background: a colour for the current page
   background: [sm('No Background', 'clearfmt', { id: 'bg-none' }), { html: bgSwatches }],
   // Page Design ▸ Page Background ▸ Master Pages (Publisher): edit the master, a page's use of it, Send to Master
