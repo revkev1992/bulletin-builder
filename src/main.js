@@ -103,6 +103,9 @@ async function exportPages(file, dir, { format = 'png', dpi = 150, title = 'page
   try {
     await win.loadFile(RENDERER, { query: { week: file, mode: 'print' } });
     await win.webContents.executeJavaScript('window.__bbReady');
+    // the offscreen window is exactly one page; the stage still scrolls (page to page), so its scrollbars
+    // would be captured along the right and bottom edges — hide them (scrolling still works)
+    await win.webContents.insertCSS('::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } html, body { scrollbar-width: none; }');
     win.webContents.setZoomFactor(zoomFactor);
     win.setContentSize(pw, ph);
     await new Promise((r) => setTimeout(r, 500));

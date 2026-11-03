@@ -14,7 +14,9 @@ exports.run = async (h) => {
   const outDir = path.join(h.tmp, 'pictures');
   global.__bbTestExportDir = outDir;
   await h.clickSel('.rb-tab[data-tab="file"]');
+  await h.until(`!!document.querySelector('.bs-item[data-pane="export"]')`, 2000);
   await h.clickSel('.bs-item[data-pane="export"]');
+  await h.until(`!!document.querySelector('#bs-pages')`, 2000);
   h.ok('File ▸ Export offers Create PDF, Pages as Pictures, Pack and Go', !!(await h.rect('#bs-pages')) && !!(await h.rect('#bs-pack')));
   await h.shot('export-pane');
   await h.clickSel('#bs-pages');
