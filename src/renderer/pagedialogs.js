@@ -201,6 +201,30 @@ export async function bookmarkDialog(bookmarks, canAdd) {
   return name ? { add: name } : null;
 }
 
+// Insert ▸ WordArt (Publisher): the words, font, style (plain / slanted / arched), fill, outline, shadow.
+// spec = the existing shape when editing. fonts = the Font box's list. Returns the shape fields or null.
+export async function wordArtDialog(spec, fonts, defaults = {}) {
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const s = spec || {};
+  const fill = defaults.fill || '#2F6DB5', stroke = defaults.stroke || '#1F3864';
+  const r = await modal(spec ? 'Edit WordArt' : 'WordArt',
+    '<label class="pd-row">Text: <input name="text" value="' + esc(s.text || 'Your Text Here') + '" required style="width:300px"></label>' +
+    '<label class="pd-row">Font: <select name="font">' + [...new Set([s.font, ...fonts].filter(Boolean))].map((f) => '<option' + (f === (s.font || fonts[0]) ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select>' +
+    ' &nbsp; <label><input type="checkbox" name="bold"' + (s.bold !== false ? ' checked' : '') + '> Bold</label> <label><input type="checkbox" name="italic"' + (s.italic ? ' checked' : '') + '> Italic</label></label>' +
+    '<fieldset><legend>Style</legend><label><input type="radio" name="style" value="plain"' + (!s.style || s.style === 'plain' ? ' checked' : '') + '> Plain</label>' +
+    '<label><input type="radio" name="style" value="slant"' + (s.style === 'slant' ? ' checked' : '') + '> Slanted</label>' +
+    '<label><input type="radio" name="style" value="arch"' + (s.style === 'arch' ? ' checked' : '') + '> Arched</label></fieldset>' +
+    '<fieldset><legend>Colours</legend>' +
+    '<label class="pd-row">Fill: <input type="color" name="fill" value="' + esc(defaults.currentFill || fill) + '"></label>' +
+    '<label class="pd-row">Outline: <input type="color" name="stroke" value="' + esc(defaults.currentStroke || stroke) + '"> <label><input type="checkbox" name="noStroke"' + (defaults.noStroke ? ' checked' : '') + '> No outline</label></label>' +
+    '<label class="pd-row"><input type="checkbox" name="shadow"' + (s.shadow ? ' checked' : '') + '> Shadow <input type="color" name="shadowColor" value="' + esc(s.shadow || '#7F7F7F') + '"></label></fieldset>' +
+    '<p class="pd-note">The words stretch to fill the box — drag its handles to size them. Shape Format ▸ Shape Fill / Outline change the colours later; double-click the WordArt to change the words.</p>',
+    'OK', (d) => { d.querySelector('input[name="text"]').select(); });
+  if (!r) return null;
+  return { text: String(r.text || '').trim() || 'Your Text Here', font: r.font, bold: !!r.bold, italic: !!r.italic, style: r.style || 'plain',
+    fill: String(r.fill).toUpperCase(), stroke: r.noStroke ? null : String(r.stroke).toUpperCase(), shadow: r.shadow ? String(r.shadowColor).toUpperCase() : null };
+}
+
 // Page Design ▸ Pages ▸ Rename (and the Pages pane's right-click): a name for the page
 export async function renamePageDialog(n, name) {
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

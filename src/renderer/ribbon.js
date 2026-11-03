@@ -145,7 +145,7 @@ const ico = (ic, tip, o = {}) => ({ icon: ic, tip, ...o });
 const chk = (label, o = {}) => ({ check: true, label, ...o });
 const todo = { todo: true };
 
-const FONTS = ['Palatino Linotype', 'Book Antiqua', 'Candara', 'Candara Light', 'Archer Book', 'Archer Bold',
+export const FONTS = ['Palatino Linotype', 'Book Antiqua', 'Candara', 'Candara Light', 'Archer Book', 'Archer Bold',
   'Avenir Next LT Pro', 'Calibri', 'Arial', 'Times New Roman', 'Georgia'];
 
 export const TABS = [
@@ -189,7 +189,7 @@ export const TABS = [
     { label: 'Building Blocks', cols: [[big('Page Parts', 'parts', { id: 'ins-parts', tip: 'Reusable pieces you have saved (a boxed announcement, a header strip): kept beside the weeks for everyone' })],
       [big('Calendars', 'calendar', { id: 'ins-calendars', tip: 'Saved calendar blocks' })], [big('Borders & Accents', 'borders', { id: 'ins-borders', tip: 'Saved borders and accents' })], [big('Advertisements', 'ads', todo)]] },
     { label: 'Break', cls: 'rb-text', cols: [[big('Break', 'pagenum', { id: 'ins-break', menu: 'breaks', tip: 'Insert a break where you are typing' })]] },
-    { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', todo)], [big('Insert File', 'file', { id: 'ins-file', cls: 'rb-typing', tip: 'The text of a .txt or Word .docx file, where you are typing' })],
+    { label: 'Text', cols: [[big('Draw Text Box', 'textbox', { id: 'ins-text' })], [big('WordArt', 'wordart', { id: 'ins-wordart', tip: 'Decorative text — a title or banner in a box you size (plain, slanted or arched; fill, outline, shadow); double-click it to change the words' })], [big('Insert File', 'file', { id: 'ins-file', cls: 'rb-typing', tip: 'The text of a .txt or Word .docx file, where you are typing' })],
       [big('Symbol', 'symbol', { id: 'ins-symbol', menu: 'symbols', cls: 'rb-typing', tip: 'Insert a symbol where you are typing' })], [big('Date & Time', 'datetime', { id: 'ins-date', menu: 'dates', cls: 'rb-typing', tip: 'Insert the date or time where you are typing' })]] },
     { label: 'Links', cols: [[big('Link', 'link', { id: 'ins-link', cls: 'rb-typing', tip: 'Hyperlink on the selected text (Ctrl+K): kept in the PDF and on the website' })], [big('Bookmark', 'bookmark', { id: 'ins-bookmark', tip: 'A named place in the text (where you are typing) that a link can point at; also lists, goes to and removes bookmarks' })]] },
     { label: 'Header & Footer', cols: [[big('Header', 'header', { id: 'ins-header', menu: 'header', tip: 'The same line at the top of every page you are editing (# = the page number)' })],

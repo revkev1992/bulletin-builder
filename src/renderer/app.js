@@ -5,7 +5,9 @@ import { FlowPanel } from './flowpanel.js';
 import { buildRibbon, onFileTab, selectTab, setContextual, syncMirrors, setLabel } from './ribbon.js';
 import { Backstage } from './backstage.js';
 import { MusicPane } from './musiclib.js';
-import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal, bookmarkDialog } from './pagedialogs.js';
+import { insertPageDialog, movePageDialog, deletePageDialog, paragraphDialog, styleDialog, pageSetupDialog, linkDialog, renamePageDialog, modal, bookmarkDialog, wordArtDialog } from './pagedialogs.js';
+import { FONTS } from './ribbon.js';
+import { schemeColors } from './schemes.js';
 import { allBookmarks } from './bookmarks.js';
 import { GraphicsPane } from './graphics.js';
 import { BlocksPane } from './blocks.js';
@@ -615,7 +617,7 @@ function updateToolbar() {
   $('lock-page').classList.toggle('active', !!(pg && pg.locked));
   setLabel('lock-page', pg && pg.locked ? 'Unlock Page ' + lp : 'Lock Page' + (lp != null ? ' ' + lp : ''));
   for (const id of ['ins-text', 'ins-picture', 'ins-line', 'ins-rect', 'ins-arrowline', 'ins-roundrect', 'ins-oval', 'ins-triangle', 'ins-arrow', 'ins-diamond',
-    'rb-paste', 'rb-paste-special', 'ins-table', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
+    'rb-paste', 'rb-paste-special', 'ins-table', 'ins-wordart', 'pg-blank', 'pg-dup', 'pg-insert', 'pg-delete', 'pg-move',
     'pg-bg', 'pg-bgimage', 'pg-guides', 'pg-margins', 'pg-size', 'pg-orient', 'pg-rename', 'ins-header', 'ins-footer', 'ins-pagenum', 'pg-colorschemes', 'pg-fonts']) $(id).disabled = !half;
   $('rb-single').classList.toggle('active', viewLayout === 'single');
   $('rb-spread').classList.toggle('active', viewLayout !== 'single');
@@ -786,6 +788,32 @@ async function newBlank(presetKey) {
   }
 }
 window.__bbNewBlank = newBlank;
+
+// Insert ▸ WordArt: new (no n/id) or edit the words/style of an existing one (double-click)
+async function wordArt(n, id) {
+  if (!week || !editor.half) { setStatus('Choose which pages you are changing first (Bulletin ▸ I am changing).'); return; }
+  const existing = n != null && id ? editor.anyFrame(n, id) : null;
+  const sc = schemeColors(week.manifest);
+  const fonts = [...new Set([(week.manifest.fontScheme && week.manifest.fontScheme.heading) || null, ...FONTS].filter(Boolean))];
+  const v = await wordArtDialog(existing ? existing.shape : null, fonts, { fill: sc[1], stroke: sc[0],
+    currentFill: existing && existing.fill ? existing.fill.color : null, currentStroke: existing && existing.stroke ? existing.stroke.color : null, noStroke: !!existing && existing.stroke === null });
+  if (!v) return;
+  if (editor.textEdit) await editor.endTextEdit();
+  const shape = { type: 'wordart', text: v.text, font: v.font, bold: v.bold, italic: v.italic, style: v.style, ...(v.shadow ? { shadow: v.shadow } : {}) };
+  if (existing) {
+    await editor.commit([n], () => { const f = editor.anyFrame(n, id); f.shape = shape; f.fill = { color: v.fill }; f.stroke = v.stroke ? { color: v.stroke, width: (f.stroke && f.stroke.width) || 1 } : null; });
+    editor.select(n, id);
+    setStatus('WordArt changed. Undo takes it back.');
+    return;
+  }
+  const page = editor.targetPage();
+  if (page == null) { setStatus('Click a page you are editing first.'); return; }
+  const { width: W, height: H } = editor.pageSize();
+  const f = { id: editor.newId(), kind: 'shape', shape, x: Math.round((W / 2 - 144) * 100) / 100, y: Math.round((H / 2 - 30) * 100) / 100, w: 288, h: 60, z: editor.maxZ(page) + 1,
+    fill: { color: v.fill }, stroke: v.stroke ? { color: v.stroke, width: 1 } : null };
+  await editor.addFrame(page, f);
+  setStatus('WordArt placed: drag its handles to size the words; double-click to change them; Shape Format for the colours.');
+}
 
 // Page Design ▸ Options / File ▸ Options (per PC)
 async function showOptions() {
@@ -1073,6 +1101,7 @@ if (PRINT) {
     onSelection,
     pageRestore: (op, toStack) => runPageOp(op, { undoing: toStack }),
     setMasterView,
+    editWordArt: (n, id) => wordArt(n, id),
     // Publisher keeps Font/Paragraph on Home, greyed until you are typing in a text box
     onTextMode: (on) => {
       for (const el of document.querySelectorAll('.rb-text button:not(.todo):not(.rb-always), .rb-text select, .rb-text input, button.rb-typing')) el.disabled = !on;
@@ -1420,6 +1449,7 @@ if (PRINT) {
   $('ins-link').onclick = () => insertLink();
   $('ins-bookmark').addEventListener('mousedown', (e) => e.preventDefault());
   $('ins-bookmark').onclick = () => bookmarks();
+  $('ins-wordart').onclick = () => wordArt();
   window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k' && editor.textEdit) { e.preventDefault(); insertLink(); } });
   window.__bbPageOp = runPageOp;   // self-test hook (no dialog)
   $('show-guides').onchange = (e) => document.body.classList.toggle('show-guides', e.target.checked);

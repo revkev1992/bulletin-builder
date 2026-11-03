@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 41 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 42 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
@@ -83,6 +83,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Pictures from file | ✅ | Crop (with the cut-away part shown dimmed, 2026-10-20), Fit, Fill |
 | Shapes with fill/outline | ✅ | 2026-11-02: see Home ▸ Objects: other shapes |
 | Building blocks | ✅ | 2026-10-29: **Service Music library** (Insert ▸ Service Music): psalters (psalm + response), doxologies (tune), communion settings (setting + parts in order), Taizé, benediction responses, other; kept beside the weeks; goes in-line in the text (moves with it, like Word), or into the Order of Worship block; Replace for a new season. 2026-11-02: **Building Blocks** (Insert ▸ Page Parts / Borders & Accents / Calendars, right-click ▸ Add to Building Blocks…): select objects ▸ name them ▸ kept with their pictures in a `Building Blocks` folder beside the weeks (shared); the pane shows thumbnails; Insert places a copy (new ids) on the page you are editing; Rename / Remove (`blocks.js`, main `blocks:*`; suite `blocks`). No starter set yet (Kevin and the communications person save their own) |
+| WordArt | ✅ | 2026-11-03: Insert ▸ WordArt — words, font (the scheme heading font first), bold/italic, style plain / slanted / arched, fill, outline (or none), shadow; a shape (`shape.type: "wordart"`) whose SVG text stretches to the box (drag the handles to size the words), so the PDF keeps it; Shape Format ▸ Shape Fill / Outline recolour it; double-click = Edit WordArt (suite `wordart`). Publisher's 30 preset looks and warp shapes beyond arch ⬜ |
 | Text box, Symbol, Date & Time, Insert File | ✅ | Symbol + Date & Time 2026-10-20. Insert File 2026-11-02: the text of a .txt or Word .docx where you are typing (`src/pack.js` reads the .docx) |
 | Breaks (text box / column) | ✅ | 2026-10-20 |
 | Hyperlinks | ✅ | 2026-11-02: Insert ▸ Link / Ctrl+K / right-click Hyperlink…: text + address (web or e-mail; https:// and mailto: added); a real `<a>` on the page, so the PDF and the website carry it; Ctrl+click opens it in the browser; Edit / Remove Hyperlink; new links blue + underlined (suite `insertview`). **Bookmarks** (2026-11-03): Insert ▸ Bookmark names a place where you are typing (a zero-width marker with an id); the dialog lists every bookmark with Go To / Delete; Insert ▸ Link ▸ "a place in this document" makes `<a href="#bm-…">` (works in the PDF); Ctrl+click goes there (`bookmarks.js`; suite `bookmarks`) |

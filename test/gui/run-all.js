@@ -6,7 +6,7 @@ const path = require('path');
 
 const WEEK = process.argv[2] || require('../weeks').weekFile('9-20-26 1100');
 const ELECTRON = path.join(__dirname, '../../node_modules/electron/dist/electron.exe');
-const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles', 'context', 'misc', 'zoom', 'print', 'newweek', 'scratch', 'marks', 'tabwrap', 'dropcap', 'modstyle', 'design', 'insertview', 'shapes', 'fields', 'fileextras', 'tables', 'blocks', 'master', 'tablemerge', 'options', 'bookmarks', 'schemes', 'windows'];
+const SUITES = ['text', 'format', 'crop', 'pages', 'tabs', 'breaks', 'arrange', 'find', 'painter', 'saveas', 'linking', 'styles', 'context', 'misc', 'zoom', 'print', 'newweek', 'scratch', 'marks', 'tabwrap', 'dropcap', 'modstyle', 'design', 'insertview', 'shapes', 'fields', 'fileextras', 'tables', 'blocks', 'master', 'tablemerge', 'options', 'bookmarks', 'schemes', 'windows', 'wordart'];
 
 // the Order-of-Worship guard runs on an October (flow) week
 const weekNamed = (t) => path.join(path.dirname(path.dirname(WEEK)), t, t + '.bulletin');

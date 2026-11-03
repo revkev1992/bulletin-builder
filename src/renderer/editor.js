@@ -1089,6 +1089,12 @@ export class Editor {
       if (top && top.id === pic.dataset.id && !this.locked(n, top)) { this.sel = { page: n, id: top.id }; this.toggleCrop(true); }
       return;
     }
+    // WordArt: double-click opens its words / style again (app.js)
+    const wa = e.target.closest('.frame-shape');
+    if (wa && this.editable(n)) {
+      const top = this.topFrame(n, wa.dataset.id);
+      if (top && top.kind === 'shape' && top.shape && top.shape.type === 'wordart' && !this.locked(n, top) && this.app.editWordArt) { this.select(n, top.id); this.app.editWordArt(n, top.id); return; }
+    }
     // typing already began on the first click; a double-click then selects a word (the browser does it)
     const el = e.target.closest('.frame-text');
     if (!el || !this.editable(n) || this.textEdit) return;

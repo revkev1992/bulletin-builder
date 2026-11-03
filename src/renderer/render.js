@@ -393,6 +393,44 @@ export function shapeSvg(f, type, st) {
     svg.setAttribute('viewBox', '0 0 ' + (horizontal ? w : 1) + ' ' + (horizontal ? 1 : h));
     svg.style.overflow = 'visible';
     return svg;
+  } else if (type === 'wordart') {   // Insert ▸ WordArt: one line of decorative text stretched to the box (SVG, so the PDF keeps it)
+    const s = f.shape || {};
+    const text = String(s.text || 'Your text here');
+    const g = document.createElementNS(SVG, 'g');
+    const make = (dx, dy, color, isShadow) => {
+      const t = document.createElementNS(SVG, 'text');
+      t.setAttribute('x', dx + w / 2); t.setAttribute('y', dy + h * 0.78);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-family', cssFont(s.font || 'Palatino Linotype'));
+      t.setAttribute('font-size', String(h * 0.8));
+      if (s.bold !== false) t.setAttribute('font-weight', '700');
+      if (s.italic) t.setAttribute('font-style', 'italic');
+      t.setAttribute('textLength', String(Math.max(1, w - 2 * i)));
+      t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      t.setAttribute('fill', isShadow ? color : fill === 'none' ? '#000000' : fill);
+      if (!isShadow && sw) { t.setAttribute('stroke', st.color); t.setAttribute('stroke-width', sw); t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke-linejoin', 'round'); }
+      if (s.style === 'slant') t.setAttribute('transform', 'skewX(-14) translate(' + (h * 0.78 * 0.25) + ' 0)');
+      t.textContent = text;
+      return t;
+    };
+    if (s.shadow) g.appendChild(make(h * 0.04, h * 0.04, s.shadow, true));
+    if (s.style === 'arch') {
+      // the text on an arc across the box: a path curving up from the left to the right edge
+      const defs = document.createElementNS(SVG, 'defs'), p = document.createElementNS(SVG, 'path');
+      const id = 'wa-' + f.id;
+      p.setAttribute('id', id);
+      p.setAttribute('d', 'M ' + i + ' ' + (h - i) + ' Q ' + (w / 2) + ' ' + (-h * 0.6) + ' ' + (w - i) + ' ' + (h - i));
+      defs.appendChild(p); g.appendChild(defs);
+      const t = make(0, 0, null, false);
+      t.removeAttribute('x'); t.removeAttribute('y'); t.removeAttribute('textLength'); t.removeAttribute('lengthAdjust');
+      t.setAttribute('font-size', String(h * 0.5));
+      const tp = document.createElementNS(SVG, 'textPath');
+      tp.setAttribute('href', '#' + id); tp.setAttribute('startOffset', '50%'); tp.setAttribute('text-anchor', 'middle');
+      tp.textContent = text; t.textContent = ''; t.appendChild(tp);
+      g.appendChild(t);
+    } else g.appendChild(make(0, 0, null, false));
+    svg.appendChild(g);
+    return svg;
   } else { el = document.createElementNS(SVG, 'rect'); el.setAttribute('x', i); el.setAttribute('y', i); el.setAttribute('width', Math.max(0, w - sw)); el.setAttribute('height', Math.max(0, h - sw)); }
   el.setAttribute('fill', fill);
   if (f.fill && f.fill.opacity != null) el.setAttribute('fill-opacity', f.fill.opacity);
