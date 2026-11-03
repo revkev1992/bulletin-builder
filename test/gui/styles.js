@@ -42,6 +42,7 @@ exports.run = async (h) => {
   h.ok('New Style… asks for a name', await h.until(`!!document.querySelector('dialog.pub-dialog[open] input[name="name"]')`, 2000));
   await h.type('Announcement Heading');
   await h.clickSel('dialog .pd-ok');
+  await h.until(`(window.__bbWeek().manifest.styles || []).some((s) => s.name === 'Announcement Heading')`, 5000);   // written through the main process; slow under load
   await h.wait(500);
   const onDisk = JSON.parse(fs.readFileSync(h.weekCopy, 'utf8')).styles.find((s) => s.name === 'Announcement Heading');
   h.ok('the new style is saved in the week file (Cambria 16 bold)', onDisk && onDisk.run.font === 'Cambria' && onDisk.run.size === 16 && onDisk.run.bold, { onDisk });

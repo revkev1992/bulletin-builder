@@ -660,3 +660,7 @@ dialog .mu-f[hidden] { display: none; }
 .cs-chips i { display: inline-block; width: 14px; height: 14px; border: 1px solid #c8c6c4; border-radius: 2px; }
 .fs-sample { display: inline-flex; gap: 4px; width: 44px; font-size: 15px; }
 .fs-sample b { font-weight: 700; } .fs-sample i { font-style: normal; color: #605e5c; }
+
+/* Most Used tab */
+.mu-empty { align-self: center; padding: 0 14px; color: #605e5c; font-size: 12px; }
+.rb-pinmenu { z-index: 500000; }

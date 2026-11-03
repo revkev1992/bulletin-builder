@@ -88,6 +88,7 @@ exports.run = async (h) => {
   await h.click(r.x + 8, r.y + 8);
   await h.clickSel('.rb-tab[data-tab="format"]');
   await h.clickSel('#tb-merge');
+  await h.until(`!!document.querySelector('.rb-menu[data-menu-name="tablemerge"]:not([hidden])')`, 2000);
   await h.clickSel('#tb-merge-dlg');
   h.ok('Merge Cells… asks for rows and columns', await h.until(`!!document.querySelector('dialog.pub-dialog[open] input[name="rows"]')`, 2000));
   await h.js(`(() => { const d = document.querySelector('dialog.pub-dialog[open]'); d.querySelector('input[name="rows"]').value = '2'; d.querySelector('input[name="cols"]').value = '3'; })()`);

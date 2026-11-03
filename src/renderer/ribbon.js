@@ -253,6 +253,8 @@ export const TABS = [
       '<label class="rb-num">Width <input id="fw" type="number" step="0.01" min="0.05" disabled>"</label>' },
     ], [{ html: '<label class="rb-num">Left <input id="fx" type="number" step="0.01" disabled>"</label><label class="rb-num">Top <input id="fy" type="number" step="0.01" disabled>"</label>' }]] },
   ] },
+  // Kevin's spec extra (after parity): the commands used most, plus any pinned by right-click (filled at run time)
+  { id: 'mostused', label: 'Most Used', groups: [] },
 ];
 
 const swatches = '<div class="rb-swatches scheme" title="Scheme colours (Page Design > Color Schemes)">' + [0,1,2,3,4,5,6,7].map((i) => '<button type="button" class="scheme-swatch swatch" data-slot="' + i + '" data-color="#000000" style="background:#000000"></button>').join('') + '</div>' + '<div class="rb-swatches">' + ['#000000', '#FFFFFF', '#44546A', '#7F7F7F', '#C00000', '#E2252B', '#FFC000', '#70AD47', '#2F6DB5', '#7030A0', '#077568', '#B5702F', '#1F3864', '#385723', '#833C0B', '#5B9BD5', '#ED7D31', '#A5A5A5', '#4472C4', '#264478'].map((c) => '<button type="button" class="swatch" data-color="' + c + '" title="' + c + '" style="background:' + c + '"></button>').join('') +
@@ -415,6 +417,9 @@ export function buildRibbon(root, { title = '' } = {}) {
     root.appendChild(m);
   }
   root.addEventListener('click', (e) => {
+    // Most Used: count every command button pressed on the ordinary tabs and menus
+    const cb = e.target.closest('.rb-panel button[id], .rb-menu button[id]');
+    if (cb && !cb.closest('.rb-panel[data-tab="mostused"]') && !cb.disabled) bumpMostUsed(cb.id);
     if (e.target.closest('.rb-menu') && e.target.closest('input')) return;
     const opener = e.target.closest('[data-menu]');
     for (const m of root.querySelectorAll('.rb-menu')) {
@@ -432,7 +437,69 @@ export function buildRibbon(root, { title = '' } = {}) {
   });
   document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.rb-menu,[data-menu]')) for (const m of root.querySelectorAll('.rb-menu')) m.hidden = true; });
   for (const b of root.querySelectorAll('.rb-tab')) b.addEventListener('click', () => selectTab(b.dataset.tab));
+  // right-click a ribbon button: pin it to / unpin it from Most Used
+  root.addEventListener('contextmenu', (e) => {
+    const b = e.target.closest('.rb-panel button[id], .rb-panel [data-mirror]');
+    if (!b) return;
+    e.preventDefault();
+    const id = b.dataset.mirror || b.id;
+    const st = mostUsedState();
+    const pinned = st.pins.includes(id);
+    document.querySelectorAll('.rb-pinmenu').forEach((m) => m.remove());
+    const m = document.createElement('div');
+    m.className = 'rb-menu rb-pinmenu';
+    m.style.cssText = 'left:' + e.clientX + 'px;top:' + e.clientY + 'px';
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'rb-small rb-menu-item'; btn.id = 'pin-toggle';
+    btn.textContent = pinned ? 'Unpin from Most Used' : 'Pin to Most Used';
+    btn.onclick = () => { if (pinned) st.pins = st.pins.filter((x) => x !== id); else st.pins.push(id); saveMostUsed(st); m.remove(); if (currentTab() === 'mostused') renderMostUsed(root); };
+    m.appendChild(btn);
+    root.appendChild(m);
+    setTimeout(() => document.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('.rb-pinmenu')) m.remove(); }, { once: true }), 0);
+  });
+  renderMostUsed(root);
   selectTab('home');
+}
+
+// ---- Most Used (per PC: localStorage bb.mostused = { counts: { id: n }, pins: [id] })
+const MU_KEY = 'bb.mostused';
+export function mostUsedState() {
+  try { const o = JSON.parse(localStorage.getItem(MU_KEY) || '{}') || {}; return { counts: o.counts || {}, pins: Array.isArray(o.pins) ? o.pins : [] }; } catch (_) { return { counts: {}, pins: [] }; }
+}
+function saveMostUsed(st) { try { localStorage.setItem(MU_KEY, JSON.stringify(st)); } catch (_) { /* per-PC convenience */ } }
+function bumpMostUsed(id) { const st = mostUsedState(); st.counts[id] = (st.counts[id] || 0) + 1; saveMostUsed(st); }
+const MU_MAX = 12;
+// a working copy of a ribbon button: clicks go to the original (data-mirror), menus open under the copy
+function mirrorOf(id) {
+  const o = document.getElementById(id);
+  if (!o || o.tagName !== 'BUTTON' || !o.closest('.rb-panel') || o.closest('.rb-panel[data-tab="mostused"]')) return null;
+  const b = o.cloneNode(true);
+  b.removeAttribute('id');
+  b.dataset.mirror = id;
+  b.classList.remove('active');
+  if (!b.querySelector('.rb-label')) { b.classList.remove('rb-ico'); b.classList.add('rb-small'); const l = document.createElement('span'); l.className = 'rb-label'; l.textContent = o.title.split(/[(:—]/)[0].trim().slice(0, 28); b.appendChild(l); }
+  b.title = (o.title || '') + ' (from the ' + ((o.closest('.rb-panel') || {}).dataset || {}).tab + ' tab)';
+  return b;
+}
+export function renderMostUsed(root) {
+  const panel = (root || document).querySelector('.rb-panel[data-tab="mostused"]');
+  if (!panel) return;
+  panel.innerHTML = '';
+  const st = mostUsedState();
+  const group = (label, ids) => {
+    const items = ids.map(mirrorOf).filter(Boolean);
+    if (!items.length) return;
+    const gd = document.createElement('div'); gd.className = 'rb-group';
+    const body = document.createElement('div'); body.className = 'rb-body';
+    for (const b of items) { const col = document.createElement('div'); col.className = 'rb-col'; col.appendChild(b); body.appendChild(col); }
+    const lab = document.createElement('div'); lab.className = 'rb-group-label'; lab.textContent = label;
+    gd.append(body, lab); panel.appendChild(gd);
+  };
+  group('Pinned', st.pins);
+  const top = Object.entries(st.counts).filter(([id]) => !st.pins.includes(id)).sort((a, b) => b[1] - a[1]).slice(0, MU_MAX).map(([id]) => id);
+  group('Most used', top);
+  if (!panel.children.length) { const d = document.createElement('div'); d.className = 'rb-html mu-empty'; d.textContent = 'The commands you use most gather here as you work. Right-click any ribbon button to pin it here.'; panel.appendChild(d); }
+  syncMirrors();
 }
 
 let fileHandler = null;
@@ -440,6 +507,7 @@ export function onFileTab(fn) { fileHandler = fn; }
 
 export function selectTab(id) {
   if (id === 'file') { if (fileHandler) fileHandler(); return; }
+  if (id === 'mostused') renderMostUsed(document);
   for (const b of document.querySelectorAll('.rb-tab')) b.classList.toggle('active', b.dataset.tab === id);
   for (const p of document.querySelectorAll('.rb-panel')) p.hidden = p.dataset.tab !== id;
 }

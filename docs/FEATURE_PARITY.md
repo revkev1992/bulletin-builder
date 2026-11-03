@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 42 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 43 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
@@ -26,7 +26,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Right-click menus on the page | ✅ | 2026-10-20: object, empty page, and text menus |
 | Rulers | ✅ | 2026-10-20: View ▸ Rulers; tab stops + indent markers (see Paragraph) |
 | Scratch area around the spread | ✅ | 2026-10-27: the Shelf (left strip) + free-form Scratch Area (off by default). 2026-10-29: either half can use the other half's parked items (a copy goes on the page) |
-| "Most Used" customizable tab | ⬜ | Spec extra; after parity |
+| "Most Used" customizable tab | ✅ | 2026-11-03 (after parity): a **Most Used** tab after Bulletin — working copies of the commands pressed most (counted per PC, up to 12, in order of use; a copy runs the original, a copied menu button opens its menu, state follows the original) plus a **Pinned** group: right-click any ribbon button ▸ Pin to Most Used / Unpin (also from the copy). localStorage `bb.mostused` (suite `mostused`) |
 
 ## Typing in a text box
 
