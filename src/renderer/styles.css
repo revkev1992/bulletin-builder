@@ -77,6 +77,18 @@ button:disabled { opacity: .45; cursor: default; }
 .rb-big .rb-label { line-height: 1.15; text-align: center; white-space: normal; }
 .rb-small { display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 3px !important; height: 23px; white-space: nowrap; }
 .rb-ico { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; }
+/* a compact ribbon for narrow windows (two windows side by side): big buttons lose their words at
+   1280 px, small buttons at 1000 px (the tooltip still names them); past that the ribbon scrolls */
+@media (max-width: 1280px) {
+  .rb-big { min-width: 36px; max-width: 44px; height: 46px; }
+  .rb-big .rb-label { display: none; }
+  .rb-group { padding: 0 3px; }
+}
+@media (max-width: 1000px) {
+  .rb-small .rb-label { display: none; }
+  .rb-small { padding: 2px 3px !important; }
+  .rb-check { font-size: 11px; }
+}
 .rb-row { display: flex; align-items: center; gap: 1px; height: 26px; }
 .rb-row > .rb-html { display: flex; align-items: center; margin-right: 4px; }
 .rb-html select, .rb-row select { font: 12px "Segoe UI", sans-serif; height: 22px; border: 1px solid #c8c6c4; border-radius: 3px; background: #fff; }

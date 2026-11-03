@@ -29,8 +29,8 @@ function makeHarness(win, outDir) {
     async reveal(sel) {
       const moved = await wc.executeJavaScript(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return false;
         const r = el.getBoundingClientRect(); let p = el.parentElement;
-        while (p && p !== document.body) { const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowY)) { const pr = p.getBoundingClientRect();
-          if (r.top < pr.top || r.bottom > pr.bottom) { el.scrollIntoView({ block: 'center' }); return true; } break; } p = p.parentElement; }
+        while (p && p !== document.body) { const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowY) || /(auto|scroll)/.test(s.overflowX)) { const pr = p.getBoundingClientRect();
+          if (r.top < pr.top || r.bottom > pr.bottom || r.left < pr.left || r.right > pr.right) { el.scrollIntoView({ block: 'center', inline: 'center' }); return true; } break; } p = p.parentElement; }
         return false; })()`);
       if (moved) await wait(300);
     },
