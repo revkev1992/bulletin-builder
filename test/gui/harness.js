@@ -16,7 +16,7 @@ function makeHarness(win, outDir) {
   const checks = [];
   let shotN = 0;
   const h = {
-    win, wc, wait, checks,
+    win, wc, wait, checks, outDir,
     js: (expr) => wc.executeJavaScript(expr),
     // box of the first element matching a CSS selector, in window coordinates
     async rect(sel) {
