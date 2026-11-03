@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('bb', {
   readStyles: (hint) => ipcRenderer.invoke('week:read-styles', hint),
   setPage: (file, setup) => ipcRenderer.invoke('week:set-page', file, setup),
   setScheme: (file, change) => ipcRenderer.invoke('week:set-scheme', file, change),
+  windows: {
+    open: (file) => ipcRenderer.invoke('win:new', file),
+    list: () => ipcRenderer.invoke('win:list'),
+    focus: (id) => ipcRenderer.invoke('win:focus', id),
+    arrange: () => ipcRenderer.invoke('win:arrange'),
+    cascade: () => ipcRenderer.invoke('win:cascade'),
+  },
   renamePage: (file, n, name) => ipcRenderer.invoke('week:rename-page', file, n, name),
   exportPages: (file, opts) => ipcRenderer.invoke('week:export-pages', file, opts),
   pack: (file, info) => ipcRenderer.invoke('week:pack', file, info),

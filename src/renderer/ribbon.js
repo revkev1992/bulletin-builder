@@ -215,7 +215,8 @@ export const TABS = [
     { label: 'Zoom', cols: [[big('100%', 'z100', { id: 'zoom-100' })], [big('Whole Page', 'wholepage', { id: 'zoom-fit', tip: 'Whole spread (Ctrl 0)' })],
       [{ html: '<div class="rb-row"><button id="zoom-out" class="rb-ico" title="Zoom Out (Ctrl -)">' + icon('zoomout', 16) + '</button><span id="zoom-label">100%</span><button id="zoom-in" class="rb-ico" title="Zoom In (Ctrl +)">' + icon('zoomin', 16) + '</button></div>' },
         sm('Page Width', 'pagewidth', { id: 'zoom-width' }), sm('Selected Objects', 'select', { id: 'zoom-sel', tip: 'Zoom to the selected objects' })]] },
-    { label: 'Window', cols: [[big('Arrange All', 'arrangeall', todo)], [big('Cascade', 'cascade', todo)], [big('Switch Windows', 'switchwin', todo)]] },
+    { label: 'Window', cols: [[big('New Window', 'page', { id: 'rb-newwin', tip: 'This week in a second window — the other half, or another page, side by side' })], [big('Arrange All', 'arrangeall', { id: 'rb-arrangeall', tip: 'Tile the open Bulletin Builder windows side by side' })],
+      [big('Cascade', 'cascade', { id: 'rb-cascade', tip: 'Stack the open windows, each a step down and to the right' })], [big('Switch Windows', 'switchwin', { id: 'rb-switchwin', tip: 'Bring one of the open windows to the front' })]] },
   ] },
   { id: 'bulletin', label: 'Bulletin', groups: [
     { label: 'Editing', cols: [[{ html: '<div class="rb-caption">I am changing</div><select id="mode" title="Which half of the bulletin you are changing"><option value="">View only</option>' +

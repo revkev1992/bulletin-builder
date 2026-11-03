@@ -9,7 +9,7 @@ Review out). The ribbon must use Publisher's tab names and group order.
 Status: ✅ done · 🟡 partial · ⬜ not started · ➖ out of scope
 
 **Testing rule (Kevin, 2026-10-19):** a row is ✅ only when a GUI suite drives it with real
-mouse/keyboard input (`node test/gui/run-all.js`, 40 suites; see `test/gui/harness.js`).
+mouse/keyboard input (`node test/gui/run-all.js`, 41 suites; see `test/gui/harness.js`).
 
 **2026-11-02 (overnight session on the work PC):** Drop Cap · Modify / Update / Delete Style · Page Setup
 (margins, size, orientation) · ruler guides + Align To · page background colour / image · Rename page ·
@@ -106,6 +106,7 @@ page · Export pages as PNG/JPG · Pack and Go · Paste Special (clipboard pictu
 | Zoom in/out, whole spread, 100%, page width, selected objects | ✅ | Selected Objects 2026-10-20 |
 | Rulers, boundaries, guides, page navigation, fields | ✅ | View ▸ Fields (2026-11-02): shade the page-number fields on screen. **Baselines** (2026-11-03): View ▸ Show ▸ Baselines — horizontal guides every N pt from the top margin (Options), never printed, remembered per PC (suite `options`) |
 | Graphics manager | ✅ | 2026-11-02: View ▸ Show ▸ Graphics Manager — every picture (page objects, in-line music, parked items): page, printed size, pixels, dpi; flags missing files and under-150-dpi pictures; click a row to select it (suite `insertview`) |
+| Window: new window, arrange all, cascade, switch windows | ✅ | 2026-11-03: View ▸ Window — **New Window** (this week in a second window: the other half, another page), **Arrange All** (tiled across the work area), **Cascade**, **Switch Windows** (a list; picking one brings it to the front). Known limit: the ribbon does not collapse, so at half a 1536-px screen the View tab's right-hand groups fall off the edge (suite `windows`) |
 | Master page view | ✅ | 2026-11-03: View ▸ Master Page / Normal (Ctrl+M), a yellow banner while you are on the master; page commands and Page Setup wait until Normal (suite `master`) |
 
 ## Publisher behaviours that already work

@@ -8,7 +8,7 @@
 //                                                          and quit (used by the fidelity test)
 //   electron . --selftest-edit <week.bulletin>             drive the editor on a temp copy; exit 0 = pass
 //   electron . --selftest-flow <flow week.bulletin>        drive the Order of Worship panel (Phase 3); exit 0 = pass
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, screen } = require('electron');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -792,6 +792,39 @@ function createViewer(file) {
 }
 
 ipcMain.on('app:close-window', (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.destroy(); });
+
+// View ▸ Window (Publisher): New Window (this week again, e.g. the other half or another page), Arrange All
+// (tile the open windows side by side), Cascade, Switch Windows (list + focus). Only the viewer windows
+// count — the hidden offscreen ones (PDF, pictures, print) never show.
+const viewerWindows = () => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.isVisible() && !w.webContents.getURL().includes('mode=print'));
+ipcMain.handle('win:new', (e, file) => { const w = createViewer(file || null); return w.id; });
+ipcMain.handle('win:list', (e) => viewerWindows().map((w) => ({ id: w.id, title: w.getTitle(), self: w.webContents.id === e.sender.id, focused: w.isFocused() })));
+ipcMain.handle('win:focus', (_e, id) => { const w = BrowserWindow.fromId(id); if (w && !w.isDestroyed()) { if (w.isMinimized()) w.restore(); w.focus(); return true; } return false; });
+ipcMain.handle('win:arrange', (e) => {
+  const wins = viewerWindows();
+  const area = screen.getDisplayMatching(BrowserWindow.fromWebContents(e.sender).getBounds()).workArea;
+  const n = wins.length;
+  const cols = n <= 1 ? 1 : n <= 2 ? 2 : Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  wins.forEach((w, i) => {
+    if (w.isMinimized()) w.restore();
+    if (w.isMaximized()) w.unmaximize();
+    const c = i % cols, r = Math.floor(i / cols);
+    w.setBounds({ x: area.x + Math.round(c * area.width / cols), y: area.y + Math.round(r * area.height / rows), width: Math.round(area.width / cols), height: Math.round(area.height / rows) });
+  });
+  return n;
+});
+ipcMain.handle('win:cascade', (e) => {
+  const wins = viewerWindows();
+  const area = screen.getDisplayMatching(BrowserWindow.fromWebContents(e.sender).getBounds()).workArea;
+  const step = 36, w0 = Math.round(area.width * 0.8), h0 = Math.round(area.height * 0.8);
+  wins.forEach((w, i) => {
+    if (w.isMinimized()) w.restore();
+    if (w.isMaximized()) w.unmaximize();
+    w.setBounds({ x: area.x + step * i, y: area.y + step * i, width: Math.min(w0, area.width - step * i), height: Math.min(h0, area.height - step * i) });
+    w.moveTop();
+  });
+  return wins.length;
+});
 
 const send = (name) => (_i, w) => w && w.webContents.send('cmd', name);
 

@@ -1374,6 +1374,15 @@ if (PRINT) {
   $('mp-clear-left').onclick = () => editor.clearMasterSide('left');
   $('mp-clear-right').onclick = () => editor.clearMasterSide('right');
   window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'm' && editor.half && !editor.textEdit) { e.preventDefault(); editor.toggleMasterMode(); } });
+  // ---- View ▸ Window: New Window / Arrange All / Cascade / Switch Windows
+  $('rb-newwin').onclick = async () => { await window.bb.windows.open(weekFile || null); setStatus(weekFile ? 'A second window on this week. Each window edits its own half; the other sees the change when it is saved.' : 'A new window.'); };
+  $('rb-arrangeall').onclick = async () => { const n = await window.bb.windows.arrange(); setStatus(n + ' window' + (n === 1 ? '' : 's') + ' arranged side by side.'); };
+  $('rb-cascade').onclick = async () => { const n = await window.bb.windows.cascade(); setStatus(n + ' window' + (n === 1 ? '' : 's') + ' cascaded.'); };
+  $('rb-switchwin').onclick = async () => {
+    const list = await window.bb.windows.list();
+    const r = $('rb-switchwin').getBoundingClientRect();
+    showMenu(r.left, r.bottom + 2, list.map((w) => ({ label: (w.self ? '✓ ' : ' ') + (w.title || 'Bulletin Builder'), cmd: 'win-' + w.id, on: true, run: () => window.bb.windows.focus(w.id) })), 'win-menu');
+  };
   // ---- View ▸ Layout, Graphics Manager
   $('rb-single').onclick = () => setViewLayout('single');
   $('rb-spread').onclick = () => setViewLayout('spread');
